@@ -295,6 +295,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !#include "couplo4_definitions.intfb.h"
 #include "fullpos_drv.intfb.h"
 #include "chem_init.intfb.h"
+#include "tm5m7_init.intfb.h"!m7
+#include "hamm7_init.intfb.h"!m7
 
 
 
@@ -328,9 +330,11 @@ ASSOCIATE(YDGFL5=>YDMTRAJ%YRGFL5,YDGMV5=>YDMTRAJ%YRGMV5, YDGFL=>YDFIELDS%YRGFL,Y
  & YGFL=>YDMODEL%YRML_GCONF%YGFL,YDEPHY=>YDMODEL%YRML_PHY_EC%YREPHY,YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM)
 
 ASSOCIATE(NCHEM=>YGFL%NCHEM, NDIM=>YGFL%NDIM, NUMFLDS=>YGFL%NUMFLDS, &
+ & NAERO=>YGFL%NAERO, &
  & YCOMP=>YGFL%YCOMP, &
  & GFUBUF=>YDCFU%GFUBUF, XFUBUF=>YDXFU%XFUBUF, &
  & LCHEM_DIA=>YDCOMPO%LCHEM_DIA, &
+ & AERO_SCHEME=>YDCOMPO%AERO_SCHEME, &
  & NPROMA=>YDDIM%NPROMA, &
  & NFLEVG=>YDDIMV%NFLEVG, &
  & NGPTOT=>YDGEM%NGPTOT, &
@@ -501,6 +505,28 @@ IF (NCHEM > 0 ) THEN
   ELSE IF ( LCHEM_TL ) THEN
     CALL CHEM_INIT_TLAD(YDGEOMETRY,YDMODEL%YRML_GCONF,YDMODEL%YRML_CHEM)
   END IF
+ENDIF
+
+! Initialize aerosol indices (tm5m7 - if active)
+!   moving the CASE-clause that tests AERO_SCHEME from 
+!   ./src/ifs/phys_ec/tm5m7_init.F90 here
+IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
+   SELECT CASE (TRIM(AERO_SCHEME))
+
+   CASE ("aer")         
+      ! Setup of 'aer' configuration is done in su_aerw.F90
+   CASE ("tm5m7")         
+      CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM%YRCOMPO, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
+   CASE ("hamm7")         
+      ! HAM-M7 only calculates aerosol micro-physics, 
+      ! all other processes are dealt with in TM5-M7
+      ! therefore we also have to initialize TM5-M7
+      CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM%YRCOMPO, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
+      CALL HAMM7_INIT(YGFL) !requires stuff which is defined in TM5M7_INIT
+   CASE DEFAULT     
+      ! Option not implemented
+      CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME))
+   END SELECT      
 ENDIF
 
 !IF (LCOUPLO4_ENV) THEN

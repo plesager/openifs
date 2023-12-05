@@ -205,7 +205,7 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 
 #include "updcal.intfb.h"
-#include "fcttim.func.h"
+!#include "fcttim.func.h"
 
 #include "surf_inq.h"
 
@@ -897,7 +897,7 @@ IF (NTYPAER(1) /= 0) THEN
         & PCI, PLSM, PCLK, ZWNDSS, ZFLX_SSALT)
 
     CASE (2)
-      CALL AER_SSALT_MS (KIDIA, KFDIA, KLON,&
+      CALL AER_SSALT_MS (YDEAERATM, KIDIA, KFDIA, KLON,&
         & PCI, PLSM, PCLK, ZWNDSS, ZFLX_SSALT)
 
     CASE (3)

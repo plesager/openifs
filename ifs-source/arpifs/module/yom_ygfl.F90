@@ -387,6 +387,13 @@ TYPE(TYPE_GFL_COMP),POINTER  :: YUNEBH      => NULL() ! pseudo-historic convecti
 
 TYPE(TYPE_GFL_COMP),POINTER  :: YLIMA(:)    => NULL() ! LIMA prognostic fields
 
+
+! water and ice cloud variables when using online aerosols
+TYPE(TYPE_GFL_COMP),POINTER  :: YCDNC         ! Cloud droplet number concentration
+TYPE(TYPE_GFL_COMP),POINTER  :: YICNC         ! Ice crystal number concentration
+TYPE(TYPE_GFL_COMP),POINTER  :: YRE_LIQ       ! Effective radius of liquid water droplets
+TYPE(TYPE_GFL_COMP),POINTER  :: YRE_ICE       ! Effective radius of ice crystals
+
 ! cloud heterogeneity FSD
 TYPE(TYPE_GFL_COMP),POINTER  :: YFSD        => NULL() ! PHYS output
 
@@ -466,6 +473,15 @@ TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
 
 TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
 TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
+
+
+!-->eehol: added these
+! water and ice cloud variables when using online aerosols
+TYPE(TYPE_GFL_NAML)  :: YCDNC_NL         ! Cloud droplet number concentration
+TYPE(TYPE_GFL_NAML)  :: YICNC_NL         ! Ice crystal number concentration
+TYPE(TYPE_GFL_NAML)  :: YRE_LIQ_NL       ! Effective radius of liquid water droplets
+TYPE(TYPE_GFL_NAML)  :: YRE_ICE_NL       ! Effective radius of ice crystals
+!-->eehol
 
 END TYPE TYPE_GFLD
 

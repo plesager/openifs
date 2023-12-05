@@ -371,6 +371,51 @@ ELSE
 !-- define a default configuration that can be modified through the "naeaer" namelist
   CASE ("glomap")
     CALL ABOR1("OIFS - glomap should never be called from OIFS, EXIT")
+!-- define a default configuration that can be modified through the "naeaer" namelist
+  ! HAM-M7 only solves micro-physics, all other processes are handled
+  ! by the TM5-M7 routines. We therefore set all TM5-M7 switches, but
+  ! use HAM-M7-specific switches in the micro-physics routines.
+  CASE ("tm5m7", "hamm7")
+
+  LAERCLIMG=.FALSE.
+  LAERCLIMZ=.FALSE.
+  LAERCLIST=.FALSE.
+
+  LAERDRYDP=.TRUE.
+  LAERGTOP =.TRUE.
+  LAERLISI =.FALSE.
+  LAERCALIP=.FALSE.
+  LAERNGAT =.TRUE.
+  LAERSCAV =.TRUE.
+  LAERSCAV_CHEM =.FALSE.
+  LAERSEDIM=.TRUE.
+  LAERSURF =.TRUE.
+  LAERELVS =.FALSE. 
+  LAER6SDIA=.FALSE.
+  LAERCCN  =.FALSE.
+  LAERCSTR =.FALSE.
+  LAERRRTM =.FALSE.
+  LAERUVP  =.FALSE. 
+  LUVINDX  =.FALSE.
+  LAERNITRATE = .FALSE.
+  LDRYDEPVEL_DYN=.FALSE.
+
+  !-- minimum oceanic production of DMS
+  RDMSMIN = 5.E-11_JPRB
+  NDMSO = 2
+  NPIST = 1
+  ! Various other settings may/may not be used, see scheme 'aer' below
+
+!-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU 
+  NAERWND  = 2
+!--  other values would be: (see *aer_src*)
+!- NAERWND = 0 for "plain" 10-m wind as predictor for sea salt and desert dust emissions
+!- NAERWND = 1 for wind+gust in sea salt emission
+!- NAERWND = 2 for wind+gust in dust emission
+!- NAERWND = 3 for wind+gust in sea salt and dust emissions  
+  
+  WRITE(UNIT=NULOUT,FMT='('' NAERWND= '',I1)') &
+   & NAERWND
 
 
   CASE ("aer")
