@@ -522,7 +522,7 @@ IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
       ! all other processes are dealt with in TM5-M7
       ! therefore we also have to initialize TM5-M7
       CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM%YRCOMPO, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
-      CALL HAMM7_INIT(YGFL) !requires stuff which is defined in TM5M7_INIT
+      CALL HAMM7_INIT(YGFL, YDRIP) !requires stuff which is defined in TM5M7_INIT
    CASE DEFAULT     
       ! Option not implemented
       CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME))

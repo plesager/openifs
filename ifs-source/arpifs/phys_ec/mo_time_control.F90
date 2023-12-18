@@ -1,6 +1,6 @@
 Module mo_time_control
   USE mo_kind, only : dp
-  USE YOMRIP   , ONLY : YRRIP
+  USE YOMRIP   , ONLY :TRIP !YRRIP
   IMPLICIT NONE
   ! <-- thk: bug fix
   !REAL(dp), PUBLIC   :: time_step_len    = 720.0_dp
@@ -10,7 +10,8 @@ Module mo_time_control
   !ASSOCIATE(time_step_len=>YRPHY2%TSPHY) !TeMi
 
   CONTAINS
-    SUBROUTINE init_mo_time_control
+    SUBROUTINE init_mo_time_control(YRRIP)
+      TYPE(TRIP), intent(in) :: YRRIP
       ! copy the time step length from IFS control structure
       time_step_len = YRRIP%TSTEP
     END SUBROUTINE init_mo_time_control

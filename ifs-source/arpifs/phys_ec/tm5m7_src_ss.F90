@@ -88,7 +88,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
 
-ASSOCIATE(RSSFLX=>YREAERSRC%RSSFLX)
+ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
 
 
     !>>> TvN

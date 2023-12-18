@@ -1,4 +1,4 @@
-SUBROUTINE hamm7_init(YGFL)
+SUBROUTINE hamm7_init(YGFL, YRRIP)
 
 !**   DESCRIPTION 
 !     ----------
@@ -41,6 +41,7 @@ USE YOMHOOK  , ONLY :      &
 
 !USE YOM_YGFL , ONLY :      &
 !     YGFL
+USE YOMRIP, ONLY: TRIP
 USE YOM_YGFL , ONLY : TYPE_GFLD!YGFL
 
 ! --> thk: bug fix
@@ -106,6 +107,7 @@ USE MO_PARAM_SWITCHES, &
 
 IMPLICIT NONE
 TYPE(TYPE_GFLD)   ,INTENT(IN)    :: YGFL
+TYPE(TRIP)   ,INTENT(IN)    :: YRRIP
 
 !----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
@@ -128,7 +130,7 @@ CHARACTER(len=64) :: int_str, int_str_ham !eehol: integer as string
 IF (LHOOK) CALL DR_HOOK('HAMM7_INIT',0,ZHOOK_HANDLE)
 
 ! getting the correct time step:
-CALL init_mo_time_control
+CALL init_mo_time_control(YRRIP)
 
 !eehol: set advection scheme
 iadvec = tpcore !comes from ECHAM mo_control.f90

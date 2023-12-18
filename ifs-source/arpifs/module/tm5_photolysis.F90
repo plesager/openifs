@@ -145,10 +145,7 @@ REAL(KIND=JPRB),DIMENSION(7),  PARAMETER     :: WL_EFF = (/ &
 REAL(KIND=JPRB), DIMENSION(2), PARAMETER   :: WL_AER = (/ &
       &     340., 645. /)
 
-! Wavelengths at which glomap aerosol input is expected
-REAL(KIND=JPRB), DIMENSION(2), PARAMETER   :: WL_GLOMAP = (/ &
-      &     320., 542. /)
-
+INTEGER(KIND=JPIM),DIMENSION(NBANDS_TROP) :: WAV_GRID, WAV_GRIDA
 
 INTEGER(KIND=JPIM),DIMENSION(7),PARAMETER   :: &          
       &     LINI  = (/1,  18,  31,  40,  48,  61,  78 /),        &
@@ -607,5 +604,8 @@ REAL(KIND=JPRB),DIMENSION(7),PARAMETER :: A0 = &
 REAL(KIND=JPRB),DIMENSION(7),PARAMETER :: A1 = &
  & (/.253817E+01 ,.253817E+01 ,.254719E+01 ,.254719E+01 ,.254719E+01 ,.253815E+01,.250875E+01/)
 
+
+! Logical to test whether photolysis data has been initialized
+LOGICAL :: LL_TM5_PHOTO_INI = .FALSE. 
 
 END MODULE TM5_PHOTOLYSIS

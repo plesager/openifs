@@ -6,7 +6,7 @@
 !! Where software is supplied by third parties, it is indicated in the headers of the routines.
 !!
 MODULE mo_netcdf
-
+  USE netcdf
   USE mo_kind,      ONLY: dp
   USE mo_exception, ONLY: finish, message, message_text
   USE mo_control,   ONLY: ldebugio

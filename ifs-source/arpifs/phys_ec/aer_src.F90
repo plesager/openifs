@@ -205,7 +205,7 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 
 #include "updcal.intfb.h"
-!#include "fcttim.func.h"
+#include "fcttim.func.h"
 
 #include "surf_inq.h"
 

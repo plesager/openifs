@@ -236,6 +236,7 @@ INTEGER(KIND=JPIM) :: NGFL_EXT
 INTEGER(KIND=JPIM) :: NGFL_FORC
 INTEGER(KIND=JPIM) :: NGFL_EZDIAG
 INTEGER(KIND=JPIM) :: NGHG
+INTEGER(KIND=JPIM) :: NTRAC !!! added due to M7
 INTEGER(KIND=JPIM) :: NGHG_ASSIM
 INTEGER(KIND=JPIM) :: NAERO
 INTEGER(KIND=JPIM) :: NACTAERO
@@ -351,6 +352,10 @@ TYPE(TYPE_GFL_COMP),POINTER  :: YQVA        => NULL() ! total humidity variation
 TYPE(TYPE_GFL_COMP),POINTER  :: YGHG(:)     => NULL() ! Greenhouse Gases
 TYPE(TYPE_GFL_COMP),POINTER  :: YCHEM(:)    => NULL() ! Chemistry
 TYPE(TYPE_GFL_COMP),POINTER  :: YAERO(:)    => NULL() ! Aerosols
+
+TYPE(TYPE_GFL_COMP),POINTER  :: YTRAC(:)    => NULL() ! tracers for diagnostics, due to M7
+
+
 TYPE(TYPE_GFL_COMP),POINTER  :: YLRCH4      => NULL() ! CH4 loss rate (instantaneous field)
 TYPE(TYPE_GFL_COMP),POINTER  :: YEMIS3D(:)  => NULL() ! 3D emissions for atmospheric composition
 TYPE(TYPE_GFL_COMP),POINTER  :: YFORC(:)    => NULL() ! large scale forcing

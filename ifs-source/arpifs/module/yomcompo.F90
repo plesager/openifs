@@ -76,6 +76,11 @@ TYPE :: TCOMPO_EMIS_AUX
 END TYPE TCOMPO_EMIS_AUX
 
 TYPE :: TCOMPO
+! m7 related
+
+     LOGICAL    :: LAERODIU
+     LOGICAL    :: LFIRE
+     LOGICAL    :: LINJ
 !  mass diagnostics switch for global budget   
      LOGICAL    :: LCHEM_DIA
 !  period (in hours) on which to output budget

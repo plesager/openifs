@@ -335,7 +335,23 @@ TYPE TYPE_SFL_VARSF
   ! Indices to start/end albedo climatology coefficients currently in use
   INTEGER(KIND=JPIM)              :: IALSTART, IALEND
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YFP1  =>NULL()  ! surface orography in the 2nd part of FULLPOS-927
+
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YBCBF   ! black carbon biogenic
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YBCFF   ! black carbon fossil fuel
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YBCGF   ! black carbon GFED
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YOMBF   ! organic matter biogenic
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YOMFF   ! organic matter fossil fuel
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YOMGF   ! organic matter GFED
+
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YINJF  =>NULL()  ! height of maximum injection for biomass burning emissions
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSO2L=>NULL()  ! sulphate low level
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSO2H=>NULL()  ! sulphate higher level
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YSO2DD=>NULL()  ! sulphate dry dep velocity
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSOGF=>NULL()  ! sulphate GFED
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSOA=>NULL()  ! secondary organic
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YVOLC=>NULL()  ! volcanic continuous
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YVOLE=>NULL()  ! volcanic explosive
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSOACO=>NULL()  ! SOA from CO
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YDMSO =>NULL()  ! oceanic DMS
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YURBF =>NULL()  ! Urban fraction
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YFCA1  =>NULL() ! Fraction of calcite over dust 1st bin
@@ -343,6 +359,7 @@ TYPE TYPE_SFL_VARSF
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YAERDEP=>NULL() ! dust emission potential
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YAERLTS=>NULL() ! dust lifting threshold speed
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YAERSCC=>NULL() ! dust soil clay content
+  TYPE(TYPE_SURF_MTL_2D), POINTER :: YSOILTYPE ! TM5M7 soil type information
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YDSF   =>NULL() ! dust source function
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YDSZ   =>NULL() ! dust size distribution modulation
   TYPE(TYPE_SURF_MTL_2D), POINTER :: YCHEMFLXO(:)=>NULL() ! total chemistry flux (emissions + deposition)

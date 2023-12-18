@@ -1502,7 +1502,8 @@ CONTAINS
     USE mo_read_netcdf77, ONLY: read_var_nf77_3d
     USE mo_util_string,   ONLY: separator
 #else !OIFS
-    USE YOERAD    ,ONLY : nbndlw=> STRATO_CMIP6_NTB !this is really stupid solution
+    !USE YOERAD    ,ONLY : nbndlw=> STRATO_CMIP6_NTB !this is really stupid solution
+    ! commented by Lwu
     USE YOMMP0      ,ONLY : MYPROC
     USE MPL_MODULE ,ONLY : MPL_BROADCAST 
     USE TM5M7_OPTICS_DATA, ONLY : NASWBAND,ASWBAND,wavenum1=>ALWWN1, wavenum2=>ALWWN2
@@ -1552,7 +1553,8 @@ CONTAINS
 
     !--- 2) Consistency checks:
 
-    IF ( Nwv_sw /= jpsw .OR. Nwv_lw /= nbndlw) THEN
+    !IF ( Nwv_sw /= jpsw .OR. Nwv_lw /= nbndlw) THEN! stratosphere aerosol should be updated
+    IF ( Nwv_sw /= jpsw ) THEN
 
        CALL finish('ham_rad_initialize','inconsistent number of wavelengths')
 

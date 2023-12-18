@@ -37,7 +37,7 @@ SUBROUTINE TM5M7_OPTICS_GET(m_eff, xg, Cext, a, g, cext_table, a_table, g_table,
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULERR
 
 USE TM5M7_OPTICS_DATA, ONLY : LKVAL, KVAL,N1R,N_RIR,N_RII,XS,N_X
@@ -75,7 +75,7 @@ INTEGER(KIND=JPIM) :: i
 INTEGER(KIND=JPIM) :: i_n, i_k, i_knew
 
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_GET',0,ZHOOK_HANDLE)

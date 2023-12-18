@@ -634,7 +634,7 @@ contains
     ! Run radiation scheme on reversed profiles
     call radiation(ncol, nlev,istartcol,iendcol, &
          &  config, single_level, thermodynamics_rev, gas_rev, &
-         &  cloud_rev, aerosol_rev, flux_rev)
+         &  cloud_rev, aerosol_rev, aerosol_ham, flux_rev)
 
     ! Reorder fluxes
     if (allocated(flux%lw_up)) then
