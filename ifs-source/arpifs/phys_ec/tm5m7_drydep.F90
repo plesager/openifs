@@ -85,7 +85,7 @@ SUBROUTINE TM5M7_DRYDEP &
 
 !-----------------------------------------------------------------------
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOMLUN, ONLY : NULERR
 USE YOEAERSRC ,ONLY : YREAERSRC
@@ -194,7 +194,7 @@ TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: vn_deposition
 TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: vm_deposition
 
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_DRYDEP',0,ZHOOK_HANDLE)
 

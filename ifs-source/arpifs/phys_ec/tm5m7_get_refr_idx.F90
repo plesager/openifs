@@ -37,7 +37,7 @@ SUBROUTINE TM5M7_GET_REFR_IDX(wdep, SO4, BC, OC, SOA, SS, DU, water, mode, m_eff
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULERR
 
 USE YOMCST, ONLY : RPI
@@ -80,7 +80,7 @@ COMPLEX            :: m00, m0, m1, m2
 REAL(KIND=JPRB),PARAMETER :: ROL = 1000. ! kg/m^3
 
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_GET_REFR_IDX',0,ZHOOK_HANDLE)

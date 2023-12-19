@@ -44,7 +44,7 @@ SUBROUTINE TM5M7_SRC_DUST_INIT
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOMCST, ONLY : RPI, RG
 USE TM5M7_DATA, ONLY : DDUST
@@ -70,7 +70,7 @@ REAL(KIND=JPRB)    :: SU, SUV, SU_LOC, SU_LOCV, XL, XM, XN, XNV
 
 REAL, DIMENSION(:), ALLOCATABLE :: su_class, su_classv, utest
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST_INIT',0,ZHOOK_HANDLE)
 

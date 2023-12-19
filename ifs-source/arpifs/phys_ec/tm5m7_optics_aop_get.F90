@@ -32,7 +32,7 @@ SUBROUTINE TM5M7_OPTICS_AOP_GET(YGFL, YREAERSRC, KIDIA,KFDIA,KLON, KLEV, NACTAER
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULOUT
 USE YOEAERSRC, ONLY : TEAERSRC !YREAERSRC
 !USE YOMCST, ONLY : 
@@ -81,7 +81,7 @@ REAL(KIND=JPRB), INTENT(OUT), OPTIONAL :: AOP_OUT_ADD(KLON,KLEV,NWAV,NADD) ! add
 TYPE(AOPI), dimension(:,:), allocatable :: aop_in 
 INTEGER(KIND=JPRB) :: IMODE
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 INTEGER(kind=JPIM)::NCHEM
     
 !-----------------------------------------------------------------------

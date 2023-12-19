@@ -233,7 +233,7 @@ contains
 #endif
     use radiation_ifs_rrtm,       only : gas_optics
     use radiation_cloud_optics,   only : cloud_optics
-    use radiation_aerosol_optics, only : add_aerosol_optics
+    use radiation_aerosol_optics, only : add_aerosol_optics, add_aerosol_aod_ssa_asym
 
     ! Inputs
     integer, intent(in) :: ncol               ! number of columns

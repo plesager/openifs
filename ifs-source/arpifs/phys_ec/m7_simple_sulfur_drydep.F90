@@ -59,7 +59,7 @@ SUBROUTINE m7_simple_sulfur_DRYDEP &
 !-----------------------------------------------------------------------
 USE TYPE_MODEL         , ONLY : MODEL
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 !USE YOEAERATM, ONLY : YREAERATM
 !USE YOEAERSNK, ONLY : YREAERSNK
@@ -158,7 +158,7 @@ INTEGER(KIND=JPIM) :: INAER(18),IRH(KLON)
 LOGICAL :: LLPRINT
 
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !#include "aer_drydepvel.intfb.h"!
 !#include "satur.intfb.h"!

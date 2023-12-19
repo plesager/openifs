@@ -48,7 +48,7 @@ SUBROUTINE AER_NEGAT &
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOMCST   , ONLY : RG
 USE YOEAERATM, ONLY :TEAERATM! YREAERATM
@@ -78,7 +78,7 @@ REAL(KIND=JPRB) :: ZAEROLD(KLON,KLEV), ZDP(KLON), ZDPO(KLON)
 INTEGER(KIND=JPIM) :: JK, JL
 
 REAL(KIND=JPRB) :: ZCONS1, ZDAER, ZGDPH, ZTMST
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !-------------------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('AER_NEGAT',0,ZHOOK_HANDLE)

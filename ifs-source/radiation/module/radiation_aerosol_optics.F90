@@ -526,7 +526,7 @@ contains
        &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulout, nulerr, radiation_abort
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_aerosol,             only : aerosol_type
     integer, intent(in) :: ncol               ! number of columns
@@ -544,7 +544,7 @@ contains
          &   intent(inout)   :: g_sw
     ! Loop indices for column, level, g point, band and aerosol type
     integer :: jcol, jlev, jg, jtype, iband
-    real(jprb) :: hook_handle, temp_remove
+    real(jphook) :: hook_handle, temp_remove
 
     ! Range of levels over which aerosols are present
     integer :: istartlev, iendlev

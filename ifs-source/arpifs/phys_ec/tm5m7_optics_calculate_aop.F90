@@ -39,7 +39,7 @@ SUBROUTINE TM5M7_OPTICS_CALCULATE_AOP(KIDIA,KFDIA,KLON,KLEV, nwl,NCONTR, wdep, e
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULOUT,NULERR
 
 USE YOMCST, ONLY : RPI
@@ -83,7 +83,7 @@ REAL(KIND=JPRB)   :: totvoldry, modfrac
 REAL(KIND=JPRB), DIMENSION(:,:,:), Pointer :: cext_table, a_table, g_table
 REAL(KIND=JPRB)    :: TWOPI
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 
 #include "tm5m7_get_refr_idx.intfb.h"

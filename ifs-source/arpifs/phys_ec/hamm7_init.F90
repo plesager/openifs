@@ -37,7 +37,7 @@ Use YOMMP0,only: &
 !!!!TEMPORARY
 
 USE YOMHOOK  , ONLY :      &
-     LHOOK, DR_HOOK
+     LHOOK, DR_HOOK, JPHOOK
 
 !USE YOM_YGFL , ONLY :      &
 !     YGFL
@@ -117,7 +117,7 @@ INTEGER :: &                           ! looping indices
      j_class, j_mass, j_spec, j_gas, j_cloud, & ! HAM
      kt, znclass, znaerocomp, zsubm_ngasspec, zcloudind ! eehol: indices for OIFS to HAM
 
-REAL(KIND=JPRB) :: &                   
+REAL(KIND=JPHOOK) :: &                   
      ZHOOK_HANDLE                      ! return status
 
 CHARACTER(len=64) :: int_str, int_str_ham !eehol: integer as string

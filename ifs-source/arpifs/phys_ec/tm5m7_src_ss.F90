@@ -47,7 +47,7 @@ SUBROUTINE TM5M7_SRC_SS &
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOEAERSRC ,ONLY : TEAERSRC!YREAERSRC
 !USE YOEAERSNK, ONLY : YREAERSNK
@@ -84,7 +84,7 @@ REAL(KIND=JPRB)    :: EMIS_FAC(KLON)
 REAL(KIND=JPRB)    :: NUMBER(KLON), MASS(KLON)
 
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
 
