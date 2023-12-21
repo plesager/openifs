@@ -1,0 +1,331 @@
+SUBROUTINE SIMPLE_SULFUR_SRC ( YDGEOMETRY, YDMODEL, KIDIA, KFDIA, KLON , KTDIA, KLEV,&
+ &  KSTGLO,  KTRAC, KAERO,&
+ &  PAPHI,&
+ &  PSO2L, PSO2H,&
+ &  PSOGF, &
+ &  PSOA ,&
+ &  PSOACO, PVOLC, PVOLE, PDMS,&
+ &  PCI  , PINJF, PBLH,&
+ &  PRS1, PRSF1, PGELAM, PGELAT, &
+ &  PLSM , PTS   , PTSPHY, &
+ &  PWIND, &
+ &  PDMSO, PLDAY, PLISS, PSO2  , PTDMS,&
+ &  PODMS, PSO4SRC,PSO2SRC)
+
+  USE PARKIND1  ,ONLY : JPIM, JPRB
+  USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
+  USE YOMCST    ,ONLY : RA, RPI, RDAY, RG
+  USE YOMLUN    ,ONLY : NULOUT
+  USE TYPE_MODEL   , ONLY : MODEL
+  !USE YOM_YGFL  ,ONLY : YGFL
+  !USE YOEAERSRC ,ONLY : YREAERSRC
+  USE GEOMETRY_MOD , ONLY : GEOMETRY
+  !USE YOMCOMPO,  ONLY : YRCOMPO  
+  !USE YOEAERATM ,ONLY : YREAERATM
+  USE YOMCT3   , ONLY : NSTEP
+  USE YOMMP0   , ONLY : MYPROC, NPROC
+!  USE YOMRIP    ,ONLY : YRRIP
+
+IMPLICIT NONE
+
+TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
+TYPE(MODEL)       ,INTENT(INOUT) :: YDMODEL
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLON, KIDIA, KFDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV, KTDIA, KSTGLO
+!INTEGER(KIND=JPIM),INTENT(IN)    :: KSTEP
+INTEGER(KIND=JPIM),INTENT(IN)    :: KTRAC
+INTEGER(KIND=JPIM),INTENT(IN)    :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
+
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPHI(KLON,0:KLEV)
+
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PSO2L(KLON), PSO2H(KLON), PSOGF(KLON), PSOA(KLON), PSOACO (KLON), PVOLC(KLON), PVOLE(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PDMS(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PGELAM(KLON), PGELAT(KLON)!, PGEMU(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLON), PLSM(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PINJF(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PBLH(KLON)
+!REAL(KIND=JPRB)   ,INTENT(IN)    :: PDELP(KLON,KLEV)
+!REAL(KIND=JPRB)   ,INTENT(IN)    :: PQ(KLON,KLEV), PRHO(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTS(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PWIND(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTSPHY
+!DMS
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PDMSO(KLON), PLDAY(KLON), PLISS(KLON), PSO2(KLON), PTDMS(KLON)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PODMS(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PRS1(KLON,0:KLEV)
+REAL(KIND=JPRB),INTENT(IN)    :: PRSF1(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT) ::PSO4SRC(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT) ::PSO2SRC(KLON,KLEV)
+!-- various alternate sources can be tested
+REAL(KIND=JPRB) :: ZLOCALTIM   , ZDIURN(KLON)
+REAL(KIND=JPRB) :: ZSO2L(KLON) , ZSO2H(KLON) , ZSO2HD(KLON)
+REAL(KIND=JPRB) :: ZSO2SOURC
+REAL(KIND=JPRB) :: ZSOGF(KLON) , ZSOA(KLON)
+REAL(KIND=JPRB) :: ZSO2MSS
+
+!-- QnD oceanic DMS
+REAL(KIND=JPRB)    :: ZCOS0, ZSIN0, ZRAD2DEG, Z_S_SO2, ZDMS2SO2
+REAL(KIND=JPRB)    :: ZDMSMIN, ZSOA_CO
+REAL(KIND=JPRB)    :: ZDMSO(KLON), ZGEMU(KLON), ZLATK(KLON)
+
+!-- Injection height for biomass burning emissions
+INTEGER(KIND=JPIM) :: ILINJ1, ILINJ2, IX(1)
+REAL(KIND=JPRB)    :: ZDELP
+
+INTEGER(KIND=JPIM) ::   IGLGLO
+REAL(KIND=JPRB)    :: ZGRDLAT, ZGRDLAT2, ZGRDLON2, ZA, ZC, Z1GP
+REAL(KIND=JPRB)    :: ZDIST(KLON)   , ZGRDLON(KLON), ZGDLAT(KLON), ZGDLON(KLON)
+REAL(KIND=JPRB)    :: ZDLAT, ZDLON
+REAL(KIND=JPRB)    :: ZLAT
+REAL(KIND=JPRB) :: ZDEGRAD
+REAL(KIND=JPRB) :: ZGLAT(KLON), ZGLON(KLON)
+INTEGER(KIND=JPIM) ::  IHTST, ITEST
+!-- volcano-related variables
+INTEGER(KIND=JPIM) :: INDLAT(KLON), JK, JL
+
+!AERPHYvars
+REAL(KIND=JPRB) :: ZALT(KLON,0:KLEV), ZDP(KLON,KLEV), ZDZ(KLON,KLEV)
+
+
+!LAERCHEM=>YGFL%LAERCHEM)
+ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL,YDRIP=>YDMODEL%YRML_GCONF%YRRIP, &
+  & YDERAD=>YDMODEL%YRML_PHY_RAD%YRERAD, YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
+  & YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC, &
+  & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM)
+
+ASSOCIATE(NDMSO=>YDEAERSRC%NDMSO,LOCNDMS=>YDEAERSRC%LOCNDMS,NDGLG=>YDGEOMETRY%YRDIM%NDGLG,LAERODIU=>YDCOMPO%LAERODIU,LFIRE=>YDCOMPO%LFIRE, &
+        & LINJ=>YDCOMPO%LINJ,YDCSGLEG=>YDGEOMETRY%YRCSGLEG,NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
+        & RCOVSRA=>YDEAERSRC%RCOVSRA, RCODECA=>YDEAERSRC%RCODECA,RSIDECA=>YDEAERSRC%RSIDECA,LAERCHEM=>YGFL%LAERCHEM, &
+        & RSIVSRA=>YDEAERSRC%RSIVSRA, RHGMT=>YDRIP%RHGMT, LAERELVS=>YDEAERATM%LAERELVS)
+
+Z_S_SO2=0.5_JPRB
+ZSO2MSS=64.058E-03_JPRB
+ZDMS2SO2=1.0_JPRB
+ZDMSMIN = 5.E-11_JPRB
+ZRAD2DEG= 180._JPRB/RPI
+ZSOA_CO=0.15_JPRB
+
+PSO4SRC(:,:)=0.0_JPRB
+PSO2SRC(:,:)=0.0_JPRB
+
+!*       0.2   A LENGTH OF DAY INDEX
+!              ---------------------
+
+DO JL=KIDIA,KFDIA
+  IGLGLO=NGLOBALAT(KSTGLO+JL-1)
+  ZGEMU(JL)=YDCSGLEG%RMU(IGLGLO)                      ! sine of latitude
+  ZLAT=ASIN(YDCSGLEG%RMU(IGLGLO))*ZRAD2DEG
+  ZLATK(JL)=ZLAT
+  ZCOS0=1._JPRB
+  ZSIN0=0._JPRB
+  PLDAY(JL)=MAX( RSIDECA*ZGEMU(JL)&
+   & -RCODECA*RCOVSRA*SQRT(1.0_JPRB-ZGEMU(JL)**2)* ZCOS0&
+   & +RCODECA*RSIVSRA*SQRT(1.0_JPRB-ZGEMU(JL)**2)* ZSIN0&
+   & ,0.0_JPRB)
+  PDMSO(JL)=0._JPRB
+  PLISS(JL)=0._JPRB
+  PSO2(JL) =0._JPRB
+  PTDMS(JL)=0._JPRB         
+  PODMS(JL)=0._JPRB
+ENDDO
+
+
+
+ITEST=0
+ZDEGRAD= 180._JPRB/RPI
+ZDLAT  = 180._JPRB / NDGLG      ! distance in degrees between latitude lines
+ZGRDLAT= RPI / NDGLG                          ! distance in radians between latitude lines
+ZGRDLAT2=ZGRDLAT*0.55_JPRB
+
+DO JL=KIDIA,KFDIA
+  IGLGLO=NGLOBALAT(KSTGLO+JL-1)
+  INDLAT(JL)=IGLGLO
+  Z1GP=1.0_JPRB/REAL(NLOENG(IGLGLO),JPRB)
+  ZDLON=Z1GP*2.0_JPRB*RPI      ! distance in radians between longitude points on a given latitude line
+  ZGRDLON(JL)=ZDLON
+  ZLAT=ASIN(YDCSGLEG%RMU(IGLGLO))             ! latitude in radians
+  ZA=COS(ZLAT)*SIN(ZDLON/2.0_JPRB)
+  ZC=2.0_JPRB * ASIN( MIN(1.0_JPRB,ZA) )
+  ZDIST(JL)=RA * ZC /1000.0_JPRB      ! distance in km between longitude points on a given latitude line
+
+  ZGLON(JL)=PGELAM(JL)*ZDEGRAD
+  ZGLAT(JL)=ZLAT*ZDEGRAD
+  ZGDLAT(JL)=ZDLAT
+  ZGDLON(JL)=360._JPRB*Z1GP 
+
+  ZLOCALTIM =RHGMT + ZGLON(JL)/360._JPRB*RDAY
+  ZDIURN(JL)=COS( ((ZLOCALTIM-54000._JPRB)/RDAY) * 2._JPRB*RPI)+1._JPRB
+ENDDO
+IF (.NOT.LAERODIU) THEN
+  ZDIURN(KIDIA:KFDIA)=1.0_JPRB
+ENDIF
+
+
+DO JK=1,KLEV
+   DO JL=KIDIA,KFDIA
+      ZDP(JL,JK)= PRS1(JL,JK) - PRS1(JL,JK-1)
+   ENDDO
+ENDDO
+
+! aerphy3:
+DO JL=KIDIA,KFDIA
+   ZALT(JL,KLEV)=PAPHI(JL,KLEV)/RG
+ENDDO
+!   IF (LAERCHEM) THEN
+!MOVE OUTSIDE AER dependent
+
+!  DO JL=KIDIA,KFDIA    
+!    PCFLX(JL,KAERO(INBAER+1))= 0._JPRB
+!  ENDDO
+!  INBAER=INBAER+1
+
+! ELSE
+!-- originally, quick fix to produce a flux of oceanic DMS, following Liss & Merlivat, 
+!   1986, in "The Role of Air-Sea Exchange in Geochemical Cycling", 
+!   ed. Buat-Menard, 113-128.
+
+IF (NDMSO /= 0 .AND. LOCNDMS) THEN
+   
+   CALL AER_DMSO (KIDIA, KFDIA, KLON,&
+        & PCI, PDMS, PLDAY, PLSM,  PTS, PWIND,&
+        & ZDMSO, PLISS, PTDMS,&
+        & PODMS)
+   
+   IF (NDMSO == 1) THEN
+      DO JL=KIDIA,KFDIA
+         PDMSO(JL)=ZDMSO(JL)
+      ENDDO
+   ELSEIF (NDMSO == 2) THEN
+      DO JL=KIDIA,KFDIA
+         PDMSO(JL)=PODMS(JL)
+      ENDDO
+   ENDIF
+ENDIF
+!-- whatever the source representation (from parametrisation =1 or file =2) 
+!   apply a weighting coefficient representing transfer from DMS to SO2 
+!   30% from Kloster et al., 2005
+DO JL=KIDIA,KFDIA
+   PDMSO(JL)=ZDMS2SO2 * PDMSO(JL)
+ENDDO
+
+IF(.NOT.LAERELVS) THEN
+   DO JL=KIDIA,KFDIA    
+      ! renormalise by the mass of SO2 : no need with MACCity!
+      ZSO2L(JL)=PSO2L(JL)
+      ZSO2H(JL)=PSO2H(JL)
+      ZSO2SOURC=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL)) + PDMSO(JL)
+      PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
+      IF (LFIRE) THEN
+         IF (PSOGF(JL) < 0._JPRB) THEN
+            ZSOGF(JL) = -PSOGF(JL)
+         ELSE
+            ZSOGF(JL) = PSOGF(JL)
+         ENDIF
+         ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
+         ! Height of injection for biomass burning emissions : update tendancy
+         IF (LINJ) THEN
+            IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+               IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+               ILINJ1=IX(1)
+               ILINJ2=ILINJ1
+               ! calculate total detltap over injected levels
+               ZDELP=0.0_JPRB
+               DO JK = ILINJ1, ILINJ2
+                  ZDELP = ZDELP + ZDP(JL,JK)
+               ENDDO
+               DO JK = ILINJ1, ILINJ2
+                  
+                  PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+               ENDDO
+            ELSE
+               ZDELP=0.0_JPRB
+               DO JK = KLEV-3, KLEV-2
+                  ZDELP = ZDELP + ZDP(JL,JK)
+               ENDDO
+               DO JK = KLEV-3, KLEV-2
+                  PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+               ENDDO
+            ENDIF
+         ELSE 
+            ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
+            !PSO2SRC(JL,KLEV) = ZSOGF(JL)
+         ENDIF
+      ENDIF
+      PSO2SRC(JL,KLEV)= ZSO2SOURC
+      PSO4SRC(JL,KLEV)= 0.0_JPRB    
+      !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC
+      !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB
+   ENDDO
+   
+ELSE !LAERELVS
+   DO JL=KIDIA,KFDIA    
+      ! renormalise by the mass of SO2 : no need with MACCity!
+      ZSO2L(JL)=PSO2L(JL)
+      ZSO2H(JL)=PSO2H(JL)
+      ZSO2SOURC=ZSO2L(JL)*ZDIURN(JL) + PDMSO(JL)
+      PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
+      IF (LFIRE) THEN
+         !THIS NEEDS a CHANGE for NETs!!!!!!!
+         IF (PSOGF(JL) < 0._JPRB) THEN
+            ZSOGF(JL) = -PSOGF(JL)
+         ELSE
+            ZSOGF(JL) = PSOGF(JL)
+         ENDIF
+
+         ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
+         IF (LINJ) THEN
+            IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+               IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+               ILINJ1=IX(1)
+               ILINJ2=ILINJ1
+               ! calculate total detltap over injected levels
+               ZDELP=0.0_JPRB
+               DO JK = ILINJ1, ILINJ2
+                  ZDELP = ZDELP + ZDP(JL,JK)
+               ENDDO
+               DO JK = ILINJ1, ILINJ2
+                  PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+               ENDDO
+            ELSE
+               ZDELP=0.0_JPRB
+               DO JK = KLEV-3, KLEV-2
+                  ZDELP = ZDELP + ZDP(JL,JK)
+               ENDDO
+               DO JK = KLEV-3, KLEV-2
+                  PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+               ENDDO
+            ENDIF
+         ELSE 
+            ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
+            !PSO2SRC(JL,KLEV) = PSO2SRC(JL,KLEV)+ZSOGF(JL)
+         ENDIF
+      ENDIF
+      ! MOVE OUTSIDE
+      ! aerosol module depnedent
+      !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC !so2
+      !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB !so4
+      PSO2SRC(JL,KLEV)= ZSO2SOURC
+      PSO4SRC(JL,KLEV)= 0.0_JPRB
+   ENDDO
+   !  distributing the elevated source of SO2 over the four lowest layers
+   !  original SO2 flux in kg m-2 s-1 (ZSO2H)
+! Flux (kg m-2 s-1) = concentration (kg kg-1) DeltaPress(kg m-1 s-2) / [timestep (s) * gravity (m s-2)] 
+   ! therefore, increment concentration (kg kg-1 s-1) = flux * timestep * gravity / [DeltaPress * timestep ]
+
+   ! TB
+   ! TENDENCY update moved to respective aerosol modules
+   !
+ENDIF! LAERELVS 
+
+!-----------------------------------------------------------------------
+END ASSOCIATE
+END ASSOCIATE
+END SUBROUTINE SIMPLE_SULFUR_SRC
