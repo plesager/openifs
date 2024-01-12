@@ -1469,7 +1469,6 @@ ZAER_ASYM(KIDIA:KFDIA,:,:)=0.0_JPRB
 ZAER_TAU_LW(KIDIA:KFDIA,:,:)=0.0_JPRB
 
 
-
 SELECT CASE (NAEROOPT) 
 
 CASE (0)
@@ -1562,6 +1561,7 @@ CASE (2)
          end do
       enddo
    enddo
+   !write(*,*)"max PAER_TAU", maxval(PAER_TAU)
 !=======
 !   ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW,rwet_m7)
 !   CALL HAM_RAD_CACHE_CLEANUP
