@@ -142,9 +142,7 @@ REAL(KIND=JPRB),ALLOCATABLE:: CVDAESU(:)
 ! Look-up table for Planck function in emissivity intervals
 TYPE(TSPECTRALPLANCK) :: YSPECTPLANCK
 
-
 INTEGER :: NCLOUDACT
-
 INTEGER :: NAEROOPT 
 
 !----------------------------------------------------------------------------

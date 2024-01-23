@@ -773,7 +773,7 @@ IF (LEPHYS.AND..NOT.LARPEGEF) THEN ! LARPEGEF for the files conversions IFS->Arp
 ELSE
   NAERMACC=0
 ENDIF
-LAER3D=.TRUE. !T=3d CAMS aerosol climatology
+LAER3D=.FALSE. !T=3d CAMS aerosol climatology
 
 
 NMCLAT=1

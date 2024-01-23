@@ -77,7 +77,7 @@ USE YOMLUN      , ONLY : NULNAM, NULOUT
 USE YOM_YGFL    , ONLY : JPCHEM_ASSIM, JPGHG_ASSIM, TYPE_GFL_NAML
 USE YOMANEB     , ONLY : NGRBCHEM, NGRBGHGASSIM
 USE YOE_AERODIAG, ONLY : TYPE_AERO_WVL_DIAG
-!USE YOMM7CTL , ONLY : YRM7CTL !!! M7, not sure where needed
+USE YOMM7CTL , ONLY : YRM7CTL !!! M7, not sure where needed
 
 USE ARPCLIM_CHEM_MODULE
 #if defined(__PGI)
@@ -229,9 +229,9 @@ RCHEM_DIA_PERIOD => YDCOMPO%RCHEM_DIA_PERIOD
 KGHG_CHEMTEND_CH4=> YDCOMPO%KGHG_CHEMTEND_CH4
 
 ! Associate pointers for variables in namelist NAMM7CTL, not sure where needed
-!NWATER        => YRM7CTL%NWATER
-!NSNUCL        => YRM7CTL%NSNUCL 
-!NONUCL        => YRM7CTL%NONUCL
+NWATER        => YRM7CTL%NWATER
+NSNUCL        => YRM7CTL%NSNUCL 
+NONUCL        => YRM7CTL%NONUCL
 
 ! Associate pointers for variables in namelist NAMCHEM
 LCHEM_LIGHT      => YDCHEM%LCHEM_LIGHT
@@ -674,9 +674,9 @@ AERO_SCHEME="aer"
 
 
 ! M7CTL namelist, not sure where needed
-!NWATER=1
-!NSNUCL=2
-!NONUCL=1
+NWATER=1
+NSNUCL=2
+NONUCL=1
 
 
 !
