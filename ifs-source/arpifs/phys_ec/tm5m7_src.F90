@@ -3,12 +3,11 @@ SUBROUTINE TM5M7_SRC &
  &  KSW  , KTRAC, KAERO,&
  &  PALB , PALBD, PAPHI ,&
  &  PAERDEP, PAERLTS, PAERSCC, PAERGUST, PALTH ,&
- &  PBCBF, PBCFF, PBCGF, POMBF, POMFF, POMGF,&
  &  PAPH , PAP  , PCI  , PCLAKE, PINJF, PBLH, PDELP, PGELAM, PGELAT, PGEMU , PFRTI , PHSDFOR,&
  &  PLSM , PSST , PQ   , PRHO , PSNS  , PT    , PTL   , PTSPHY, PZ0M, KCHEM,&
  &  PWIND, PWS1 ,PSOIL_TYPE, &
  &  PCVL, PCVH, KTVL, KTVH, &
- &  PLDAY,  PAERFLX, PCFLX , PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC,PSOA,PSOACO)
+ &  PLDAY,  PAERFLX, PCFLX , PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC)
 
 !*** * TM5M7_SRC* - SOURCE TERMS FOR TM5M7 AEROSOL SCHEME
 
@@ -79,7 +78,10 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PALB(KLON), PALBD(KLON,KSW)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPHI(KLON,0:KLEV), PALTH(KLON,0:KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAERDEP(KLON), PAERLTS(KLON), PAERSCC(KLON)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PBCBF(KLON), PBCFF(KLON), PBCGF(KLON), POMBF(KLON), POMFF(KLON), POMGF(KLON)
+!Vincent Huijnen This piece of code should be removed and picked up elsewhere!! For now define local variables
+!REAL(KIND=JPRB)   ,INTENT(IN)    :: ZBCBF(KLON), ZBCFF(KLON), ZBCGF(KLON), POMBF(KLON), POMFF(KLON), POMGF(KLON)
+REAL(KIND=JPRB)   :: ZBCBF(KLON), ZBCFF(KLON), ZBCGF(KLON), ZOMBF(KLON), ZOMFF(KLON), ZOMGF(KLON)
+!End VH
 REAL(KIND=JPRB),   INTENT(IN)    :: PAERGUST(KLON), PHSDFOR(KLON)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAP(KLON,KLEV), PAPH(KLON,0:KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PGELAM(KLON), PGELAT(KLON), PGEMU(KLON)
@@ -109,8 +111,6 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PLDAY(KLON)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEMIDIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB),INTENT(INOUT)    :: PSO4SRC(KLON,KLEV),PSO2SRC(KLON,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSOACO(KLON)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSOA(KLON)
 
 
 !*       0.5   LOCAL VARIABLES
@@ -135,7 +135,6 @@ REAL(KIND=JPRB) :: ZDETAH(KLON,KLEV), ZETA(KLON,KLEV) , ZETAH(KLON,0:KLEV)
 
 !-- various sources
 REAL(KIND=JPRB) :: ZLOCALTIM   , ZDIURN(KLON)
-REAL(KIND=JPRB) :: ZBCGF(KLON)  
 REAL(KIND=JPRB) :: ZWNDDU(KLON), ZWNDSS(KLON) 
 REAL(KIND=JPRB) :: ZBCSOURC, ZOMSOURC
 REAL(KIND=JPRB) :: ZDEGRAD  
@@ -212,7 +211,7 @@ ASSOCIATE(YDVAB=>YDGEOMETRY%YRVAB,YDVETA=>YDGEOMETRY%YRVETA,YDVFE=>YDGEOMETRY%YR
 
 
 
-ASSOCIATE(LAERODIU=>YDCOMPO%LAERODIU, YAERO=>YGFL%YAERO, LFIRE=>YDCOMPO%LFIRE, LINJ=>YDCOMPO%LINJ, &
+ASSOCIATE(YAERO=>YGFL%YAERO, &
  & NACTAERO=>YGFL%NACTAERO, NAERO=>YGFL%NAERO, &
  & NDGLG=>YDGEOMETRY%YRDIM%NDGLG, RHGMT=>YDRIP%RHGMT, &
  & RSTATI => YDRIP%RSTATI, RSIDECA=>YDEAERSRC%RSIDECA, &
@@ -300,9 +299,9 @@ DO JL=KIDIA,KFDIA
   ZLOCALTIM =RHGMT + ZGLON(JL)/360._JPRB*RDAY
   ZDIURN(JL)=COS( ((ZLOCALTIM-54000._JPRB)/RDAY) * 2._JPRB*RPI)+1._JPRB
 ENDDO
-IF (.NOT.LAERODIU) THEN
-  ZDIURN(KIDIA:KFDIA)=1.0_JPRB
-ENDIF
+!VH IF (.NOT.LAERODIU) THEN
+!VH  ZDIURN(KIDIA:KFDIA)=1.0_JPRB
+!VH ENDIF
 
 
 
@@ -437,9 +436,9 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
 
     frac_bf(KIDIA:KFDIA)=1.0_JPRB
     ! calculate mass fraction related to solid biofuel
-    where ( POMFF(KIDIA:KFDIA) > 1E-30_JPRB )
-       frac_bf(KIDIA:KFDIA) = POMBF(KIDIA:KFDIA) / &
-                                       POMFF(KIDIA:KFDIA)
+    where ( ZOMFF(KIDIA:KFDIA) > 1E-30_JPRB )
+       frac_bf(KIDIA:KFDIA) = ZOMBF(KIDIA:KFDIA) / &
+                                       ZOMFF(KIDIA:KFDIA)
     elsewhere
        frac_bf(KIDIA:KFDIA) = 0.0_JPRB
     endwhere
@@ -456,135 +455,135 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
    ! Fossil fuel categories..
    DO JL=KIDIA,KFDIA
         emis_mass  (mode_aii)%d3(JL,KLEV,2) = &
-     &  emis_mass  (mode_aii)%d3(JL,KLEV,2) + POMFF(JL) * &
+     &  emis_mass  (mode_aii)%d3(JL,KLEV,2) + ZOMFF(JL) * &
      &    ( (1.-frac_bf(JL)) * (1.-frac_pom_sol_ff) + &
      &          frac_bf(JL)  * (1.-frac_pom_sol_bf) ) 
 
         emis_number(mode_aii)%d3(JL,KLEV,2) = &
-     &  emis_number(mode_aii)%d3(JL,KLEV,2) + POMFF(JL) * &
+     &  emis_number(mode_aii)%d3(JL,KLEV,2) + ZOMFF(JL) * &
      &    ( (1.-frac_bf(JL)) * (1.-frac_pom_sol_ff) * mass2numb_nonbf_insol + &
      &          frac_bf(JL)  * (1.-frac_pom_sol_bf) * mass2numb_bf_insol )
 
         emis_mass  (mode_ais)%d3(JL,KLEV,3) = &
-     &  emis_mass  (mode_ais)%d3(JL,KLEV,3) + POMFF(JL) * &
+     &  emis_mass  (mode_ais)%d3(JL,KLEV,3) + ZOMFF(JL) * &
      &    ( (1.-frac_bf(JL)) * frac_pom_sol_ff )
 
         emis_number(mode_ais)%d3(JL,KLEV,3) = &
-     &  emis_number(mode_ais)%d3(JL,KLEV,3) + POMFF(JL) * &
+     &  emis_number(mode_ais)%d3(JL,KLEV,3) + ZOMFF(JL) * &
      &    ( (1.-frac_bf(JL)) * frac_pom_sol_ff * mass2numb_nonbf_sol )
 
         emis_mass  (mode_acs)%d3(JL,KLEV,3) = &
-     &  emis_mass  (mode_acs)%d3(JL,KLEV,3) + POMFF(JL) * &
+     &  emis_mass  (mode_acs)%d3(JL,KLEV,3) + ZOMFF(JL) * &
      &    (        frac_bf(JL)  * frac_pom_sol_bf )
 
         emis_number(mode_acs)%d3(JL,KLEV,3) = &
-     &  emis_number(mode_acs)%d3(JL,KLEV,3) + POMFF(JL) * &
+     &  emis_number(mode_acs)%d3(JL,KLEV,3) + ZOMFF(JL) * &
      &    (        frac_bf(JL)  * frac_pom_sol_bf * mass2numb_bf_sol )
     ENDDO
     
-    ! Biofuel categories ? (POMBF emissions)
+    ! Biofuel categories ? (ZOMBF emissions)
     
 !!$    IF (.not. LAERCHEM)THEN
 !!$       ! SOA from CO
-    DO JL=KIDIA,KFDIA
-       ZSOA(JL)=0._JPRB
-       IF (LAERSOA_CHEM) THEN
-          ZSOA(JL)=MAX(PSOACO(JL),PSOA(JL))
-       ELSE
-          ZSOA(JL)=PSOACO(JL)
-       ENDIF
-       ZOMSOURC=ZOMSOURC+ZSOA(JL)
-    END DO
+!VH     DO JL=KIDIA,KFDIA
+!VH        ZSOA(JL)=0._JPRB
+!VH        IF (LAERSOA_CHEM) THEN
+!VH           ZSOA(JL)=MAX(PSOACO(JL),PSOA(JL))
+!VH        ELSE
+!VH           ZSOA(JL)=PSOACO(JL)
+!VH        ENDIF
+!VH        ZOMSOURC=ZOMSOURC+ZSOA(JL)
+!VH     END DO
     ! These do not apply for M7
 !!$       PCFLX(JL,KAERO(INBAER+1))= -ZOMSOURC * ROMPHIL
 !!$       PCFLX(JL,KAERO(INBAER+2))= -ZOMSOURC * ROMPHOB 
 !!$    END IF
     ! biomass burning
 
-  IF (LFIRE) THEN
-    IF (LINJ) THEN
-      DO JL=KIDIA,KFDIA
-      ! Height of injection for biomass burning emissions : update emis_mass
-        IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
-          IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
-          ILINJ1=IX(1)
-          ILINJ2=ILINJ1
-          ! calculate total deltap over injected levels
-          ZDELP=0.0_JPRB
-          DO JK = ILINJ1, ILINJ2
-             ZDELP = ZDELP + PDELP(JL,JK)
-          ENDDO
-          DO JK = ILINJ1, ILINJ2
-       
-           ! add to emis target arrays
-              emis_mass  (mode_aii)%d3(JL,JK,2) = &
-           &  emis_mass  (mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_pom_sol_bb)
-      
-              emis_number(mode_aii)%d3(JL,JK,2) = &
-           &  emis_number(mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
-
-              emis_mass  (mode_acs)%d3(JL,JK,3) = &
-           &  emis_mass  (mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &     frac_pom_sol_bb 
-
-              emis_number(mode_acs)%d3(JL,JK,3) = &
-           &  emis_number(mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_pom_sol_bb * mass2numb_bb_sol       
-          ENDDO
-        ELSE
-          ZDELP=0.0_JPRB
-          DO JK = KLEV-3, KLEV-2
-               ZDELP = ZDELP + PDELP(JL,JK)
-          ENDDO
-          DO JK = KLEV-3, KLEV-2
-              ! add to emis target arrays
-              emis_mass  (mode_aii)%d3(JL,JK,2) = &
-           &  emis_mass  (mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_pom_sol_bb)
-
-              emis_number(mode_aii)%d3(JL,JK,2) = &
-           &  emis_number(mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
-
-              emis_mass  (mode_acs)%d3(JL,JK,3) = &
-           &  emis_mass  (mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_pom_sol_bb 
-
-              emis_number(mode_acs)%d3(JL,JK,3) = &
-           &  emis_number(mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_pom_sol_bb * mass2numb_bb_sol
-          ENDDO
-        ENDIF
-      ENDDO
-    ELSE ! LINJ=false: always injection at lowest levels
-      DO JL=KIDIA,KFDIA
-        ZDELP=0.0_JPRB
-        DO JK = KLEV-2, KLEV-1
-          ZDELP = ZDELP + PDELP(JL,JK)
-        ENDDO
-        DO JK = KLEV-2, KLEV
-            ! add to emis target arrays
-            emis_mass  (mode_aii)%d3(JL,JK,2) = &
-         &  emis_mass  (mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        (1.-frac_pom_sol_bb)
-
-            emis_number(mode_aii)%d3(JL,JK,2) = &
-         &  emis_number(mode_aii)%d3(JL,JK,2) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
-
-            emis_mass  (mode_acs)%d3(JL,JK,3) = &
-         &  emis_mass  (mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        frac_pom_sol_bb 
-
-            emis_number(mode_acs)%d3(JL,JK,3) = &
-         &  emis_number(mode_acs)%d3(JL,JK,3) + POMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        frac_pom_sol_bb * mass2numb_bb_sol
-        ENDDO
-      ENDDO
-    ENDIF ! LINJ
-  ENDIF ! LFIRE
+!VH   IF (LFIRE) THEN
+!VH     IF (LINJ) THEN
+!VH       DO JL=KIDIA,KFDIA
+!VH       ! Height of injection for biomass burning emissions : update emis_mass
+!VH         IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+!VH           IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+!VH           ILINJ1=IX(1)
+!VH           ILINJ2=ILINJ1
+!VH           ! calculate total deltap over injected levels
+!VH           ZDELP=0.0_JPRB
+!VH           DO JK = ILINJ1, ILINJ2
+!VH              ZDELP = ZDELP + PDELP(JL,JK)
+!VH           ENDDO
+!VH           DO JK = ILINJ1, ILINJ2
+!VH        
+!VH            ! add to emis target arrays
+!VH               emis_mass  (mode_aii)%d3(JL,JK,2) = &
+!VH            &  emis_mass  (mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_pom_sol_bb)
+!VH       
+!VH               emis_number(mode_aii)%d3(JL,JK,2) = &
+!VH            &  emis_number(mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH               emis_mass  (mode_acs)%d3(JL,JK,3) = &
+!VH            &  emis_mass  (mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &     frac_pom_sol_bb 
+!VH 
+!VH               emis_number(mode_acs)%d3(JL,JK,3) = &
+!VH            &  emis_number(mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_pom_sol_bb * mass2numb_bb_sol       
+!VH           ENDDO
+!VH         ELSE
+!VH           ZDELP=0.0_JPRB
+!VH           DO JK = KLEV-3, KLEV-2
+!VH                ZDELP = ZDELP + PDELP(JL,JK)
+!VH           ENDDO
+!VH           DO JK = KLEV-3, KLEV-2
+!VH               ! add to emis target arrays
+!VH               emis_mass  (mode_aii)%d3(JL,JK,2) = &
+!VH            &  emis_mass  (mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_pom_sol_bb)
+!VH 
+!VH               emis_number(mode_aii)%d3(JL,JK,2) = &
+!VH            &  emis_number(mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH               emis_mass  (mode_acs)%d3(JL,JK,3) = &
+!VH            &  emis_mass  (mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_pom_sol_bb 
+!VH 
+!VH               emis_number(mode_acs)%d3(JL,JK,3) = &
+!VH            &  emis_number(mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_pom_sol_bb * mass2numb_bb_sol
+!VH           ENDDO
+!VH         ENDIF
+!VH       ENDDO
+!VH     ELSE ! LINJ=false: always injection at lowest levels
+!VH       DO JL=KIDIA,KFDIA
+!VH         ZDELP=0.0_JPRB
+!VH         DO JK = KLEV-2, KLEV-1
+!VH           ZDELP = ZDELP + PDELP(JL,JK)
+!VH         ENDDO
+!VH         DO JK = KLEV-2, KLEV
+!VH             ! add to emis target arrays
+!VH             emis_mass  (mode_aii)%d3(JL,JK,2) = &
+!VH          &  emis_mass  (mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        (1.-frac_pom_sol_bb)
+!VH 
+!VH             emis_number(mode_aii)%d3(JL,JK,2) = &
+!VH          &  emis_number(mode_aii)%d3(JL,JK,2) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        (1.-frac_pom_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH             emis_mass  (mode_acs)%d3(JL,JK,3) = &
+!VH          &  emis_mass  (mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        frac_pom_sol_bb 
+!VH 
+!VH             emis_number(mode_acs)%d3(JL,JK,3) = &
+!VH          &  emis_number(mode_acs)%d3(JL,JK,3) + ZOMGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        frac_pom_sol_bb * mass2numb_bb_sol
+!VH         ENDDO
+!VH       ENDDO
+!VH     ENDIF ! LINJ
+!VH   ENDIF ! LFIRE
 
 
 !-----------------------------------------------------------------------
@@ -624,9 +623,9 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
     
 !    frac_bf(KIDIA:KFDIA)=1.0_JPRB
     ! calculate mass fraction related to solid biofuel
-    where ( PBCFF(KIDIA:KFDIA) > 1E-30_JPRB )
-       frac_bf(KIDIA:KFDIA) = PBCBF(KIDIA:KFDIA) / &
-                                       PBCFF(KIDIA:KFDIA)
+    where ( ZBCFF(KIDIA:KFDIA) > 1E-30_JPRB )
+       frac_bf(KIDIA:KFDIA) = ZBCBF(KIDIA:KFDIA) / &
+                                       ZBCFF(KIDIA:KFDIA)
     elsewhere
        frac_bf(KIDIA:KFDIA) = 0.0_JPRB
     endwhere
@@ -644,122 +643,122 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
    ! Fossil fuel categories..
    DO JL=KIDIA,KFDIA
         emis_mass  (mode_aii)%d3(JL,KLEV,1) = &
-     &  emis_mass  (mode_aii)%d3(JL,KLEV,1) + PBCFF(JL) * &
+     &  emis_mass  (mode_aii)%d3(JL,KLEV,1) + ZBCFF(JL) * &
      &    ( (1.-frac_bf(JL)) * (1.-frac_bc_sol_ff) + &
      &          frac_bf(JL)  * (1.-frac_bc_sol_bf) ) 
 
         emis_number(mode_aii)%d3(JL,KLEV,1) = &
-     &  emis_number(mode_aii)%d3(JL,KLEV,1) + PBCFF(JL) * &
+     &  emis_number(mode_aii)%d3(JL,KLEV,1) + ZBCFF(JL) * &
      &    ( (1.-frac_bf(JL)) * (1.-frac_bc_sol_ff) * mass2numb_nonbf_insol + &
      &          frac_bf(JL)  * (1.-frac_bc_sol_bf) * mass2numb_bf_insol )
 
         emis_mass  (mode_ais)%d3(JL,KLEV,2) = &
-     &  emis_mass  (mode_ais)%d3(JL,KLEV,2) + PBCFF(JL) * &
+     &  emis_mass  (mode_ais)%d3(JL,KLEV,2) + ZBCFF(JL) * &
      &    ( (1.-frac_bf(JL)) * frac_bc_sol_ff )
 
         emis_number(mode_ais)%d3(JL,KLEV,2) = &
-     &  emis_number(mode_ais)%d3(JL,KLEV,2) + PBCFF(JL) * &
+     &  emis_number(mode_ais)%d3(JL,KLEV,2) + ZBCFF(JL) * &
      &    ( (1.-frac_bf(JL)) * frac_bc_sol_ff * mass2numb_nonbf_sol )
 
         emis_mass  (mode_acs)%d3(JL,KLEV,2) = &
-     &  emis_mass  (mode_acs)%d3(JL,KLEV,2) + PBCFF(JL) * &
+     &  emis_mass  (mode_acs)%d3(JL,KLEV,2) + ZBCFF(JL) * &
      &    (        frac_bf(JL)  * frac_bc_sol_bf )
 
         emis_number(mode_acs)%d3(JL,KLEV,2) = &
-     &  emis_number(mode_acs)%d3(JL,KLEV,2) + PBCFF(JL) * &
+     &  emis_number(mode_acs)%d3(JL,KLEV,2) + ZBCFF(JL) * &
      &    (        frac_bf(JL)  * frac_bc_sol_bf * mass2numb_bf_sol )
     ENDDO
     
-    ! Biofuel categories ? (PBCBF emissions - currently not treated..)
+    ! Biofuel categories ? (ZBCBF emissions - currently not treated..)
     
 
     ! biomass burning
 
-  IF (LFIRE) THEN
-    IF (LINJ) THEN
-      DO JL=KIDIA,KFDIA
-      ! Height of injection for biomass burning emissions : update emis_mass
-
-        IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
-          IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
-          ILINJ1=IX(1)
-          ILINJ2=ILINJ1
-          ! calculate total deltap over injected levels
-          ZDELP=0.0_JPRB
-          DO JK = ILINJ1, ILINJ2
-             ZDELP = ZDELP + PDELP(JL,JK)
-          ENDDO
-          DO JK = ILINJ1, ILINJ2
-       
-           ! add to emis target arrays
-              emis_mass  (mode_aii)%d3(JL,JK,1) = &
-           &  emis_mass  (mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_bc_sol_bb)
-      
-              emis_number(mode_aii)%d3(JL,JK,1) = &
-           &  emis_number(mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
-
-              emis_mass  (mode_acs)%d3(JL,JK,2) = &
-           &  emis_mass  (mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &     frac_bc_sol_bb 
-
-              emis_number(mode_acs)%d3(JL,JK,2) = &
-           &  emis_number(mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_bc_sol_bb * mass2numb_bb_sol       
-          ENDDO
-        ELSE
-          ZDELP=0.0_JPRB
-          DO JK = KLEV-3, KLEV-2
-               ZDELP = ZDELP + PDELP(JL,JK)
-          ENDDO
-          DO JK = KLEV-3, KLEV-2
-              ! add to emis target arrays
-              emis_mass  (mode_aii)%d3(JL,JK,1) = &
-           &  emis_mass  (mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_bc_sol_bb)
-
-              emis_number(mode_aii)%d3(JL,JK,1) = &
-           &  emis_number(mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
-
-              emis_mass  (mode_acs)%d3(JL,JK,2) = &
-           &  emis_mass  (mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_bc_sol_bb 
-
-              emis_number(mode_acs)%d3(JL,JK,2) = &
-           &  emis_number(mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-           &    frac_bc_sol_bb * mass2numb_bb_sol
-          ENDDO
-        ENDIF
-      ENDDO
-    ELSE ! LINJ=false: always injection at lowest levels
-      DO JL=KIDIA,KFDIA
-        ZDELP=0.0_JPRB
-        DO JK = KLEV-2, KLEV-1
-          ZDELP = ZDELP + PDELP(JL,JK)
-        ENDDO
-        DO JK = KLEV-2, KLEV
-            ! add to emis target arrays
-            emis_mass  (mode_aii)%d3(JL,JK,1) = &
-         &  emis_mass  (mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        (1.-frac_bc_sol_bb)
-
-            emis_number(mode_aii)%d3(JL,JK,1) = &
-         &  emis_number(mode_aii)%d3(JL,JK,1) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
-
-            emis_mass  (mode_acs)%d3(JL,JK,2) = &
-         &  emis_mass  (mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        frac_bc_sol_bb 
-
-            emis_number(mode_acs)%d3(JL,JK,2) = &
-         &  emis_number(mode_acs)%d3(JL,JK,2) + PBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
-         &        frac_bc_sol_bb * mass2numb_bb_sol
-        ENDDO
-      ENDDO
-    ENDIF ! LINJ
-  ENDIF ! LFIRE
+!VH   IF (LFIRE) THEN
+!VH     IF (LINJ) THEN
+!VH       DO JL=KIDIA,KFDIA
+!VH       ! Height of injection for biomass burning emissions : update emis_mass
+!VH 
+!VH         IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+!VH           IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+!VH           ILINJ1=IX(1)
+!VH           ILINJ2=ILINJ1
+!VH           ! calculate total deltap over injected levels
+!VH           ZDELP=0.0_JPRB
+!VH           DO JK = ILINJ1, ILINJ2
+!VH              ZDELP = ZDELP + PDELP(JL,JK)
+!VH           ENDDO
+!VH           DO JK = ILINJ1, ILINJ2
+!VH        
+!VH            ! add to emis target arrays
+!VH               emis_mass  (mode_aii)%d3(JL,JK,1) = &
+!VH            &  emis_mass  (mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_bc_sol_bb)
+!VH       
+!VH               emis_number(mode_aii)%d3(JL,JK,1) = &
+!VH            &  emis_number(mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH               emis_mass  (mode_acs)%d3(JL,JK,2) = &
+!VH            &  emis_mass  (mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &     frac_bc_sol_bb 
+!VH 
+!VH               emis_number(mode_acs)%d3(JL,JK,2) = &
+!VH            &  emis_number(mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_bc_sol_bb * mass2numb_bb_sol       
+!VH           ENDDO
+!VH         ELSE
+!VH           ZDELP=0.0_JPRB
+!VH           DO JK = KLEV-3, KLEV-2
+!VH                ZDELP = ZDELP + PDELP(JL,JK)
+!VH           ENDDO
+!VH           DO JK = KLEV-3, KLEV-2
+!VH               ! add to emis target arrays
+!VH               emis_mass  (mode_aii)%d3(JL,JK,1) = &
+!VH            &  emis_mass  (mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_bc_sol_bb)
+!VH 
+!VH               emis_number(mode_aii)%d3(JL,JK,1) = &
+!VH            &  emis_number(mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH               emis_mass  (mode_acs)%d3(JL,JK,2) = &
+!VH            &  emis_mass  (mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_bc_sol_bb 
+!VH 
+!VH               emis_number(mode_acs)%d3(JL,JK,2) = &
+!VH            &  emis_number(mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH            &    frac_bc_sol_bb * mass2numb_bb_sol
+!VH           ENDDO
+!VH         ENDIF
+!VH       ENDDO
+!VH     ELSE ! LINJ=false: always injection at lowest levels
+!VH       DO JL=KIDIA,KFDIA
+!VH         ZDELP=0.0_JPRB
+!VH         DO JK = KLEV-2, KLEV-1
+!VH           ZDELP = ZDELP + PDELP(JL,JK)
+!VH         ENDDO
+!VH         DO JK = KLEV-2, KLEV
+!VH             ! add to emis target arrays
+!VH             emis_mass  (mode_aii)%d3(JL,JK,1) = &
+!VH          &  emis_mass  (mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        (1.-frac_bc_sol_bb)
+!VH 
+!VH             emis_number(mode_aii)%d3(JL,JK,1) = &
+!VH          &  emis_number(mode_aii)%d3(JL,JK,1) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        (1.-frac_bc_sol_bb) * mass2numb_bb_insol 
+!VH 
+!VH             emis_mass  (mode_acs)%d3(JL,JK,2) = &
+!VH          &  emis_mass  (mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        frac_bc_sol_bb 
+!VH 
+!VH             emis_number(mode_acs)%d3(JL,JK,2) = &
+!VH          &  emis_number(mode_acs)%d3(JL,JK,2) + ZBCGF(JL)*ZDIURN(JL)*PDELP(JL,JK)/ZDELP * &
+!VH          &        frac_bc_sol_bb * mass2numb_bb_sol
+!VH         ENDDO
+!VH       ENDDO
+!VH     ENDIF ! LINJ
+!VH   ENDIF ! LFIRE
 
 
 

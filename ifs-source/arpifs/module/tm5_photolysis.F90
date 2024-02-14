@@ -145,6 +145,11 @@ REAL(KIND=JPRB),DIMENSION(7),  PARAMETER     :: WL_EFF = (/ &
 REAL(KIND=JPRB), DIMENSION(2), PARAMETER   :: WL_AER = (/ &
       &     340., 645. /)
 
+! Wavelengths at which glomap aerosol input is expected
+REAL(KIND=JPRB), DIMENSION(2), PARAMETER   :: WL_GLOMAP = (/ &
+      &     320., 542. /)
+
+!M7 related
 INTEGER(KIND=JPIM),DIMENSION(NBANDS_TROP) :: WAV_GRID, WAV_GRIDA
 
 INTEGER(KIND=JPIM),DIMENSION(7),PARAMETER   :: &          

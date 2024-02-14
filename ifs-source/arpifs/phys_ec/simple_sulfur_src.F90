@@ -93,8 +93,8 @@ ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL,YDRIP=>YDMODEL%YRML_GCONF%YRRIP, &
   & YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC, &
   & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM)
 
-ASSOCIATE(NDMSO=>YDEAERSRC%NDMSO,LOCNDMS=>YDEAERSRC%LOCNDMS,NDGLG=>YDGEOMETRY%YRDIM%NDGLG,LAERODIU=>YDCOMPO%LAERODIU,LFIRE=>YDCOMPO%LFIRE, &
-        & LINJ=>YDCOMPO%LINJ,YDCSGLEG=>YDGEOMETRY%YRCSGLEG,NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
+ASSOCIATE(NDMSO=>YDEAERSRC%NDMSO,LOCNDMS=>YDEAERSRC%LOCNDMS,NDGLG=>YDGEOMETRY%YRDIM%NDGLG, &
+        & YDCSGLEG=>YDGEOMETRY%YRCSGLEG,NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
         & RCOVSRA=>YDEAERSRC%RCOVSRA, RCODECA=>YDEAERSRC%RCODECA,RSIDECA=>YDEAERSRC%RSIDECA,LAERCHEM=>YGFL%LAERCHEM, &
         & RSIVSRA=>YDEAERSRC%RSIVSRA, RHGMT=>YDRIP%RHGMT, LAERELVS=>YDEAERATM%LAERELVS)
 
@@ -156,9 +156,9 @@ DO JL=KIDIA,KFDIA
   ZLOCALTIM =RHGMT + ZGLON(JL)/360._JPRB*RDAY
   ZDIURN(JL)=COS( ((ZLOCALTIM-54000._JPRB)/RDAY) * 2._JPRB*RPI)+1._JPRB
 ENDDO
-IF (.NOT.LAERODIU) THEN
-  ZDIURN(KIDIA:KFDIA)=1.0_JPRB
-ENDIF
+!VH IF (.NOT.LAERODIU) THEN
+!VH   ZDIURN(KIDIA:KFDIA)=1.0_JPRB
+!VH ENDIF
 
 
 DO JK=1,KLEV
@@ -208,122 +208,122 @@ DO JL=KIDIA,KFDIA
    PDMSO(JL)=ZDMS2SO2 * PDMSO(JL)
 ENDDO
 
-IF(.NOT.LAERELVS) THEN
-   DO JL=KIDIA,KFDIA    
-      ! renormalise by the mass of SO2 : no need with MACCity!
-      ZSO2L(JL)=PSO2L(JL)
-      ZSO2H(JL)=PSO2H(JL)
-      ZSO2SOURC=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL)) + PDMSO(JL)
-      PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
-      IF (LFIRE) THEN
-         IF (PSOGF(JL) < 0._JPRB) THEN
-            ZSOGF(JL) = -PSOGF(JL)
-         ELSE
-            ZSOGF(JL) = PSOGF(JL)
-         ENDIF
-         ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
-         ! Height of injection for biomass burning emissions : update tendancy
-         IF (LINJ) THEN
-            IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
-               IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
-               ILINJ1=IX(1)
-               ILINJ2=ILINJ1
-               ! calculate total detltap over injected levels
-               ZDELP=0.0_JPRB
-               DO JK = ILINJ1, ILINJ2
-                  ZDELP = ZDELP + ZDP(JL,JK)
-               ENDDO
-               DO JK = ILINJ1, ILINJ2
-                  
-                  PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
-                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-               ENDDO
-            ELSE
-               ZDELP=0.0_JPRB
-               DO JK = KLEV-3, KLEV-2
-                  ZDELP = ZDELP + ZDP(JL,JK)
-               ENDDO
-               DO JK = KLEV-3, KLEV-2
-                  PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
-                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-               ENDDO
-            ENDIF
-         ELSE 
-            ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
-            !PSO2SRC(JL,KLEV) = ZSOGF(JL)
-         ENDIF
-      ENDIF
-      PSO2SRC(JL,KLEV)= ZSO2SOURC
-      PSO4SRC(JL,KLEV)= 0.0_JPRB    
-      !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC
-      !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB
-   ENDDO
-   
-ELSE !LAERELVS
-   DO JL=KIDIA,KFDIA    
-      ! renormalise by the mass of SO2 : no need with MACCity!
-      ZSO2L(JL)=PSO2L(JL)
-      ZSO2H(JL)=PSO2H(JL)
-      ZSO2SOURC=ZSO2L(JL)*ZDIURN(JL) + PDMSO(JL)
-      PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
-      IF (LFIRE) THEN
-         !THIS NEEDS a CHANGE for NETs!!!!!!!
-         IF (PSOGF(JL) < 0._JPRB) THEN
-            ZSOGF(JL) = -PSOGF(JL)
-         ELSE
-            ZSOGF(JL) = PSOGF(JL)
-         ENDIF
-
-         ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
-         IF (LINJ) THEN
-            IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
-               IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
-               ILINJ1=IX(1)
-               ILINJ2=ILINJ1
-               ! calculate total detltap over injected levels
-               ZDELP=0.0_JPRB
-               DO JK = ILINJ1, ILINJ2
-                  ZDELP = ZDELP + ZDP(JL,JK)
-               ENDDO
-               DO JK = ILINJ1, ILINJ2
-                  PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
-                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-               ENDDO
-            ELSE
-               ZDELP=0.0_JPRB
-               DO JK = KLEV-3, KLEV-2
-                  ZDELP = ZDELP + ZDP(JL,JK)
-               ENDDO
-               DO JK = KLEV-3, KLEV-2
-                  PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-                  !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
-                  !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
-               ENDDO
-            ENDIF
-         ELSE 
-            ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
-            !PSO2SRC(JL,KLEV) = PSO2SRC(JL,KLEV)+ZSOGF(JL)
-         ENDIF
-      ENDIF
-      ! MOVE OUTSIDE
-      ! aerosol module depnedent
-      !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC !so2
-      !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB !so4
-      PSO2SRC(JL,KLEV)= ZSO2SOURC
-      PSO4SRC(JL,KLEV)= 0.0_JPRB
-   ENDDO
-   !  distributing the elevated source of SO2 over the four lowest layers
-   !  original SO2 flux in kg m-2 s-1 (ZSO2H)
-! Flux (kg m-2 s-1) = concentration (kg kg-1) DeltaPress(kg m-1 s-2) / [timestep (s) * gravity (m s-2)] 
-   ! therefore, increment concentration (kg kg-1 s-1) = flux * timestep * gravity / [DeltaPress * timestep ]
-
-   ! TB
-   ! TENDENCY update moved to respective aerosol modules
-   !
-ENDIF! LAERELVS 
+!VH IF(.NOT.LAERELVS) THEN
+!VH    DO JL=KIDIA,KFDIA    
+!VH       ! renormalise by the mass of SO2 : no need with MACCity!
+!VH       ZSO2L(JL)=PSO2L(JL)
+!VH       ZSO2H(JL)=PSO2H(JL)
+!VH       ZSO2SOURC=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL)) + PDMSO(JL)
+!VH       PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
+!VH       IF (LFIRE) THEN
+!VH          IF (PSOGF(JL) < 0._JPRB) THEN
+!VH             ZSOGF(JL) = -PSOGF(JL)
+!VH          ELSE
+!VH             ZSOGF(JL) = PSOGF(JL)
+!VH          ENDIF
+!VH          ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
+!VH          ! Height of injection for biomass burning emissions : update tendancy
+!VH          IF (LINJ) THEN
+!VH             IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+!VH                IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+!VH                ILINJ1=IX(1)
+!VH                ILINJ2=ILINJ1
+!VH                ! calculate total detltap over injected levels
+!VH                ZDELP=0.0_JPRB
+!VH                DO JK = ILINJ1, ILINJ2
+!VH                   ZDELP = ZDELP + ZDP(JL,JK)
+!VH                ENDDO
+!VH                DO JK = ILINJ1, ILINJ2
+!VH                   
+!VH                   PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                   !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+!VH                   !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                ENDDO
+!VH             ELSE
+!VH                ZDELP=0.0_JPRB
+!VH                DO JK = KLEV-3, KLEV-2
+!VH                   ZDELP = ZDELP + ZDP(JL,JK)
+!VH                ENDDO
+!VH                DO JK = KLEV-3, KLEV-2
+!VH                   PSO2SRC(JL,JK) = ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                   !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+!VH                   !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                ENDDO
+!VH             ENDIF
+!VH          ELSE 
+!VH             ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
+!VH             !PSO2SRC(JL,KLEV) = ZSOGF(JL)
+!VH          ENDIF
+!VH       ENDIF
+!VH       PSO2SRC(JL,KLEV)= ZSO2SOURC
+!VH       PSO4SRC(JL,KLEV)= 0.0_JPRB    
+!VH       !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC
+!VH       !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB
+!VH    ENDDO
+!VH    
+!VH ELSE !LAERELVS
+!VH    DO JL=KIDIA,KFDIA    
+!VH       ! renormalise by the mass of SO2 : no need with MACCity!
+!VH       ZSO2L(JL)=PSO2L(JL)
+!VH       ZSO2H(JL)=PSO2H(JL)
+!VH       ZSO2SOURC=ZSO2L(JL)*ZDIURN(JL) + PDMSO(JL)
+!VH       PSO2(JL)=(ZSO2L(JL)*ZDIURN(JL)+ZSO2H(JL))
+!VH       IF (LFIRE) THEN
+!VH          !THIS NEEDS a CHANGE for NETs!!!!!!!
+!VH          IF (PSOGF(JL) < 0._JPRB) THEN
+!VH             ZSOGF(JL) = -PSOGF(JL)
+!VH          ELSE
+!VH             ZSOGF(JL) = PSOGF(JL)
+!VH          ENDIF
+!VH 
+!VH          ZSOGF(JL)=ZSOGF(JL)*ZSO2MSS
+!VH          IF (LINJ) THEN
+!VH             IF (PINJF(JL) > 200._JPRB .AND. PBLH(JL) > 1500._JPRB) THEN
+!VH                IX=MINLOC( ABS( (PAPHI(JL,1:KLEV)-PAPHI(JL,KLEV))/RG - PINJF(JL)))
+!VH                ILINJ1=IX(1)
+!VH                ILINJ2=ILINJ1
+!VH                ! calculate total detltap over injected levels
+!VH                ZDELP=0.0_JPRB
+!VH                DO JK = ILINJ1, ILINJ2
+!VH                   ZDELP = ZDELP + ZDP(JL,JK)
+!VH                ENDDO
+!VH                DO JK = ILINJ1, ILINJ2
+!VH                   PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                   !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+!VH                   !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                ENDDO
+!VH             ELSE
+!VH                ZDELP=0.0_JPRB
+!VH                DO JK = KLEV-3, KLEV-2
+!VH                   ZDELP = ZDELP + ZDP(JL,JK)
+!VH                ENDDO
+!VH                DO JK = KLEV-3, KLEV-2
+!VH                   PSO2SRC(JL,JK) = PSO2SRC(JL,JK) + ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                   !PTENC(JL,JK,KAERO(INBAER+2)) = PTENC(JL,JK,KAERO(INBAER+2)) +&
+!VH                   !&  ZSOGF(JL) * RG *ZDIURN(JL) / ZDELP
+!VH                ENDDO
+!VH             ENDIF
+!VH          ELSE 
+!VH             ZSO2SOURC=ZSO2SOURC+ZSOGF(JL)
+!VH             !PSO2SRC(JL,KLEV) = PSO2SRC(JL,KLEV)+ZSOGF(JL)
+!VH          ENDIF
+!VH       ENDIF
+!VH       ! MOVE OUTSIDE
+!VH       ! aerosol module depnedent
+!VH       !PCFLX(JL,KAERO(INBAER+2))= -ZSO2SOURC !so2
+!VH       !PCFLX(JL,KAERO(INBAER+1))= 0._JPRB !so4
+!VH       PSO2SRC(JL,KLEV)= ZSO2SOURC
+!VH       PSO4SRC(JL,KLEV)= 0.0_JPRB
+!VH    ENDDO
+!VH    !  distributing the elevated source of SO2 over the four lowest layers
+!VH    !  original SO2 flux in kg m-2 s-1 (ZSO2H)
+!VH    ! Flux (kg m-2 s-1) = concentration (kg kg-1) DeltaPress(kg m-1 s-2) / [timestep (s) * gravity (m s-2)] 
+!VH    ! therefore, increment concentration (kg kg-1 s-1) = flux * timestep * gravity / [DeltaPress * timestep ]
+!VH 
+!VH    ! TB
+!VH    ! TENDENCY update moved to respective aerosol modules
+!VH    !
+!VH ENDIF! LAERELVS 
 
 !-----------------------------------------------------------------------
 END ASSOCIATE
