@@ -22,6 +22,7 @@ add_subdirectory( common )
 # Helper function
 function( add_ifs_test TARGET )
 
+    ### (1) COMMON for all tests 
     execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${TARGET} )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
@@ -42,7 +43,7 @@ function( add_ifs_test TARGET )
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
       ${PROJECT_SOURCE_DIR}/bin/ifs-grep-norms.pl ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ifs-grep-norms.pl )
 
-  execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+    execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
       ${PROJECT_SOURCE_DIR}/bin/set_launcher.bash ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/set_launcher.bash )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
@@ -180,6 +181,16 @@ function( add_ifs_test TARGET )
         endif()
       endif()
       execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/lookup_table.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lookup_table.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/refractive_indices_hdfstyle.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/refractive_indices_hdfstyle.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/parnuc.15H2SO4.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/parnuc.15H2SO4.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/lut_kappa.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_kappa.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/namelist.echam ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/namelist.echam)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${COMPO_DATA_PATH}/OMI.data.extraterrest ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/OMI.data.extraterrest )
       execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${COMPO_DATA_PATH}/aerosol_reduce.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aerosol_reduce.dat )
@@ -312,7 +323,8 @@ add_ifs_test( test_compo_cb05bascoe_fc )
 add_ifs_test( test_compo_chemonly_RnPb_fc )
 add_ifs_test( test_compo_chemonly_nwpo3_fc )
 add_ifs_test( test_compo_updclie )
-
+add_ifs_test( test_compo_fc_m7_noemi )
+add_ifs_test( test_compo_fc_m7_norad )
 
 # Tests which will not succeed in OpenIFS-only builds.
 if( NOT ifs_HAVE_OPENIFS_ONLY )
@@ -374,6 +386,9 @@ if( ENABLE_TESTS )
   set_property(TEST ifs_t21_test_compo_chemonly_RnPb_fc  APPEND PROPERTY LABELS forecast mpi threading composition RnPb)
   set_property(TEST ifs_t21_test_compo_chemonly_nwpo3_fc APPEND PROPERTY LABELS forecast mpi threading composition nwpo3)
   set_property(TEST ifs_t21_test_compo_updclie           APPEND PROPERTY LABELS forecast mpi threading composition climate mcc_compo)
+
+  set_property(TEST ifs_t21_test_compo_fc_m7_noemi       APPEND PROPERTY LABELS forecast mpi threading composition m7)
+  set_property(TEST ifs_t21_test_compo_fc_m7_norad       APPEND PROPERTY LABELS forecast mpi threading composition m7)
 
   # Tests to include if this is not an OpenIFS-only build:
   if( NOT ifs_HAVE_OPENIFS_ONLY )

@@ -1,0 +1,218 @@
+################################################################################
+# Setup file for m7 tests in openifs/ac  
+#
+# Created Feb-2024       Ramiro Checa-Garcia (KNMI)
+#
+# Updates: 
+#      01-03-2024        Ramiro Checa-Garcia (KNMI)
+#
+
+# Source common environment variables
+. ../common/env_vars
+
+# Pre-empt some common namelist settings.
+# NAMARG:
+CNMEXP="'ham7'"
+
+# NAEPHY:
+LEO3CH=".TRUE."
+NAEPHY_EXTRA="LO3CH_HLO=.FALSE.,"
+
+# NAMDPHY:
+NVEXTR="7"
+NCEXTR="137"
+
+# NAMRIP
+CSTOP=${CSTOP:-"'t2'"}               # CSTOP: define num. timesteps 
+TSTEP=${TSTEP:-"600.000000"}         # TSTEP: define time-step in seconds (??)
+
+NPROC=8
+
+# NAMCT0:
+NFRPOS=3
+# NAMCT0_EXTRA="NSPPR=1,"  # uncomment for per-level norms
+
+# Include common namelists
+. ../common/namelists
+
+# Note: In this setup we include some details by blocks to have a 
+#       more structured and easier to read setup file. For the final
+#       namelist please check fort.4 after run the experiment.
+
+cat >> fort.4 << EOF
+&NAMGFL
+!NGHG=2,
+!YLRCH4_NL%CNAME='kCH4',
+!YLRCH4_NL%IGRBCODE=210071,
+!YLRCH4_NL%LGP=.TRUE.,YLRCH4_NL%LTRAJIO=.FALSE.,
+!YGHG_NL(1)%CNAME='CO2_GHG',
+!YGHG_NL(1)%IGRBCODE=210061,
+!YGHG_NL(1)%LADV5=true,
+!YGHG_NL(1)%LASSIM=true,
+!YGHG_NL(1)%LMASSFIX=true,
+!YGHG_NL(1)%LNEGFIX=.FALSE.,
+!YGHG_NL(1)%LQM=false,
+!YGHG_NL(1)%LQM3D=true,
+!YGHG_NL(1)%BETAMFBC=2,
+!YGHG_NL(2)%CNAME='CH4_GHG',
+!YGHG_NL(2)%IGRBCODE=210062,
+!YGHG_NL(2)%LADV5=true,
+!YGHG_NL(2)%LASSIM=true,
+!YGHG_NL(2)%LMASSFIX=true,
+!YGHG_NL(2)%LNEGFIX=.FALSE.,
+!YGHG_NL(2)%LQM=false,
+!YGHG_NL(2)%LQM3D=true,
+!YGHG_NL(2)%BETAMFBC=2,
+EOF
+
+#      Include  NAMGLF for aerosols (m7)
+. ../common/namelist_m7_aero 
+
+cat >> fort.4 << EOF
+LAERAOT=false,
+LAERLISI=false,
+NAEROUT=0,
+!YAEROUT_NL(1)%CNAME='AEROUT-7',
+!YAEROUT_NL(1)%IGRBCODE=210022,
+NUVP=1,
+YUVP_NL(1)%CNAME='UVP2DRAD',
+YUVP_NL(1)%IGRBCODE=210055,
+EOF
+
+# === Include  NAMGLF for NAERO_WVL_DIAG
+#     Please comment/uncomment the appropiate line 
+#
+#. ../common/namelist_aer_aerowvldiag       # aerwvl used in test_compo_fc 
+. ../common/namelist_m7_aerowvldiag         # aerwvl used in openifs/ac/m7 
+
+ 
+# === Include chem NAMGLF and YEXT_NL (but only to describe species/outputs) 
+#     Please comment/uncomment the appropiate line 
+#
+#. ../common/namelist_aer_chem              # original test_compo_fc settings
+. ../common/namelist_m7_chem                # chem used in openifs/ac
+
+
+
+cat >> fort.4 << EOF
+ LAERCHEM=true
+ YQ_NL%LGP=true,
+ YQ_NL%LSP=false,
+ YL_NL%LGP=true,
+ YI_NL%LGP=true,
+ YA_NL%LGP=true,
+ YO3_NL%LGP=true,
+ YQ_NL%LGPINGP=true,
+ !YR_NL%NREQIN=-1,
+ !YS_NL%NREQIN=-1,
+/
+&NAERAD
+ CRTABLEDIR='./ifsdata/rtables/',
+ LECOMPGRID=false,
+ RMUZUV=0.01,
+ NUVTIM=72,
+ NRADUV=1,
+ NUV=24,
+ LUVPROC=false,       ! CHECK
+ LUVAERP=true,
+ KMODTS=2,
+ NRPROMA=0,
+ LEPO3RA=true,
+ LO3_CHEM_UV=true,
+ NGHGRAD=20,
+ NAERMACC=1,
+ !LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
+/
+&NAMFPC
+ CFPFMT="MODEL",
+ NFP3DFS=2,
+ NFP3DFP=2,
+ MFP3DFS(:)=210203,212255
+ MFP3DFP(:)=210011,217003
+ NFP2DF=1,
+ MFP2DF(:)=152,
+ NFPPHY=8,
+ MFPPHY(:)=210072,210073,210074,210208,210052,214002,210207,215089,
+ NRFP3S(:)=-99,
+ RFP3P=100000.,85000.,70000.,50000.,
+/
+&NAEAER
+EOF
+
+# === Include  NAEAER description (YAERO_DESC) => possible not for m7
+#     Please comment/uncomment the appropiate line 
+. ../common/namelist_aer_yaerodesc         # original test_compo_fc description 
+
+cat >> fort.4 << EOF
+ LAERVOL=false,
+ NDRYDEPVEL_DYN=2,
+  LAERDUSTSOURCE=true,
+  LAERDUSTSIZEVAR=true,
+  LAERDUST_NEWBIN=false,
+  RAERDUST_REBOUND=0.1, 
+ LAERNGAT=true,
+ NAERSCAV=3,
+ LAERGTOP=true,
+ LAERSEDIM=true,
+  LAERSEDIMSS=true,
+ LAERDRYDP=true,
+ LAERSURF=true,
+  NSSALT=4,
+  NDDUST=2,
+  NSO4SCHEME=1,
+  LSEASALT_RH80=true,
+ LAERHYGRO=true,
+ LAERRRTM=false,
+/
+&NAMCOMPO
+  LCHEM_DIA=true,
+  LCHEM_DDFLX=true,
+  LCOMPO_DDFLX_DIR=true,
+  LCHEM_TROPO=true,
+  LCOMPO_DCDD=true,
+  LAERNITRATE=true,
+  LAEREQSAM4CLIM=false,
+  LAERSOA=false,
+  LAERSOA_COUPLED=false,
+  KGHG_CHEMTEND_CH4=0,
+  LAERNUCL=true,
+  AERO_SCHEME="hamm7",
+/
+&NAMCHEM
+  CHEM_SCHEME="tm5",
+  LCHEM_DIAC=false,
+  LCHEM_LIGHT=true,
+  KCHEM_DRYDEP=2,
+  LCHEM_0NOX=false,
+  KCHEM_NOXADV=0,
+  LCHEM_ANAO3=false,
+  KCHEM_SOLVE=2,
+    LCHEM_REVCHEM=false,
+    LCHEM_BASCOE_JON=false,
+    LCHEM_BASCOE_HETCHEM=true,
+    LCHEM_EXTENDJNO2=true,
+  LCHEM_JOUT=false,
+  LCHEM_AEROI=false,
+  LCHEM_O3RAD=true,
+  LCHEM_CSHAPE=.false.,
+  LCHEM_WDFR=.true.,
+/
+
+&NAMMCC
+  LMCCEC=true,
+  LMCCIEC=false,
+  LMCC_COMPO=false,
+/
+EOF
+
+# === Include compo emissions namelist (moved to end of file)
+#     Please comment/ uncomment the appropiate line 
+#
+#. ../common/namelist_aer_compoemis         # original test_compo_fc emissions 
+
+. ../common/namelist_m7_compoemis           # emissions used in openifs/ac 
+
+cat >> fort.4 << EOF
+&NAMM7CTL
+/
+EOF
