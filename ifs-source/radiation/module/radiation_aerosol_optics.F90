@@ -518,11 +518,13 @@ contains
 
   end subroutine add_aerosol_optics_direct
  
-  !A.Laakso (FMI):
-  !Adds aod, ssa, asym of aerosols to corresponding variables in radiation module
-  !Note1: Weighting of SSA, ASYM (added not background) is done before calling this subroutine
-  !Note2: For LW only AOD is added 
-  subroutine add_aerosol_aod_ssa_asym(ncol,nlev,istartcol,iendcol, config,aerosol_ham, &
+  ! If they are provided, adds AOD, SSA, ASYM of aerosols to corresponding variables in
+  ! radiation module.
+  ! Note:
+  ! - Weighting of SSA, ASYM (added not background) is done before calling this subroutine
+  ! - For LW only AOD is added
+  ! Original code: A.Laakso (FMI)
+  subroutine add_aerosol_aod_ssa_asym(ncol, nlev, istartcol, iendcol, config, aerosol, &
        &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulout, nulerr, radiation_abort
@@ -533,7 +535,7 @@ contains
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in), target :: config
-    type(aerosol_type),       intent(in)   :: aerosol_ham
+    type(aerosol_type),       intent(in)   :: aerosol
     real(jprb), dimension(config%n_g_lw,nlev,istartcol:iendcol), &
          &   intent(inout) :: od_lw
     real(jprb), dimension(config%n_g_lw_if_scattering,nlev,istartcol:iendcol), &
@@ -549,32 +551,33 @@ contains
     ! Range of levels over which aerosols are present
     integer :: istartlev, iendlev
 
+    if (.not. aerosol%is_direct) return
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_aod_ssa_asym',0,hook_handle)
 
-    istartlev = lbound(aerosol_ham%od_sw,2)
-    iendlev   = ubound(aerosol_ham%od_sw,2)
-    ! Loop over position
+    istartlev = lbound(aerosol%od_sw,2)
+    iendlev   = ubound(aerosol%od_sw,2)
 
+    ! Loop over position
     do jlev = istartlev,iendlev
       do jcol = istartcol,iendcol
           do jg = 1,config%n_g_lw
         
              od_lw(jg,jlev,jcol) = od_lw(jg,jlev,jcol)&
-                  + aerosol_ham%od_sw(jcol,jlev,config%n_bands_sw+config%i_band_from_reordered_g_lw(jg))
+                  + aerosol%od_sw(jcol,jlev,config%n_bands_sw+config%i_band_from_reordered_g_lw(jg))
           end do 
 
-           ! Weighting - only for existing aerosols
+          ! Weighting - only for existing aerosols
           do jg = 1,config%n_g_sw
                  iband=config%i_band_from_reordered_g_sw(jg)
-                 IF (aerosol_ham%od_sw(jcol,jlev,iband) > 0.0_jprb) THEN
+                 IF (aerosol%od_sw(jcol,jlev,iband) > 0.0_jprb) THEN
                      g_sw(jg,jlev,jcol) = g_sw(jg,jlev,jcol)*ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
-                     +aerosol_ham%g_sw(jcol,jlev,iband)
+                     +aerosol%g_sw(jcol,jlev,iband)
                     
                      ssa_sw(jg,jlev,jcol) = ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
-                     +aerosol_ham%ssa_sw(jcol,jlev,iband)
+                     +aerosol%ssa_sw(jcol,jlev,iband)
                     
                      od_sw(jg,jlev,jcol) = od_sw(jg,jlev,jcol) &
-                     +aerosol_ham%od_sw(jcol,jlev,iband)
+                     +aerosol%od_sw(jcol,jlev,iband)
                     
                      IF (ssa_sw(jg,jlev,jcol) /= 0.0_jprb) THEN
                         g_sw(jg,jlev,jcol)=g_sw(jg,jlev,jcol)/ssa_sw(jg,jlev,jcol)
@@ -587,11 +590,8 @@ contains
       end do ! Loop over column
     end do ! Loop over level
 
-
-
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_aod_ssa_asym',1,hook_handle)
   end subroutine
-
 
   !---------------------------------------------------------------------
   ! Sometimes it is useful to specify aerosol in terms of its optical

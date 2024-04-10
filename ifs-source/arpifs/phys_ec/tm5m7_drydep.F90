@@ -625,8 +625,8 @@ enddo ! loop over modes
 
 
 DO IMODE=1,NMOD
-  DEALLOCATE(vn_deposition(IMODE)%surf)
-  DEALLOCATE(vm_deposition(IMODE)%surf)
+  IF(ASSOCIATED(vn_deposition(IMODE)%surf)) DEALLOCATE(vn_deposition(IMODE)%surf)
+  IF(ASSOCIATED(vm_deposition(IMODE)%surf)) DEALLOCATE(vm_deposition(IMODE)%surf)
 ENDDO
 
 

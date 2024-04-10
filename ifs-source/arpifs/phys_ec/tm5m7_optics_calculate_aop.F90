@@ -386,7 +386,7 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',0,ZHOOK_HANDLE)
        endif
 
        if( wdep(i)%split .or. wdep(i)%insitu ) then
-          deallocate( lnsigma )
+         if (allocated(lnsigma)) deallocate( lnsigma )
        endif
 
        !=======================================================================
@@ -394,9 +394,12 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',0,ZHOOK_HANDLE)
 
     
 
-    Nullify(Cext_table)
-    Nullify(a_table)
-    Nullify(g_table)
+    !Nullify(Cext_table)
+    !Nullify(a_table)
+    !Nullify(g_table)
+    if (associated(Cext_table)) deallocate(Cext_table)
+    if (associated(a_table)) deallocate(a_table)
+    if (associated(g_table)) deallocate(g_table)
 
 
     !do imode = 1,7

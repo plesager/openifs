@@ -204,6 +204,8 @@ ASSOCIATE(&
 ! in the files.
 
 ! aerosol tracers
+
+!write(*,*) "MYPROC ", MYPROC 
 LABEL_IFS_AERO: DO j_yaero = 1,NAERO
 
    ! looping over the number tracers in HAM
@@ -213,6 +215,8 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
       ! x: N,K,A,C = nucleation, Aitken, accumulation, and coarse, respectively, while
       ! y: S,I = soluble, insoluble, respectively.
       ! In the IFS-csv table, these combinations are prefixed with '_N'
+      !write(*,*) "CNAME ", TRIM(YAERO(j_yaero)%CNAME)
+      !write(*,*) "sizeclass ",TRIM(sizeclass(j_class)%shortname)//'_N'
       IF (TRIM(YAERO(j_yaero)%CNAME) == TRIM(sizeclass(j_class)%shortname)//'_N') THEN
 
          ! In case of a match, we set the tracer index in the HAM meta data to the
@@ -247,6 +251,11 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
       ! included as well, depending on the HAM setup.
       j_class = aerocomp(j_mass)%iclass  ! index to size class
       j_spec  = aerocomp(j_mass)%spid    ! index to species
+      !write(*,*) "CNAME ", TRIM(YAERO(j_yaero)%CNAME)
+      !write(*,*) "shortname ",(TRIM(speclist(j_spec)%shortname)//'_'//TRIM(sizeclass(j_class)%shortname))
+      !write(*,*) "sizeclass=POM_ ", 'POM_'//TRIM(sizeclass(j_class)%shortname)
+
+      ! write(*,*) "sizeclass ==OC ", TRIM(speclist(j_spec)%shortname)
 
       IF (TRIM(YAERO(j_yaero)%CNAME) == (TRIM(speclist(j_spec)%shortname)//'_'//TRIM(sizeclass(j_class)%shortname))) THEN
 

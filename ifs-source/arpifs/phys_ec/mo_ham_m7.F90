@@ -871,15 +871,22 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
      !>>SF #458 (replacing WHERE statements)
      zaltern_val = MERGE(critn, 0._dp, (jn == iso4ns))
 
+     !write(*,*) "paernl", paernl
+     !write(*,*) "cmin_aernl",cmin_aernl 
+     !write(*,*) "cmin_aerml", cmin_aerml
      ll1(1:kproma,:) = (paernl(1:kproma,:,jclass) > cmin_aernl) &
                  .AND. (paerml(1:kproma,:,jn)     > cmin_aerml)
 
      ztmp1(1:kproma,:) = MERGE(paernl(1:kproma,:,jclass), 1._dp, ll1(1:kproma,:)) !SF 1. is a dummy val.
-
-     pttn(1:kproma,:,jn) = MERGE( &
-                                zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:), &
-                                zaltern_val, &
-                                ll1(1:kproma,:))
+     !write(*,*) "zunitfac", zunitfac
+     !write(*,*) "paerml", paerml
+     !write(*,*) "divide", zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:)
+     !write(*,*) "zaltern_val", zaltern_val
+     !write(*,*) "ll1", ll1
+     ztmp1(1:kproma,:) = zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:)
+     !write(*,*) "ztmp1", ztmp1(1:kproma,:)
+     !pttn(1:kproma,:,jn) = MERGE(zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:), zaltern_val, ll1(1:kproma,:))
+     pttn(1:kproma,:,jn) = MERGE(ztmp1(1:kproma,:), zaltern_val, ll1(1:kproma,:))
      !<<SF #458 (replacing WHERE statements)
 
      !---in case of fp underflow
@@ -906,10 +913,10 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
 
         ztmp1(1:kproma,:) = MERGE(zinsvol(1:kproma,:,jclass), 1._dp, ll1(1:kproma,:)) !SF 1. is a dummy val.
 
-        prhop(1:kproma,:,jclass) = MERGE( &
-                                        zinsmas(1:kproma,:,jclass) / ztmp1(1:kproma,:), &
-                                        prhop(1:kproma,:,jclass), &
-                                        ll1(1:kproma,:))
+        ztmp1(1:kproma,:) = zinsmas(1:kproma,:,jclass) / ztmp1(1:kproma,:)
+
+        prhop(1:kproma,:,jclass) = MERGE(ztmp1(1:kproma,:), prhop(1:kproma,:,jclass), ll1(1:kproma,:))
+        !prhop(1:kproma,:,jclass) = MERGE(zinsmas(1:kproma,:,jclass) / ztmp1(1:kproma,:), prhop(1:kproma,:,jclass), ll1(1:kproma,:))
 
         ztmp1(1:kproma,:) = ram2cmr(jclass)*((ztmp1(1:kproma,:)/z4piover3)**(1._dp/3._dp))
 

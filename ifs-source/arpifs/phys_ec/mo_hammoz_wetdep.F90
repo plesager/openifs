@@ -411,7 +411,7 @@ MODULE mo_hammoz_wetdep
 
   !--- Local arrays:
   LOGICAL  :: lo_2d(1:kbdim,klev)
-  REAL(dp) :: zilwc(kbdim,klev), zfprec(kbdim,klev)
+  REAL(dp) :: zilwc(kbdim,klev), zfprec(kbdim,klev), ztmp1(kbdim,klev)
 
   !--- Constants:
   REAL(dp), PARAMETER :: zmin  = 1.e-10_dp, &
@@ -426,20 +426,41 @@ MODULE mo_hammoz_wetdep
 
   lo_2d(1:kproma,:) = (zilwc(1:kproma,:) > zmin)
 
-  paclc(1:kproma,:) = MERGE(paclc(1:kproma,:)                  , 0._dp, lo_2d(1:kproma,:))
-  pice(1:kproma,:)  = MERGE(pmiwc(1:kproma,:)/zilwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+  paclc(1:kproma,:) = MERGE(paclc(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
+
+  ztmp1(1:kproma,:) = 0._dp
+
+  IF (MINVAL(ABS(zilwc(1:kproma,:)))>0._dp) THEN
+        ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
+  ENDIF
+  !pice(1:kproma,:)  = MERGE(pmiwc(1:kproma,:)/zilwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+  pice(1:kproma,:)  = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   !--- 1.2) Calculate autoconversion rate:
 
   lo_2d(1:kproma,:) = (pmiwc(1:kproma,:) > zmin)
 
-  peffice(1:kproma,:) = MERGE(pmrateps(1:kproma,:)/pmiwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+  ztmp1(1:kproma,:) = 0._dp
+  IF (MINVAL(ABS(pmiwc(1:kproma,:)))>0._dp) THEN
+      ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
+  ENDIF
+
+  !peffice(1:kproma,:) = MERGE(pmrateps(1:kproma,:)/pmiwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+  peffice(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+
   peffice(1:kproma,:) = MAX(0._dp,MIN(1._dp,peffice(1:kproma,:)))
 
   lo_2d(1:kproma,:) = (pmlwc(1:kproma,:) > zmin)
 
-  peffwat(1:kproma,:) = MERGE( (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:) , &
-                               0._dp, lo_2d(1:kproma,:))
+  ztmp1(1:kproma,:) = 0._dp
+  IF (MINVAL(ABS(pmlwc(1:kproma,:)))>0._dp) THEN
+      ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
+  ENDIF
+
+  !peffwat(1:kproma,:) = MERGE( (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
+  peffwat(1:kproma,:) = MERGE(ztmp1(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
+
+
   peffwat(1:kproma,:) = MAX(0._dp,MIN(1._dp,peffwat(1:kproma,:)))
 
   !--- 1.3) Calculate the effective grid-box fraction
@@ -477,8 +498,13 @@ MODULE mo_hammoz_wetdep
                                
   lo_2d(1:kproma,:) = (zfprec(1:kproma,:) > zmin)
 
-  prevap(1:kproma,:) = MERGE((pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:), &
-                             0._dp, lo_2d(1:kproma,:))
+  ztmp1(1:kproma,:) = 0._dp
+  IF (MINVAL(ABS(zfprec(1:kproma,:)))>0._dp) THEN
+      ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
+  ENDIF
+
+  !prevap(1:kproma,:) = MERGE((pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
+  prevap(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   prevap(1:kproma,:) = MAX(0._dp,MIN(1._dp,prevap(1:kproma,:)))
   
@@ -735,10 +761,11 @@ MODULE mo_hammoz_wetdep
 
         !--- Change in in-cloud (strat) or updraft (conv) tracer concentration:
         !>>SF #458 (replacing where statements)
-        zdxtwat(1:kproma,:) = MERGE( &
-                                   zxtwat(1:kproma,:)*plfrac(1:kproma,:)*peffwat(1:kproma,:), &
-                                   0._dp, &
-                                   ll_cloud_cov(1:kproma,:))
+        
+        ztmp1(1:kproma,:) = zxtwat(1:kproma,:)*plfrac(1:kproma,:)*peffwat(1:kproma,:)
+
+        !zdxtwat(1:kproma,:) = MERGE( zxtwat(1:kproma,:)*plfrac(1:kproma,:)*peffwat(1:kproma,:), 0._dp, ll_cloud_cov(1:kproma,:))
+        zdxtwat(1:kproma,:) = MERGE( ztmp1(1:kproma,:), 0._dp, ll_cloud_cov(1:kproma,:))
         !<<SF #458
 
         zxtwat(1:kproma,:) = zxtwat(1:kproma,:) - zdxtwat(1:kproma,:)
@@ -749,10 +776,9 @@ MODULE mo_hammoz_wetdep
 
         !--- Change in in-cloud (strat) or updraft (conv) tracer concentration:
         !>>SF #458 (replacing where statements)
-        zdxtice(1:kproma,:) = MERGE( &
-                                   zxtice(1:kproma,:)*plfrac(1:kproma,:)*peffice(1:kproma,:), &
-                                   0._dp, &
-                                   ll_cloud_cov(1:kproma,:))
+        ztmp1(1:kproma,:) = zxtice(1:kproma,:)*plfrac(1:kproma,:)*peffice(1:kproma,:)
+        !zdxtice(1:kproma,:) = MERGE( zxtice(1:kproma,:)*plfrac(1:kproma,:)*peffice(1:kproma,:), 0._dp, ll_cloud_cov(1:kproma,:))
+        zdxtice(1:kproma,:) = MERGE( ztmp1(1:kproma,:), 0._dp, ll_cloud_cov(1:kproma,:))
         !<<SF #458 (replacing where statements)
       
         zxtice(1:kproma,:) = zxtice(1:kproma,:) - zdxtice(1:kproma,:)
@@ -812,15 +838,13 @@ MODULE mo_hammoz_wetdep
         !>>SF #458 (replacing where statements)
         ll1(1:kproma,:) = .NOT. ll_cloud_cov(1:kproma,:) .AND. ll_prcp(1:kproma,:)
 
-        zcoeffr (1:kproma,:) = MERGE( &
-                                    -ztmst*zscavcoefbcr(1:kproma,:), &
-                                    0._dp, &
-                                    ll1(1:kproma,:) )
+        ztmp1(1:kproma,:) = -ztmst*zscavcoefbcr(1:kproma,:)
+        !zcoeffr (1:kproma,:) = MERGE( -ztmst*zscavcoefbcr(1:kproma,:), 0._dp, ll1(1:kproma,:) )
+        zcoeffr (1:kproma,:) = MERGE( ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:) )
 
-        zcoeffs (1:kproma,:) = MERGE( &
-                                    -ztmst*zscavcoefbcs(1:kproma,:), &
-                                    0._dp, &
-                                    ll1(1:kproma,:) )
+        ztmp1(1:kproma,:) = -ztmst*zscavcoefbcs(1:kproma,:)
+        !zcoeffs (1:kproma,:) = MERGE( -ztmst*zscavcoefbcs(1:kproma,:), 0._dp, ll1(1:kproma,:) )
+        zcoeffs (1:kproma,:) = MERGE( ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:) )
 
         ztmp1(1:kproma,:) = MERGE(pclc(1:kproma,:), 1._dp, ll1(1:kproma,:)) !SF 1._dp is a dummy value
         !>>SFtemporary (in waiting to define two separate rain and snow coeffs):

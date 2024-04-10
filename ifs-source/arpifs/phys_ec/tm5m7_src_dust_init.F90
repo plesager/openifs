@@ -68,7 +68,8 @@ INTEGER(KIND=JPIM) :: NN, ND, NS, KK, NM, NSI, NP
 REAL(KIND=JPRB)    :: BB, CCC, DDD, EE, FF, DP, XK, STOTAL,STOTALV
 REAL(KIND=JPRB)    :: SU, SUV, SU_LOC, SU_LOCV, XL, XM, XN, XNV
 
-REAL, DIMENSION(:), ALLOCATABLE :: su_class, su_classv, utest
+!REAL, DIMENSION(:), ALLOCATABLE :: su_class, su_classv, utest
+REAL(KIND=JPRB) :: su_class(nclass), su_classv(nclass), utest(nats)
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
@@ -79,9 +80,9 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST_INIT',0,ZHOOK_HANDLE)
 
 
 ! only needed within "initial"
-ALLOCATE( su_class ( nclass ) )
-ALLOCATE( su_classv( nclass ) )
-ALLOCATE( utest    ( nats   ) )
+!ALLOCATE( su_class ( nclass ) )
+!ALLOCATE( su_classv( nclass ) )
+!ALLOCATE( utest    ( nats   ) )
 
 
 ! ---------------------------------------------
@@ -200,7 +201,7 @@ DO ns = 1, nats ! soil types
 END DO !ns (soil type)
 
 
-DEALLOCATE( su_class, su_classV, utest )
+!DEALLOCATE( su_class, su_classV, utest )
 
 
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST_INIT',1,ZHOOK_HANDLE)

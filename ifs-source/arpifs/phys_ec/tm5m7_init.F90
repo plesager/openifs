@@ -163,14 +163,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
    !IF(.not.LAERCHEM)THEN
       ! Initialize optics:
       ! Make sure that 'WAVE' is already initialized (in tm5_init.F90)
-      IF (.NOT. LL_TM5_PHOTO_INI) THEN
-         if (.NOT. LAERCHEM)THEN
-            call PHOTOLYSIS_INI
-         ELSE
-            CALL ABOR1('tm5-based photolysis not yet initialized!!')
-         END if
+      !IF (.NOT. LL_TM5_PHOTO_INI) THEN
+      !   if (.NOT. LAERCHEM)THEN
+      !      call PHOTOLYSIS_INI
+      !   ELSE
+      !      CALL ABOR1('tm5-based photolysis not yet initialized!!')
+      !   END if
      
-      ENDIF
+      !ENDIF
    !END IF
    ! define wavelengths for optics calculations
    nwdep = nbands_trop + count(lmid.ne.lmid_gridA)
@@ -201,12 +201,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
    CALL TM5M7_OPTICS_INIT(NWDEP,WDEP)
 
    
-   deallocate(photo_wavelengths)
+   if (allocated(photo_wavelengths)) deallocate(photo_wavelengths)
+   if (allocated(wdep)) deallocate(wdep)
 
 !    nwdep=14
 ! !! A.Laakso: Taken from ecearth_optics (TM5-ECEARTH3) 
    ! HAM aerosol optics are using these too	  
    NASWBAND=YDERAD%NTSW
+   if (allocated(ASWBAND)) deallocate(ASWBAND)
    allocate(ASWBAND(YDERAD%NTSW))
      ASWBAND( 13)%wl = 0.257_JPRB
      ASWBAND( 12)%wl = 0.313_JPRB

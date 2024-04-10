@@ -121,7 +121,7 @@ cat >> fort.4 << EOF
  LO3_CHEM_UV=true,
  NGHGRAD=20,
  NAERMACC=1,
- !LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
+ LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
 /
 &NAMFPC
  CFPFMT="MODEL",

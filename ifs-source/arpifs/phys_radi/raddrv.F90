@@ -658,14 +658,16 @@ DO JSTGLO=1,NGPTOT,NPROMA
 
  
   IF (NACTAERO > 0) THEN
-    DO JAER=1,NAERO
-      DO JK=1,NFLEVG
-!DIR$ IVDEP
-        DO JL=IST,IEND
-          ZAEROT(JSTGLO+JL-1,JK,JAER)=GFL(JL,JK,YAERO(JAER)%MP9_PH,IBL)
-        ENDDO
-      ENDDO
-    ENDDO
+    IF (TRIM(AERO_SCHEME) == "aer" ) THEN 
+       DO JAER=1,NAERO
+         DO JK=1,NFLEVG
+       !DIR$ IVDEP
+           DO JL=IST,IEND
+             ZAEROT(JSTGLO+JL-1,JK,JAER)=GFL(JL,JK,YAERO(JAER)%MP9_PH,IBL)
+           ENDDO
+         ENDDO
+       ENDDO
+    ENDIF!nstep
 
     DO JAER=1,14
       DO JK=1,NFLEVG
@@ -684,8 +686,8 @@ DO JSTGLO=1,NGPTOT,NPROMA
       ENDDO
     ENDDO
   
-    IF (NSTEP /= YDRIP%NSTART) THEN
-        IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN 
+    IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN 
+       IF (NSTEP /= YDRIP%NSTART) THEN
           DO JAER=1,14
             DO JK=1,NFLEVG
               DO JL=IST,IEND        
@@ -702,8 +704,8 @@ DO JSTGLO=1,NGPTOT,NPROMA
               ENDDO
             ENDDO
           ENDDO
-        ENDIF! aero_scheme
-    ENDIF!nstep
+        ENDIF!nstep 
+    ENDIF!aero_scheme
 
   ENDIF! NACTAERO 
 

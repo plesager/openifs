@@ -30,6 +30,7 @@ module_purge() {
 # Load modules
 module_load prgenv/intel
 module_load intel/2021.4.0
+#module_load intel/2023.2.0
 module_load hpcx-openmpi/2.9.0
 module_load intel-mkl/19.0.5
 

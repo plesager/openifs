@@ -215,7 +215,7 @@ TYPE(SINGLE_LEVEL_TYPE)   :: SINGLE_LEVEL
 TYPE(THERMODYNAMICS_TYPE) :: THERMODYNAMICS
 TYPE(GAS_TYPE)            :: GAS
 TYPE(CLOUD_TYPE)          :: YLCLOUD
-TYPE(AEROSOL_TYPE)        :: AEROSOL, AEROSOl_HAM
+TYPE(AEROSOL_TYPE)        :: AEROSOL
 TYPE(FLUX_TYPE)           :: FLUX
 
 ! Mass mixing ratio of ozone (kg/kg)
@@ -285,7 +285,8 @@ IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME',0,ZHOOK_HANDLE)
 
 ASSOCIATE(YDRADIATION=>YDMODEL%YRML_PHY_RAD%YRADIATION, &
      &    YRERAD=>YDMODEL%YRML_PHY_RAD%YRERAD, &
-     &    YDSPP_CONFIG=>YDMODEL%YRML_GCONF%YRSPP_CONFIG)
+     &    YDSPP_CONFIG=>YDMODEL%YRML_GCONF%YRSPP_CONFIG, &
+     &    YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO)
 ASSOCIATE(NCLOUDACT=>YRERAD%NCLOUDACT, RAD_CONFIG=>YDRADIATION%RAD_CONFIG, &
      &    NWEIGHT_UV=>YDRADIATION%NWEIGHT_UV, &
      &    IBAND_UV  =>YDRADIATION%IBAND_UV(:), &
@@ -294,24 +295,29 @@ ASSOCIATE(NCLOUDACT=>YRERAD%NCLOUDACT, RAD_CONFIG=>YDRADIATION%RAD_CONFIG, &
      &    IBAND_PAR =>YDRADIATION%IBAND_PAR(:), &
      &    WEIGHT_PAR=>YDRADIATION%WEIGHT_PAR(:), &
      &    TROP_BG_AER_MASS_EXT=>YDRADIATION%TROP_BG_AER_MASS_EXT, &
-     &    STRAT_BG_AER_MASS_EXT=>YDRADIATION%STRAT_BG_AER_MASS_EXT)
+     &    STRAT_BG_AER_MASS_EXT=>YDRADIATION%STRAT_BG_AER_MASS_EXT, &
+     &    AERO_SCHEME=>YDCOMPO%AERO_SCHEME)
+
 ! Allocate memory in radiation objects
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
      &                     USE_SW_ALBEDO_DIRECT=.TRUE.)
 CALL THERMODYNAMICS%ALLOCATE(KLON, KLEV, USE_H2O_SAT=.TRUE.)
 CALL GAS%ALLOCATE(KLON, KLEV)
 CALL YLCLOUD%ALLOCATE(KLON, KLEV)
+
 IF (YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCCN &
      &  .OR. YDMODEL%YRML_PHY_RAD%YREAERATM%LAERRRTM &
      &  .OR. YRERAD%NAERMACC == 1) THEN
-  CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, KAEROSOL) ! MACC aerosols
+  IF ( TRIM(AERO_SCHEME) == "hamm7" ) THEN
+    CALL AEROSOL%ALLOCATE_DIRECT(RAD_CONFIG, KLON, 1, KLEV) ! HAM aerosols
+  ELSE
+    CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, KAEROSOL) ! MACC aerosols (Number of columns,istartlev, iendlev, number of SW+LW bands)
+  ENDIF
 ELSE
   CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, 6) ! Tegen climatology
 ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
 
-  CALL AEROSOL_HAM%ALLOCATE(KLON, 1, KLEV, YRERAD%NTSW) ! HAM aerosols
-   !(Number of columns,istartlev, iendlev, number of SW+LW bands)
 
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
@@ -355,7 +361,7 @@ CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, YDMODEL%YRML_PHY_SLIN%YREPHLI%LPHYLIN, &
 ! the thermodynamics structure
 !CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
 
-! Set single-level fileds
+! Set single-level fields
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
 SINGLE_LEVEL%COS_SZA(KIDIA:KFDIA)          = PMU0(KIDIA:KFDIA)
 SINGLE_LEVEL%SKIN_TEMPERATURE(KIDIA:KFDIA) = PTEMPERATURE_SKIN(KIDIA:KFDIA)
@@ -533,34 +539,36 @@ IF (YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCCN &
      &  .OR. YDMODEL%YRML_PHY_RAD%YREAERATM%LAERRRTM &
      &  .OR. YRERAD%NAERMACC == 1) THEN
 
+  IF ( .NOT. TRIM(AERO_SCHEME) == "hamm7" ) THEN  ! Could also test on AEROSOL%is_direct for a more general
 
-  ! MACC aerosol from climatology or prognostic aerosol variables -
-  ! this is already in mass mixing ratio units with the required array
-  ! orientation so we can copy it over directly
-  ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability 
-  ! in case of negative values in input
-  DO JAER = 1,KAEROSOL  
-    DO JLEV = 1,KLEV    
-      DO JLON = KIDIA,KFDIA
-        AEROSOL%MIXING_RATIO(JLON,JLEV,JAER) = MAX(PAEROSOL(JLON,JLEV,JAER),0.0_JPRB)
+    ! MACC aerosol from climatology or prognostic aerosol variables -
+    ! this is already in mass mixing ratio units with the required array
+    ! orientation so we can copy it over directly
+    ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability 
+    ! in case of negative values in input
+    DO JAER = 1,KAEROSOL  
+      DO JLEV = 1,KLEV    
+        DO JLON = KIDIA,KFDIA
+          AEROSOL%MIXING_RATIO(JLON,JLEV,JAER) = MAX(PAEROSOL(JLON,JLEV,JAER),0.0_JPRB)
+        ENDDO
       ENDDO
     ENDDO
-  ENDDO
 
-  IF (YRERAD%NAERMACC == 1) THEN
-    ! Add the tropospheric and stratospheric backgrounds contained in the
-    ! old Tegen arrays - this is very ugly!
-    IF (TROP_BG_AER_MASS_EXT > 0.0_JPRB) THEN
-      AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
-           &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
-           &  + PAEROSOL_OLD(KIDIA:KFDIA,1,:)&
-           &  / (ZLAYER_MASS * TROP_BG_AER_MASS_EXT)
-    ENDIF
-    IF (STRAT_BG_AER_MASS_EXT > 0.0_JPRB) THEN
-      AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
-           &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
-           &  + PAEROSOL_OLD(KIDIA:KFDIA,6,:)&
-           &  / (ZLAYER_MASS * STRAT_BG_AER_MASS_EXT)
+    IF (YRERAD%NAERMACC == 1) THEN
+      ! Add the tropospheric and stratospheric backgrounds contained in the
+      ! old Tegen arrays - this is very ugly!
+      IF (TROP_BG_AER_MASS_EXT > 0.0_JPRB) THEN
+        AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
+             &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
+             &  + PAEROSOL_OLD(KIDIA:KFDIA,1,:)&
+             &  / (ZLAYER_MASS * TROP_BG_AER_MASS_EXT)
+      ENDIF
+      IF (STRAT_BG_AER_MASS_EXT > 0.0_JPRB) THEN
+        AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
+             &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
+             &  + PAEROSOL_OLD(KIDIA:KFDIA,6,:)&
+             &  / (ZLAYER_MASS * STRAT_BG_AER_MASS_EXT)
+      ENDIF
     ENDIF
   ENDIF
 ELSE
@@ -583,25 +591,30 @@ ELSE
   ENDDO
 
 ENDIF
-!real(jprb), allocatable, dimension(:,:,:) :: &
-!          &  od_sw, ssa_sw, g_sw, & ! Shortwave optical properties
 
-
-AEROSOL_HAM%od_sw(KIDIA:KFDIA,:,:)  = 0.0_JPRB
-AEROSOL_HAM%ssa_sw(KIDIA:KFDIA,:,:) = 0.0_JPRB
-AEROSOL_HAM%g_sw(KIDIA:KFDIA,:,:)   = 0.0_JPRB
-!Alaakso: Optical properties of HAM aerosols - Should be 0 if not used
-IF (YRERAD%NAEROOPT>0) THEN
-!already weighted (see aer_phy3_layer) SW
- AEROSOL_HAM%od_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW)  =PAEROM7_TAU(KIDIA:KFDIA,:,1:YRERAD%NTSW)
- AEROSOL_HAM%ssa_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW) =PAEROM7_SSA(KIDIA:KFDIA,:,1:YRERAD%NTSW)
- AEROSOL_HAM%g_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW)   =PAEROM7_ASYM(KIDIA:KFDIA,:,1:YRERAD%NTSW)
-!!LW, need to make sure that PAEROM7_TAULW = 0, when NAEROOPT=1 (TM5 optics, no LW opt)
-!aerosol_opt%aod(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=PAEROM7_TAULW(KIDIA:KFDIA,:,1:STRATO_CMIP6_NTB)
-!aerosol_opt%ssa(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=0.0_JPRB !only absorbtion for LW
-!aerosol_opt%asym(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=0.0_JPRB
+! Optical properties of HAM aerosols - Should be 0 if not used
+IF (RAD_CONFIG%DO_SW) THEN
+  IF (ALLOCATED(AEROSOL%od_sw) ) AEROSOL%od_sw(KIDIA:KFDIA,:,:)  = 0.0_JPRB
+  IF (ALLOCATED(AEROSOL%ssa_sw)) AEROSOL%ssa_sw(KIDIA:KFDIA,:,:) = 0.0_JPRB
+  IF (ALLOCATED(AEROSOL%g_sw)  ) AEROSOL%g_sw(KIDIA:KFDIA,:,:)   = 0.0_JPRB
 ENDIF
 
+IF (( TRIM(AERO_SCHEME) == "hamm7") .AND. YDMODEL%YRML_PHY_RAD%YREAERATM%LAERRRTM) THEN
+  IF (YRERAD%NAEROOPT>0) THEN
+    IF (RAD_CONFIG%DO_SW) THEN
+      !already weighted (see aer_phy3_layer) SW
+      AEROSOL%od_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW)  = PAEROM7_TAU(KIDIA:KFDIA,:,1:YRERAD%NTSW)
+      AEROSOL%ssa_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW) = PAEROM7_SSA(KIDIA:KFDIA,:,1:YRERAD%NTSW)
+      AEROSOL%g_sw(KIDIA:KFDIA,:,1:YRERAD%NTSW)   = PAEROM7_ASYM(KIDIA:KFDIA,:,1:YRERAD%NTSW)
+    ENDIF
+    !  IF (RAD_CONFIG%DO_LW) THEN
+    !!LW, need to make sure that PAEROM7_TAULW = 0, when NAEROOPT=1 (TM5 optics, no LW opt)
+    !aerosol_opt%aod(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=PAEROM7_TAULW(KIDIA:KFDIA,:,1:STRATO_CMIP6_NTB)
+    !aerosol_opt%ssa(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=0.0_JPRB !only absorbtion for LW
+    !aerosol_opt%asym(KIDIA:KFDIA,:,YRERAD%NTSW+1:YRERAD%NTSW+STRATO_CMIP6_NTB)=0.0_JPRB
+    !  ENDIF
+  ENDIF
+ENDIF
 
 
 ! Convert ozone Pa*kg/kg to kg/kg
@@ -630,7 +643,7 @@ CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
 
 ! Call radiation scheme
 CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
-     &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, AEROSOL_HAM, FLUX)
+     &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
 
 ! Check fluxes are within physical bounds
 IF (YRERAD%NDUMPBADINPUTS /= 0 &
@@ -761,7 +774,6 @@ CALL THERMODYNAMICS%DEALLOCATE
 CALL GAS%DEALLOCATE
 CALL YLCLOUD%DEALLOCATE
 CALL AEROSOL%DEALLOCATE
-CALL AEROSOL_HAM%DEALLOCATE
 CALL FLUX%DEALLOCATE
 
 END ASSOCIATE

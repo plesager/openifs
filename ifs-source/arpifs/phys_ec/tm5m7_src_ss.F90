@@ -1,5 +1,5 @@
 SUBROUTINE TM5M7_SRC_SS &
-  &( YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, &
+  &( KIDIA, KFDIA, KLON, KLEV, &
   &  PCI  , PCLAKE, PLSM , PSST, PWIND, &
   &  emis_mass, emis_number & 
   &)
@@ -49,8 +49,9 @@ SUBROUTINE TM5M7_SRC_SS &
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
-USE YOEAERSRC ,ONLY : TEAERSRC!YREAERSRC
+!USE YOEAERSRC ,ONLY : TEAERSRC!YREAERSRC
 !USE YOEAERSNK, ONLY : YREAERSNK
+!USE YOMPHYDER, ONLY :  STATE_TYPE
 USE YOMCST, ONLY : RPI
 USE TM5M7_DATA, ONLY: NMOD, MODE_ACS, MODE_COS, sigma_lognormal, SS_DENSITY 
 USE TM5M7_EMIS_DATA, ONLY : MODAL_EMISSIONS, radius_ssa, radius_ssc
@@ -61,7 +62,8 @@ IMPLICIT NONE
 
 !*       0.1   ARGUMENTS
 !              ---------
-TYPE(TEAERSRC)    ,INTENT(IN)    :: YDEAERSRC
+!TYPE(TEAERSRC)    ,INTENT(IN)    :: YDEAERSRC
+!TYPE (STATE_TYPE)              ,INTENT (IN)   :: TENDENCY_CML
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
@@ -88,7 +90,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
 
-ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
+!ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
 
 
     !>>> TvN
@@ -288,7 +290,7 @@ ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
 
     ! vertically distribute according to sector
     ! CALL emission_vdist_by_sector( splittype, 'SS', region, emis_temp(region), emis3d, status )
-    emis_mass  (mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)   !kg/m2/sec
+    emis_mass(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)   !kg/m2/sec
 
 
     !===================
@@ -367,7 +369,7 @@ ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
 
 
 
-END ASSOCIATE
+!END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_SRC_SS
 

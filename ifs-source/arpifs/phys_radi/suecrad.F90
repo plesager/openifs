@@ -773,7 +773,7 @@ IF (LEPHYS.AND..NOT.LARPEGEF) THEN ! LARPEGEF for the files conversions IFS->Arp
 ELSE
   NAERMACC=0
 ENDIF
-LAER3D=.FALSE. !T=3d CAMS aerosol climatology
+LAER3D=.TRUE. !T=3d CAMS aerosol climatology
 
 
 NMCLAT=1
@@ -2114,11 +2114,11 @@ ENDIF
 !*       6.    INITIALIZE AEROSOL OPTICAL PARAMETERS AND DISTRIBUTION
 !              ------------------------------------------------------
 !*** M7
-write(*,*) "NPROMA",NPROMA
-write(*,*) "NFLEVG",NFLEVG
-write(*,*) "NTSW",NTSW
-write(*,*) "NGPBLKS",NGPBLKS
-write(*,*) "AERO_SCHEME",TRIM(AERO_SCHEME)
+!write(*,*) "NPROMA",NPROMA
+!write(*,*) "NFLEVG",NFLEVG
+!write(*,*) "NTSW",NTSW
+!write(*,*) "NGPBLKS",NGPBLKS
+!write(*,*) "AERO_SCHEME",TRIM(AERO_SCHEME)
 
 IF (NACTAERO > 0) THEN
  IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN

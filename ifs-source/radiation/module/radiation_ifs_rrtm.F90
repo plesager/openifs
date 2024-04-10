@@ -364,7 +364,6 @@ contains
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
-
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &

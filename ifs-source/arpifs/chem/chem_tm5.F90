@@ -495,7 +495,7 @@ ENDIF
 ! ITAU_MACC = 2_JPIM  ! Use simple (but wrong) climatology for aerosol optical depth if no prognostic MACC aerosol is used 
 
 IF ( LCHEM_AEROI ) THEN 
-  IF (TRIM(AERO_SCHEME)=="aer" )THEN
+  IF (TRIM(AERO_SCHEME)=="aer" .OR. TRIM(AERO_SCHEME)=="hamm7")THEN
     ! * from MACC fields
     CALL TM5_MACC_AEROSOL(KIDIA,KFDIA,KLON,KLEV, KAERO, &
       &   PRS1   , PAEROP  , ZRHCL   ,   &
@@ -1096,9 +1096,13 @@ ENDIF
   ! Also the stratospheric nudging is included. This tendency output from this chem_tm5 module
   ! should be considered with great care, i.e. it is not well-defined.
   ! Change units from kg/kg/sec to sec-1. Loss term is positive.
+  !write(*,*) "PTENC1",PTENC1(:,:,ICH4)
+  !write(*,*) "PCEN(JL,JLEV,ICH4)",PCEN(:,:,ICH4)
   DO JLEV=1,KLEV
     DO JL=KIDIA,KFDIA
-      PCHEM2GHG(JL,JLEV,1) = - PTENC1(JL,JLEV,ICH4) / PCEN(JL,JLEV,ICH4)
+      IF(PCEN(JL,JLEV,ICH4)> 0._JPRB ) THEN 
+          PCHEM2GHG(JL,JLEV,1) = - PTENC1(JL,JLEV,ICH4) / PCEN(JL,JLEV,ICH4)
+      ENDIF
     ENDDO
   ENDDO
 ! ENDIF

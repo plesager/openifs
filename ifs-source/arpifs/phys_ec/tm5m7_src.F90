@@ -1,5 +1,5 @@
 SUBROUTINE TM5M7_SRC &
- &( YDGEOMETRY, YDMODEL,  KIDIA, KFDIA, KLON , KTDIA, KLEV, KTILES, KSTART, KSTEP ,KSTGLO,&
+ &( YDGEOMETRY, YDMODEL, KIDIA, KFDIA, KLON , KTDIA, KLEV, KTILES, KSTART, KSTEP ,KSTGLO,&
  &  KSW  , KTRAC, KAERO,&
  &  PALB , PALBD, PAPHI ,&
  &  PAERDEP, PAERLTS, PAERSCC, PAERGUST, PALTH ,&
@@ -32,6 +32,7 @@ USE TYPE_MODEL   , ONLY : MODEL
 USE PARKIND1  ,ONLY : JPIM, JPRB, JPRD
 USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULOUT, NULERR
+!USE YOMPHYDER, ONLY :  STATE_TYPE
 !USE YOM_YGFL  ,ONLY : YGFL
 USE YOMCST    ,ONLY : RA, RPI, RDAY, RG
 USE YOMRIP0   ,ONLY : NINDAT, NSSSSS
@@ -67,6 +68,7 @@ IMPLICIT NONE
 
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
 TYPE(MODEL)       ,INTENT(INOUT)    :: YDMODEL
+!TYPE (STATE_TYPE) ,INTENT (IN)   :: TENDENCY_CML
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON, KIDIA, KFDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV, KTDIA, KSTGLO
 INTEGER(KIND=JPIM),INTENT(IN)    :: KTILES
@@ -164,7 +166,7 @@ REAL(KIND=JPRB) ::  numbscale_exp, mass2numb_fact, &
  &  mass2numb_bb_sol,     mass2numb_bb_insol,  mass2numb_nonbf_sol, mass2numb_nonbf_insol, &
  &  oc2pom
 
-REAL(KIND=JPRB)    :: ZSOA(KLON)
+!REAL(KIND=JPRB)    :: ZSOA(KLON)
 
 REAL(KIND=JPRB) :: FRAC_BF(KLON), EMIT(KLON,KLEV) 
 
@@ -199,14 +201,12 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_SRC',0,ZHOOK_HANDLE)
 
 
 !-----------------------------------------------------------------------
-ASSOCIATE(YDVAB=>YDGEOMETRY%YRVAB,YDVETA=>YDGEOMETRY%YRVETA,YDVFE=>YDGEOMETRY%YRVFE,&
-  & YDCSGLEG=>YDGEOMETRY%YRCSGLEG,&
+ASSOCIATE(YDCSGLEG=>YDGEOMETRY%YRCSGLEG,&
   & YDEPHY=>YDMODEL%YRML_PHY_EC%YREPHY, &
   & YDEAERMAP=>YDMODEL%YRML_PHY_AER%YREAERMAP, &
   & YGFL=>YDMODEL%YRML_GCONF%YGFL, &
   & YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
   & YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC, &
-  & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM, &
   & YDRIP=>YDMODEL%YRML_GCONF%YRRIP)
 
 
@@ -220,9 +220,10 @@ ASSOCIATE(YAERO=>YGFL%YAERO, &
  & RCODECA=>YDEAERSRC%RCODECA, RCOVSRA=>YDEAERSRC%RCOVSRA, &
  & NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
  & NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, &
- & YSURF=>YDEPHY%YSURF,LVDFTRAC=>YDEPHY%LVDFTRAC, &
- & NCHEM=>YGFL%NCHEM, YCHEM=>YGFL%YCHEM, LAERSOA_CHEM=>YDEAERATM%LAERSOA_CHEM, &
+ & YSURF=>YDEPHY%YSURF, &
  & LAERCHEM=>YGFL%LAERCHEM)
+!VH maybe 43r3, only??  
+!& LAERODIU=>YDCOMPO%LAERODIU, YAERO=>YGFL%YAERO, LFIRE=>YDCOMPO%LFIRE, LINJ=>YDCOMPO%LINJ, &
 
 ! N.B.: In ECMWF model conventions, flux going upward from the surface 
 ! are negative
@@ -232,17 +233,15 @@ ASSOCIATE(YAERO=>YGFL%YAERO, &
 
 !*       0.1   TIME AND DATE OF THE MODEL
 !              --------------------------
- 
 IY0=NCCAA(NINDAT)
 IM0=NMM(NINDAT)
 ID0=NDD(NINDAT)
 INC=(NSSSSS + NINT(RSTATI)/NINT(RDAY))
 CALL UPDCAL (ID0, IM0, IY0, INC,  IDD, IMM, IYY, IMON, -1)
 IMDATE=IYY*10000+IMM*100+IDD
-
+ZRAD2DEG = 180._JPRB/RPI 
 !*       0.2   A LENGTH OF DAY INDEX
 !              ---------------------
-
 DO JL=KIDIA,KFDIA
   IGLGLO=NGLOBALAT(KSTGLO+JL-1)
   ZGEMU(JL)=YDCSGLEG%RMU(IGLGLO)                      ! sine of latitude
@@ -331,6 +330,13 @@ ZAEROK (KIDIA:KFDIA, 1:KLEV, 1:NACTAERO) = PCEN (KIDIA:KFDIA, 1:KLEV, KAERO(1):K
 ZTAEROK(KIDIA:KFDIA, 1:KLEV, 1:NACTAERO) = PTENC(KIDIA:KFDIA, 1:KLEV, KAERO(1):KAERO(NACTAERO))
 
 PEMIDIAG(KIDIA:KFDIA,         1:NACTAERO)= 0.0_JPRB
+ZOMBF = 0.0_JPRB
+ZOMFF = 0.0_JPRB
+ZOMGF = 0.0_JPRB
+ZBCFF = 0.0_JPRB
+ZBCBF = 0.0_JPRB
+ZBCGF = 0.0_JPRB
+
 !-----------------------------------------------------------------------
 
 !*       0.6   SURFACE WIND VARIABLE RELEVANT FOR SS AND DU EMISSIONS
@@ -371,7 +377,7 @@ ENDIF
 ZHSS=8434._JPRB/1000._JPRB 
 
 
-  CALL TM5M7_SRC_SS(YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, &
+  CALL TM5M7_SRC_SS(KIDIA, KFDIA, KLON, KLEV, &
       & PCI, PCLAKE, PLSM, PSST, ZWNDSS, &
       & emis_mass, emis_number )
 
@@ -387,12 +393,12 @@ ZHDD=MAX(1.0_JPRB,8434._JPRB/1000._JPRB)
 
 PAERFLX(KIDIA:KFDIA,1:12,1:9)=0._JPRB
 ZAERMAP(KIDIA:KFDIA,1:5)=0._JPRB
-CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
+CALL TM5M7_SRC_DUST(YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
       & PLSM, ZWNDDU, PSNS, PZ0M, &
       & PAP(:,KLEV), PTL,  PSOIL_TYPE, &
       & PFRTI, PCVL, PCVH, KTVL, KTVH, &
-      & emis_mass, emis_number ,PAERFLX,ZGLON,ZGLAT&
-      ,ZRWPWP,ZRWSAT,ZAERMAP,PALB,PALBD,PWS1,PHSDFOR)
+      & emis_mass, emis_number ,PAERFLX,ZGLON,ZGLAT, &
+      & ZRWPWP,ZRWSAT,ZAERMAP,PALB,PALBD,PWS1,PHSDFOR)
 !write(2345,*) 'test',ptsphy, emis_mass(mode_aci)%d3(KIDIA:KFDIA,91,1),emis_number(mode_aci)%d3(KIDIA:KFDIA,91,1),PAERFLX(:,1,:)
 !write(2346,*) 'test',ptsphy, emis_mass(mode_aii)%d3(KIDIA:KFDIA,91,1),emis_number(mode_aii)%d3(KIDIA:KFDIA,91,1),PAERFLX(:,1,:)
 !DO JK=1,KLEV
@@ -430,7 +436,7 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
     numbscale_exp  = EXP(1.5*(LOG(sigma_lognormal(mode_acs)))**2)
     mass2numb_fact = 3./(4.*RPI*(numbscale_exp**3)*pom_density)
     mass2numb_bf_sol = mass2numb_fact/(rad_emi_bf_sol**3)
-    mass2numb_bb_sol = mass2numb_fact/(rad_emi_bb_sol**3) 
+    !mass2numb_bb_sol = mass2numb_fact/(rad_emi_bb_sol**3) 
     mass2numb_nonbf_sol = mass2numb_ff_sol
     mass2numb_nonbf_insol = mass2numb_ff_insol
 
@@ -617,7 +623,7 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
     numbscale_exp  = EXP(1.5*(LOG(sigma_lognormal(mode_acs)))**2)
     mass2numb_fact = 3./(4.*RPI*(numbscale_exp**3)*carbon_density)
     mass2numb_bf_sol = mass2numb_fact/(rad_emi_bf_sol**3)
-    mass2numb_bb_sol = mass2numb_fact/(rad_emi_bb_sol**3)
+    !mass2numb_bb_sol = mass2numb_fact/(rad_emi_bb_sol**3)
     mass2numb_nonbf_sol = mass2numb_ff_sol
     mass2numb_nonbf_insol = mass2numb_ff_insol
     
@@ -782,6 +788,9 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
           emit(KIDIA:KFDIA,:) = emis_mass(IMODE)%d3(KIDIA:KFDIA,:,inmode)
        endif
        ! Change units from kg/m2/sec to kg/kg/sec and update tendency..
+         !write(*,*) "JN",JN
+         !write(*,*) "KAERO(JN)",KAERO(JN)
+         !write(*,*) "NACTAERO",NACTAERO
        DO JL=KIDIA,KFDIA
          ! Should limit to troposphere?! (for now sfc only)
           !JK=91
@@ -844,8 +853,8 @@ CALL TM5M7_SRC_DUST(YDMODEL, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
 
 
 DO IMODE=1,NMOD
-  DEALLOCATE(EMIS_NUMBER(IMODE)%d3)
-  DEALLOCATE(EMIS_MASS(IMODE)%d3)
+  IF(associated(EMIS_NUMBER(IMODE)%d3)) DEALLOCATE(EMIS_NUMBER(IMODE)%d3)
+  IF(associated(EMIS_MASS(IMODE)%d3))   DEALLOCATE(EMIS_MASS(IMODE)%d3)
 ENDDO
 
 END ASSOCIATE
