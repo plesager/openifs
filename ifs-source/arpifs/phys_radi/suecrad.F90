@@ -770,6 +770,9 @@ LETRACGMS=.TRUE.
 !- monthly climatology of aerosols (SS, DU, OM, BC, SO4) from CAMS reanalyses (former MACC)
 IF (LEPHYS.AND..NOT.LARPEGEF) THEN ! LARPEGEF for the files conversions IFS->Arpege. REK
   NAERMACC=1    ! =0 inactive
+  FIXME: IF ( TRIM(AERO_SCHEME) == "hamm7" ) THEN
+    NAERMACC=0
+  ENDIF FIXME
 ELSE
   NAERMACC=0
 ENDIF

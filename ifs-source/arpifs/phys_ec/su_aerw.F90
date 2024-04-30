@@ -387,6 +387,9 @@ ELSE
   ! use HAM-M7-specific switches in the micro-physics routines.
   CASE ("tm5m7", "hamm7")
 
+  LEPAERO  =.FALSE.
+  LAERRAD  =.FALSE.
+
   LAERCLIMG=.FALSE.
   LAERCLIMZ=.FALSE.
   LAERCLIST=.FALSE.
@@ -409,6 +412,8 @@ ELSE
   LUVINDX  =.FALSE.
   LAERNITRATE = .FALSE.
   LDRYDEPVEL_DYN=.FALSE.
+
+  REPSCAER=1.E-20_JPRB ! minimum value for AOD
 
   !-- minimum oceanic production of DMS
   RDMSMIN = 5.E-11_JPRB

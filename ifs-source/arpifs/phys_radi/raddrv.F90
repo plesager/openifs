@@ -686,8 +686,8 @@ DO JSTGLO=1,NGPTOT,NPROMA
       ENDDO
     ENDDO
   
-    IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN 
-       IF (NSTEP /= YDRIP%NSTART) THEN
+    IF (TRIM(AERO_SCHEME) == "hamm7" ) THEN
+       !IF (NSTEP /= YDRIP%NSTART) THEN
           DO JAER=1,14
             DO JK=1,NFLEVG
               DO JL=IST,IEND        
@@ -704,10 +704,10 @@ DO JSTGLO=1,NGPTOT,NPROMA
               ENDDO
             ENDDO
           ENDDO
-        ENDIF!nstep 
-    ENDIF!aero_scheme
+        !ENDIF!nstep
+    ENDIF !aero_scheme
 
-  ENDIF! NACTAERO 
+  ENDIF! NACTAERO
 
   IF (NCLOUDACT > 0) THEN
     DO JK=1,NFLEVG

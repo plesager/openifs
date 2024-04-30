@@ -162,10 +162,10 @@ cat >> fort.4 << EOF
   NSO4SCHEME=1,
   LSEASALT_RH80=true,
  LAERHYGRO=true,
- LAERRRTM=false,
+ LAERRRTM=true,
 /
 &NAMCOMPO
-  LCHEM_DIA=true,
+  LCHEM_DIA=false,
   LCHEM_DDFLX=true,
   LCOMPO_DDFLX_DIR=true,
   LCHEM_TROPO=true,
