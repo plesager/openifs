@@ -521,7 +521,7 @@ IDUM=0
 !                   --------------------------
 NCLOUDACT= 0
 NAEROOPT = 2 !Default (will be)=2, HAM optics (faster and calculated for LW too)
-
+!NAEROOPT = 0
 LERAD1H=.FALSE.
 NLNGR1H=12
 

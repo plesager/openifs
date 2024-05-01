@@ -1,52 +1,69 @@
-SUBROUTINE HAMM7_INTERFACE &
- &( YDMODEL, KIDIA  , KFDIA  , KLON   , KTDIA  , KLEV , KTILES , &
- &  KFLDX, KLEVX,  KTRAC  , KAERO , KCHEM, KSTGLO, PGEOH, &
- &  PRS1   , PRSF1  , PAEROP , PCAERO , PCEN  , PAPHIF , &
- &  PFPLCL , PFPLCN , PFPLSL , PFPLSN , PGELAT, PGELAM, &
- &  PAP    , PIP    , PLP    ,   PRP  ,    PSP  , PCOVPTOT, PLU    , PO3P  ,PQP   , PTP    , PTHP   , PTENC  , PCFLX  , &
- &  PAERDDP, PAERSDM, PAERSRC, PAERWS , PAERGUST     , PAERUST, PAERMAP, &
- &  PCLAERS, PPRAERS, PCHEM2AER, &  
- &  PFRTI  , PLSM   , PSNS , PWND  , PWS1   , PAERFLX, PAERLIF, &
- &  PAERODDF,PTSPHY , PGFL   , &
- &  PODTO  , PAERO_WVL_DIAG, &
- &  PAER_TAU, PAER_SSA,PAER_ASYM,PAER_TAU_LW,&
- &  PTAUS_AER,PTAUA_AER,PPMAER, &
- &  PEXTRA, PVERVEL, PCCNL, PCCNO, PAHFSTI, PCI, PZ0M, PAHFLEV, &  !eehol: added here vertical velocity, CCN over land, CCN over ocean
- &  PUP, PVP, PCVL, PCVH, PSO2DD, PGEMU)!, PTSO2, PTSO4, PTSO4_AQ, PFSO2,PFSO4,PFSO4_AQ&
+SUBROUTINE HAMM7_INTERFACE( &
+ & YDMODEL,   KIDIA,     KFDIA,     KLON,        KTDIA,    KLEV,     KTILES,  &
+ & KFLDX,     KLEVX,     KTRAC,     KAERO,       KCHEM,    KSTGLO,   PGEOH,   &
+ & PRS1,      PRSF1,     PAEROP,    PCAERO,      PCEN,     PAPHIF,            &
+ & PFPLCL,    PFPLCN,    PFPLSL,    PFPLSN,      PGELAT,   PGELAM,            &
+ & PAP,       PIP,       PLP,       PRP,         PSP,      PCOVPTOT,          &
+ & PLU,       PO3P,      PQP,       PTP,         PTHP,     PTENC,    PCFLX,   &
+ & PAERDDP,   PAERSDM,   PAERSRC,   PAERWS,      PAERGUST, PAERUST,  PAERMAP, &
+ & PCLAERS,   PPRAERS,   PCHEM2AER,                                           &
+ & PFRTI,     PLSM,      PSNS,      PWND,        PWS1,     PAERFLX,  PAERLIF, &
+ & PAERODDF,  PTSPHY,    PGFL,                                                &
+ & PODTO,     PAERO_WVL_DIAG,                                                 &
+ & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW,                              &
+ & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
+ & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
+ !eehol: added here vertical velocity, CCN over land, CCN over ocean
+ & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU)
+ !, PTSO2, PTSO4, PTSO4_AQ, PFSO2,PFSO4,PFSO4_AQ&
  !  u-wind, v-wind, low veg. cover, high veg. cover, sine of latitude
 
-!**** *TM5M7* - ROUTINE DEALING WITH THE TM5M7 AEROSOL COMPUTATIONS:
-!                  SCAVENGING, MASS DIAGNOSTICS, AEROSOL-PERTURBED RADIANCES
+! ╭────────────────────────────────────────────────────────────────────────────╮
+! │                                                      (updated 30-APR-2024) │
+! │ Purpose :                                                                  │
+! │ -------                                                                    │
+! │  *hamm7_interface* -                                                       │
+! │                                                                            │
+! │                                                                            │
+! │ Interface :                                                                │
+! │ ---------                                                                  │
+! │   *HAMM7_INTERFACE* is called from AER_PHY3_LAYER                          │
+! │                                                                            │
+! │                                                                            │
+! │ Input :                                                                    │
+! │ -----                                                                      │
+! │                                                                            │
+! │                                                                            │
+! │ Output :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │                                                                            │
+! │ Externals :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Method :                                                                   │
+! │ ------                                                                     │
+! │  Follows the method of Marticorena-Bergametti 1995 for the variables       │
+! │  UTH, Srel, srelV                                                          │
+! │                                                                            │
+! │ Reference :                                                                │
+! │ ---------                                                                  │
+! │   Marticorena, Bergametti. JGR: Atmospheres, 1995.                         │
+! │                                                                            │
+! │ Author :                                                                   │
+! │ -------                                                                    │
+! │     Orginal version:                                                       │
+! │     Vicent Huijen (KNMI), Tommi Bergman (FMI), Thomas Kuehn (FMI/UEF)      │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ -------------                                                              │
+! │     May.  2020 - V. Huijnen     : Modifications for TM5M7                  │
+! │     Sep.  2020 - T. Bergman     : TM5M7 work                               │
+! │     Apr.  2024 - Lianghai Wu    : revision for CY48r1                      │
+! │     May.  2020 - R. Checa-Garcia: revision for CY48r1 and refactory        │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
-!      Vincent Huijnen , KNMI
-!      Tommi Bergman,  FMI
-!      Thomas Kuehn (FMI/UEF),   November 2020
-
-!**   INTERFACE.
-!     ----------
-!          *TM5M7* IS CALLED FROM *AER_PHY3_LAYER*.
-
-! INPUTS:
-! -------
-! PCHEM2AER  (KLON,KLEV,xx)    : chemistry tendency of selected processes because of specific reactions (kg/kg s-1)
-! OUTPUTS:
-! --------
-
-!     EXTERNALS.
-!     ----------
-!          *TM5M7_SCAV* , ...
-
-!     MODIFICATIONS.
-!     -------------
-!
-!          V. Huijnen 20200501 Modification for TM5M7
-!          T Bergman  20200925 TM5M7 work
-
-!     SWITCHES.
-!     --------
-
-!     MODEL PARAMETERS
-!     ----
 !     PARAMETER     DESCRIPTION                                   UNITS
 !     ---------     -----------                                   -----
 !     INPUT PARAMETERS (INTEGER):
@@ -125,80 +142,75 @@ SUBROUTINE HAMM7_INTERFACE &
 
 !-----------------------------------------------------------------------
 
-USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
-!USE YOEAERSRC, ONLY : YREAERSRC
-!USE YOEAERATM, ONLY : YREAERATM
-!USE YOEAERLID, ONLY : YREAERLID
-!USE YOEAERSNK ,ONLY : YREAERSNK
-!USE YOM_YGFL , ONLY : YGFL 
-!USE YOERAD   , ONLY : YRERAD
-!USE YOEPHY   , ONLY : YREPHY
-USE TYPE_MODEL, ONLY : MODEL
-USE YOMCST   ,  ONLY : RD, RG, RPI, RMSO2, RMSO4, RMD, RNAVO
-!USE YOMPRAD  , ONLY : RADGRID ! sine of latitude from RADGRID to effective radius calculations
-!USE YOECLDP  , ONLY : YRECLDP ! for default ICNC and effective radius
-USE YOMCT0   , ONLY : LIFSMIN, LIFSTRAJ
-!USE YOMRIP   , ONLY : YRRIP
-USE YOESRTCOP, ONLY : RSASWA, RSASWB, RSFUA0, RSFUA1
-USE YOMCT3   , ONLY : NSTEP
+USE PARKIND1,     ONLY: JPIM, JPRB
+USE YOMHOOK,      ONLY: LHOOK, DR_HOOK, JPHOOK
+USE TYPE_MODEL,   ONLY: MODEL
+USE YOMCST,       ONLY: RD, RG, RPI
+USE YOMCT0,       ONLY: LIFSMIN, LIFSTRAJ
+USE YOMCT3,       ONLY: NSTEP
+USE TM5M7_DATA,   ONLY: mode_tracers, mode_tracers_by_mods, mode_start,         &
+                      & mode_end_so4, naermod, nmod,nsol, iisvoc,ielvoc,        &
+                      & iacs_n,iso4, MODAL_DATA, MODE_TRACERS, MODE_START,      &
+                      & MODE_TRACERS_BY_MODS, MODE_END_SO4, NAERMOD, NMOD, NSOL,&
+                      & IISVOC, IELVOC, IACS_N, ISO4, ISO4ACS,ISO4COS
+USE YOMCHEM,      ONLY: IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
 
-!! USE YOMLUN   , ONLY : NULOUT
-USE TM5M7_DATA, ONLY: mode_tracers,mode_tracers_by_mods,mode_start,mode_end_so4,naermod,nmod,nsol,iisvoc,ielvoc,iacs_n,iso4,MODAL_DATA, MODE_TRACERS, MODE_TRACERS_BY_MODS, &
-     MODE_START, MODE_END_SO4, NAERMOD, NMOD, NSOL, IISVOC, IELVOC, IACS_N, ISO4, ISO4ACS,ISO4COS
-!USE YOMCHEM  , ONLY :  YRCHEM,IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
-USE YOMCHEM  , ONLY :  IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
+USE YOE_AERODIAG, ONLY: JPAERO_WVL_AOD, JPAERO_WVL_AODABS, JPAERO_WVL_AODFM,   &
+                      & JPAERO_WVL_SSA, JPAERO_WVL_ASSIMETRY
+USE YOMLUN,       ONLY: NULOUT
 
-USE YOE_AERODIAG , ONLY : JPAERO_WVL_AOD, JPAERO_WVL_AODABS, JPAERO_WVL_AODFM, &
-  &                       JPAERO_WVL_SSA, JPAERO_WVL_ASSIMETRY
+! [RCHG -> var non used ]  USE YOMCST,       ONLY: RMSO2, RMSO4, RMD, RNAVO
+! [RCHG -> var non used ]  USE YOESRTCOP,    ONLY: RSASWA, RSASWB, RSFUA0, RSFUA1
+! [RCHG -> var non used ]  USE YOMCOMPO , ONLY :  YRCOMPO  
 
-!USE YOMCOMPO , ONLY :  YRCOMPO  
 ! implementation of HAM-M7
-USE MO_HAM, ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
-USE OIFS_TO_HAM, ONLY: ind_oifs_ham
-USE MO_HAM_SUBM, ONLY: HAM_SUBM_INTERFACE !eehol: replaced HAM-M7 call with submodel interface
-USE MO_ACTIV, ONLY: activ_updraft,nw,idt_cdnc,idt_icnc !eehol: HAM-M7 activation updraft calculation, effective radii
-USE MO_HAM_ACTIV, ONLY: ham_activ_abdulrazzak_ghan, ham_activ_koehler_ab !eehol: HAM-M7 activation
-USE MO_PARAM_SWITCHES, ONLY: ncd_activ !eehol: for activation
-USE MO_TRACDEF, ONLY: ntrac, trlist !eehol: number of tracer for mass/number mixing ratio conversion, trlist for wet deposition flags
-USE MO_TRACER_PROCESSES, ONLY: xt_borrow !eehol: conserving the negative tracer values from tendency
-USE MO_SUBMODEL, ONLY: lwetdep,lsedimentation !eehol: logical for wetdeposition, sedimentation
-USE MO_SPECIES, ONLY: speclist !SO2 wetdep for simple sulfur scheme
-USE mo_ham_species,  ONLY: id_so2 !SO2 wetdep for simple sulfur scheme
-
-USE MO_TIME_CONTROL, ONLY: time_step_len ! time step length for tendency
-USE MO_HAMMOZ_WETDEP, ONLY: wetdep_interface ! wet deposition interface call
-USE MO_HAM_WETDEP, ONLY: ham_conv_lfraq_so2
+USE MO_HAM,                  ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
+USE OIFS_TO_HAM,             ONLY: ind_oifs_ham
+USE MO_HAM_SUBM,             ONLY: HAM_SUBM_INTERFACE !eehol: replaced HAM-M7 call with submodel interface
+USE MO_ACTIV,                ONLY: activ_updraft,nw,idt_cdnc,idt_icnc !eehol: HAM-M7 activation updraft calculation, effective radii
+USE MO_HAM_ACTIV,            ONLY: ham_activ_abdulrazzak_ghan, ham_activ_koehler_ab !eehol: HAM-M7 activation
+USE MO_PARAM_SWITCHES,       ONLY: ncd_activ !eehol: for activation
+USE MO_TRACDEF,              ONLY: ntrac, trlist
+                            !eehol: number of tracer for mass/number mixing ratio conversion, trlist for wet deposition flags
+USE MO_TRACER_PROCESSES,     ONLY: xt_borrow !eehol: conserving the negative tracer values from tendency
+USE MO_SUBMODEL,             ONLY: lwetdep,lsedimentation !eehol: logical for wetdeposition, sedimentation
+USE MO_TIME_CONTROL,         ONLY: time_step_len ! time step length for tendency
+USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface call
+USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface ! sedimentation interface call
-USE MO_HAMMOZ_DRYDEP, ONLY: drydep_interface ! dry deposition interface call
-USE MO_HAM_RAD,ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache 
-USE YOMMP0   , ONLY : MYPROC, NPROC
-USE TM5M7_OPTICS_DATA, ONLY : NWDEP, WDEP,NASWBAND,ASWBAND!,AER_TAU, AER_SSA,AER_ASYM, & 
-!& AER_TAU_LW
-USE TM5_PHOTOLYSIS,    ONLY : NBANDS_TROP, WAV_GRID, WAV_GRIDA
-USE TM5M7_EMIS_DATA, ONLY : VKARMAN ! von karman constant for dry deposition 
+USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
+USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
+
+! [RCHG -> non used] USE MO_SPECIES,              ONLY: speclist !SO2 wetdep for simple sulfur scheme
+! [RCHG -> non used] USE mo_ham_species,          ONLY: id_so2 !SO2 wetdep for simple sulfur scheme
+! [RCHG -> non used] USE YOMMP0,                  ONLY : MYPROC, NPROC
+ 
+USE TM5M7_OPTICS_DATA,       ONLY : NWDEP, NASWBAND,ASWBAND !,WDEP, AER_TAU, AER_SSA,AER_ASYM,AER_TAU_LW
+USE TM5_PHOTOLYSIS,          ONLY : NBANDS_TROP, WAV_GRID, WAV_GRIDA
+USE TM5M7_EMIS_DATA,         ONLY : VKARMAN ! von karman constant for dry deposition
 !-----------------------------------------------------------------------
 
 IMPLICIT NONE
-TYPE(MODEL)     ,INTENT(IN):: YDMODEL
-INTEGER(KIND=JPIM),INTENT(IN) :: KIDIA, KFDIA, KLON
-INTEGER(KIND=JPIM),INTENT(IN) :: KTDIA, KLEV, KFLDX, KLEVX 
-INTEGER(KIND=JPIM),INTENT(IN) :: KTILES
-INTEGER(KIND=JPIM),INTENT(IN) :: KTRAC
-INTEGER(KIND=JPIM),INTENT(IN) :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
-INTEGER(KIND=JPIM),INTENT(IN) :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
-INTEGER(KIND=JPIM),INTENT(IN) :: KSTGLO
+
+TYPE(MODEL),        INTENT(IN) :: YDMODEL
+INTEGER(KIND=JPIM), INTENT(IN) :: KIDIA, KFDIA, KLON
+INTEGER(KIND=JPIM), INTENT(IN) :: KTDIA, KLEV, KFLDX, KLEVX
+INTEGER(KIND=JPIM), INTENT(IN) :: KTILES
+INTEGER(KIND=JPIM), INTENT(IN) :: KTRAC
+INTEGER(KIND=JPIM), INTENT(IN) :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
+INTEGER(KIND=JPIM), INTENT(IN) :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
+INTEGER(KIND=JPIM), INTENT(IN) :: KSTGLO
 
 REAL(KIND=JPRB),INTENT(IN)    :: PGEOH(KLON,0:KLEV)
 REAL(KIND=JPRB),INTENT(IN)    :: PRSF1(KLON,KLEV), PRS1(KLON,0:KLEV), PAPHIF(KLON,KLEV)
-REAL(KIND=JPRB),INTENT(IN)    :: PAP(KLON,KLEV)  , PIP(KLON,KLEV)  , PLP(KLON,KLEV)  , PLU(KLON,KLEV)
-REAL(KIND=JPRB),INTENT(IN)    :: PRP(KLON,KLEV) , PSP(KLON,KLEV), PCOVPTOT(KLON,KLEV)
-REAL(KIND=JPRB),INTENT(IN)    :: PAEROP(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO), PCAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB),INTENT(IN)    :: PAP(KLON,KLEV), PIP(KLON,KLEV), PLP(KLON,KLEV), PLU(KLON,KLEV)
+REAL(KIND=JPRB),INTENT(IN)    :: PRP(KLON,KLEV), PSP(KLON,KLEV), PCOVPTOT(KLON,KLEV)
+REAL(KIND=JPRB),INTENT(IN)    :: PAEROP(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO) 
+REAL(KIND=JPRB),INTENT(IN)    :: PCAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB),INTENT(IN)    :: PCEN(KLON,KLEV,KTRAC), PCFLX(KLON,KTRAC)
 REAL(KIND=JPRB),INTENT(IN)    :: PO3P(KLON,KLEV), PQP(KLON,KLEV), PTP(KLON,KLEV), PTHP(KLON,0:KLEV)
 REAL(KIND=JPRB),INTENT(IN)    :: PFPLCL(KLON,0:KLEV),PFPLCN(KLON,0:KLEV),PFPLSL(KLON,0:KLEV),PFPLSN(KLON,0:KLEV)
 REAL(KIND=JPRB),INTENT(IN)    :: PGELAT(KLON)    , PGELAM(KLON)
-!REAL(KIND=JPRB),INTENT(IN)    :: PALBD(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW), PFRTI(KLON,KTILES)
 REAL(KIND=JPRB),INTENT(IN)    :: PFRTI(KLON,KTILES)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERWS(KLON), PAERGUST(KLON), PAERUST(KLON), PAERMAP(KLON,5)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERSRC(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
@@ -206,9 +218,9 @@ REAL(KIND=JPRB),INTENT(IN)    :: PCHEM2AER(KLON,KLEV,6)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERFLX(KLON,12,9), PAERLIF(KLON,9), PCLAERS(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PLSM(KLON)  , PSNS(KLON)    , PWND(KLON)   , PWS1(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PTSPHY
-REAL(KIND=JPRB),INTENT(IN)    :: PVERVEL(KLON,KLEV) ! added vertical velocity as an input to TM5M7 as this is needed in HAM-M7 activation
-REAL(KIND=JPRB),INTENT(IN)    :: PCCNL(KLON) ! added CCN over land as an input to TM5M7 as this is needed in liquid effective radius calculation
-REAL(KIND=JPRB),INTENT(IN)    :: PCCNO(KLON) ! added CCN over ocean as an input to TM5M7 as this is needed in liquid effective radius calculation
+REAL(KIND=JPRB),INTENT(IN)    :: PVERVEL(KLON,KLEV) ! added vertical velocity as an input to TM5M7 (needed in HAM-M7 activation)
+REAL(KIND=JPRB),INTENT(IN)    :: PCCNL(KLON) ! added CCN over land as an input to TM5M7 (needed in liquid effective radius calc.)
+REAL(KIND=JPRB),INTENT(IN)    :: PCCNO(KLON) ! added CCN over ocean as an input to TM5M7 (needed in liquid effective radius calc.)
 REAL(KIND=JPRB),INTENT(IN)    :: PAHFSTI(KLON,KTILES) ! added surface sensible heat flux for dry deposition
 REAL(KIND=JPRB),INTENT(IN)    :: PCI(KLON) ! added fraction of sea-ice for dry deposition
 REAL(KIND=JPRB),INTENT(IN)    :: PZ0M(KLON) ! added roughness length for momentum for dry deposition
@@ -220,12 +232,15 @@ REAL(KIND=JPRB),INTENT(IN)    :: PCVH(KLON) ! added high vegetation cover
 REAL(KIND=JPRB),INTENT(IN)    :: PGEMU(KLON) ! sine of latitude
 
 REAL(KIND=JPRB),INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB),INTENT(INOUT) :: PAERDDP(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO), PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB),INTENT(INOUT) :: PAERDDP(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB),INTENT(INOUT) :: PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 ! Total optical depth at various wavelenghts. 
 ! NOTE!! These wavelength definitions are not necessarily consistent
 ! with what is used in IFS-AER
 REAL(KIND=JPRB),INTENT(OUT)   :: PODTO(KLON)
+
 !REAL(KIND=JPRB),INTENT(OUT)   :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
+!REAL(KIND=JPRB),INTENT(IN)    :: PALBD(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW), PFRTI(KLON,KTILES)
 
 REAL(KIND=JPRB),INTENT(OUT)   :: PAERO_WVL_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES)
 REAL(KIND=JPRB),INTENT(OUT)   :: PAERODDF(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO,8)
@@ -247,37 +262,26 @@ REAL(KIND=JPRB),INTENT(INOUT)   :: PSO2DD(KLON)
 !*   0.5    LOCAL VARIABLES
 !           ---------------
 
-INTEGER(KIND=JPIM) :: JAER, JK, JL, JMMD, JSCAV, JSW, JWAVL, JT, JB, JN, JSPEC, ITRC, JEXT, IKLEVTROP(KLON), IW
-INTEGER(KIND=JPIM) :: JCLASS, JTILE, j_yaero, JMASS, JGAS, JCLOUD ! local loop indice for activation and dry deposition and tracer indexing
+INTEGER(KIND=JPIM) :: JAER, JK, JL, JWAVL, JT, JB, JN, JEXT, ITRC, IKLEVTROP(KLON), IW
+INTEGER(KIND=JPIM) :: JCLASS, JTILE, JMASS, JGAS, JCLOUD ! local loop indice for activation and dry deposition and tracer indexing
 INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS
-INTEGER(KIND=JPIM) :: IAER, IEX3D, IEX3DP
-INTEGER(KIND=JPIM) :: IEXTR2,ISHIFT1, IKPAER, IKP, ISTO, IWHERE
-INTEGER(KIND=JPIM) :: IMODE ,NSO4SCHEME
-REAL(KIND=JPRB) :: ZLON,ZLAT
+INTEGER(KIND=JPIM) :: IMODE 
+INTEGER(KIND=JPIM) :: IFLAG
 
-REAL(KIND=JPRB) :: ZAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO), ZTAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO), ZTAERO0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZTAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZTAERO0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZFAERO(KLON,ntrac)!YGFL%NACTAERO)
-
-REAL(KIND=JPRB) :: ZAER(KLON,KLEV), ZAERNEG(KLON,KLEV), ZBETAB(KLON,KLEV), ZBETAI(KLON,KLEV)
-REAL(KIND=JPRB) :: ZAP(KLON,KLEV), ZCLDWAT(KLON,KLEV), ZDUM(KLON,KLEV)
+REAL(KIND=JPRB) :: ZAER(KLON,KLEV), ZAERNEG(KLON,KLEV)
+REAL(KIND=JPRB) :: ZAP(KLON,KLEV) 
 REAL(KIND=JPRB) :: ZSO2(KLON,KLEV), ZDP(KLON,KLEV), ZDZ(KLON,KLEV) 
-
-REAL(KIND=JPRB) :: ZBCPHI(KLON,KLEV), ZBCPHO(KLON,KLEV), ZOMPHI(KLON,KLEV) , ZOMPHO(KLON,KLEV)
-REAL(KIND=JPRB) :: ZTBCPHI(KLON,KLEV),ZTBCPHO(KLON,KLEV),ZTOMPHI(KLON,KLEV), ZTOMPHO(KLON,KLEV)
-REAL(KIND=JPRB) :: ZITBCPHO(KLON,KLEV),ZITOMPHO(KLON,KLEV),ZITSO2(KLON,KLEV)
+REAL(KIND=JPRB) :: ZITSO2(KLON,KLEV)
 REAL(KIND=JPRB) :: ZFSO2(KLON)  , ZFSO4(KLON), ZFSO4_AQ(KLON)
 REAL(KIND=JPRB) :: ZTSO2(KLON, KLEV)  , ZTSO4(KLON, KLEV,1), ZTSO4_AQ(KLON, KLEV)
-REAL(KIND=JPRB) :: ZAIRDM(KLON)  
-  
-REAL(KIND=JPRB) :: ZQSAT(KLON,KLEV), ZRHCL(KLON,KLEV), ZRHO(KLON,KLEV)
-REAL(KIND=JPRB) :: ZTAER(KLON,KLEV), ZTAERI(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
-REAL(KIND=JPRB) :: ZTAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO), ZTENV(KLON)
-REAL(KIND=JPRB) :: ZAERWET(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZQSAT(KLON,KLEV), ZRHO(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTAER(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZRH(KLON,KLEV),ZTENC0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)!,ZTSO4(KLON,KLEV)
-
-!REAL(KIND=JPRB) :: ZAERNL(KLON,KLEV,NMOD)
-!REAL(KIND=JPRB) :: ZAERML(KLON,KLEV,NAERMOD)
-INTEGER(KIND=JPIM) :: JMOD,JAERCLASS,IFLAG
 REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
@@ -286,18 +290,14 @@ REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
-REAL(KIND=JPRB), DIMENSION(:,:,:), ALLOCATABLE :: ZTAUS_AER, ZTAUA_AER, ZPMAER ! extinctions
-
 REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
-!REAL(KIND=JPRB) :: PAER_TAU(KLON,KLEV,14), PAER_SSA(KLON,KLEV,14),PAER_ASYM(KLON,KLEV,14)
-
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,16)
 
 ! Optics output fields (to be used and allocated by methods using the optics)
+REAL(KIND=JPRB), DIMENSION(:,:,:),   ALLOCATABLE :: ZTAUS_AER, ZTAUA_AER, ZPMAER ! extinctions
 REAL(KIND=JPRB), DIMENSION(:,:,:,:), ALLOCATABLE :: ZAOP_OUT_EXT ! extinctions
 REAL(KIND=JPRB), DIMENSION(:,:,:),   ALLOCATABLE :: ZAOP_OUT_A   ! single scattering albedo
 REAL(KIND=JPRB), DIMENSION(:,:,:),   ALLOCATABLE :: ZAOP_OUT_G   ! assymetry factor
-
 
 !Defined here, but should be passed in Call really:
 TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: RW_MODE
@@ -305,27 +305,55 @@ TYPE(MODAL_DATA), DIMENSION(NSOL), TARGET :: RWD_MODE
 TYPE(MODAL_DATA), DIMENSION(NSOL), TARGET :: H2O_MODE
 TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: DENS_MODE
 
-!REAL(KIND=JPRB), ALLOCATABLE ::    ZAERSRC(:,:),  ZAERNGT(:,:) , ZAERSCC(:,:)  
 REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
-REAL(KIND=JPRB) :: ZCLWAT, ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
-REAL(KIND=JPRB) :: Z1CLD , ZDENSVIS,ZGDT   , ZQIWP  , ZQLWP(KLON,KLEV)  , ZQRWP  , ZQSWP
-REAL(KIND=JPRB) :: ZDESIC, ZRELRA , ZLIQRAI, ZSNOICE, ZCFLIRA, ZCFSNIC, ZVISCON, ZVISRAY
-REAL(KIND=JPRB) :: ZNS   , ZRANGE , ZSIGAIR, ZVISICL, ZVISIPR, ZVISCAE, ZVISPAE 
+REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
+REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTMPA
 
-REAL(KIND=JPRB) :: ZTMPA,ZRHOP1(KLON,KLEV)!,zdummy,zdum2d(KLON,KLEV),zdum3d(KLON,KLEV,nmod),zlfrac_so2(KLON,KLEV),ZFLXR,ZFLXS,ZFLXRB,ZFLXSB
-REAL(KIND=JPRB) :: pmrateps(KLON,KLEV),pmrater(KLON,KLEV),pfevapr(KLON,KLEV),pfsubls(KLON,KLEV),pmsnowacl(KLON,KLEV)!,ZDPG(KLON,KLEV),zxtp1c(KLON,KLEV,KTRAC),zxtp10(KLON,KLEV,KTRAC)
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
-INTEGER(KIND=JPIM) ::KTOP
-REAL(KIND=JPRB),PARAMETER :: ZEPSEC=1e-14
-!REAL(KIND=JPRB) :: ZAEROUT1(KLON,KLEV),ZAEROUT2(KLON,KLEV),ZAEROUT3(KLON,KLEV),ZAEROUT4(KLON,KLEV),ZAEROUT5(KLON,KLEV)
+
+REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14
+
+! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: j_yaerom, JMMD, JSCAV, JSW, JSPEC
+! [RCHG -> var. non used ] INTEGER(KIND=JPIM) :: IAER, IEX3D, IEX3DP
+! [RCHG -> vas. non used ] INTEGER(KIND=JPIM) :: IEXTR2,ISHIFT1, IKPAER, IKP, ISTO, IWHERE
+! [RCHG -> var. non used ] INTEGER(KIND=JPIM) :: NSO4SCHEME
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZLAT, ZLON
+! [RCHG -> non used ] REAL(KIND=JPRB) :: BETAB(KLON,KLEV), ZBETAI(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZCLDWAT(KLON,KLEV), ZDUM(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZBCPHI(KLON,KLEV), ZBCPHO(KLON,KLEV) 
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZOMPHI(KLON,KLEV) , ZOMPHO(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTBCPHI(KLON,KLEV),ZTBCPHO(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTOMPHI(KLON,KLEV), ZTOMPHO(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZITBCPHO(KLON,KLEV),ZITOMPHO(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZAIRDM(KLON), ZRHCL(KLON,KLEV)   
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTAERI(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZAERWET(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+! REAL(KIND=JPRB) :: ZAERNL(KLON,KLEV,NMOD)
+! REAL(KIND=JPRB) :: ZAERML(KLON,KLEV,NAERMOD)
+! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: JMOD
+! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: JAERCLASS
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTENV(KLON)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZGDT
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZVISICL, ZVISIPR, ZVISCAE, ZVISPAE 
+!REAL(KIND=JPRB) :: PAER_TAU(KLON,KLEV,14), PAER_SSA(KLON,KLEV,14),PAER_ASYM(KLON,KLEV,14)
+!REAL(KIND=JPRB), ALLOCATABLE ::    ZAERSRC(:,:),  ZAERNGT(:,:) , ZAERSCC(:,:)  
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZQRWP, ZQSWP, ZQIWP, ZRANGE, ZRELRA, ZSIGAIR, ZSNOICE
+! [RCHG -> non used ] REAL(KIND=JPRB) :: Z1CLD, ZCFLIRA, ZCFSNIC, ZDENSVIS, ZDESIC, ZCLWAT, ZLIQRAI, ZNS
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZVISCON, ZVISRAY
+! [RCHG -> non used ] REAL(KIND=JPRB) :: pmrateps(KLON,KLEV),pmrater(KLON,KLEV),pfevapr(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: pfsubls(KLON,KLEV),pmsnowacl(KLON,KLEV)
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZDPG(KLON,KLEV),zxtp1c(KLON,KLEV,KTRAC),zxtp10(KLON,KLEV,KTRAC)
+! [RCHG -> non used ]    INTEGER(KIND=JPIM) ::KTOP
+! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZRHOP1(KLON,KLEV)!,zdummy,zdum2d(KLON,KLEV),zdum3d(KLON,KLEV,nmod)
+! [RCHG -> non used ]     REAL(KIND=JPRB) :: zlfrac_so2(KLON,KLEV),ZFLXR,ZFLXS,ZFLXRB,ZFLXSB
+! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZAEROUT1(KLON,KLEV),ZAEROUT2(KLON,KLEV),ZAEROUT3(KLON,KLEV),ZAEROUT4(KLON,KLEV),ZAEROUT5(KLON,KLEV)
 
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
-
-INTEGER(kind=JPIM) :: jj                       ! loop index
 
 ! variables for the M7 call
 REAL(KIND=JPRB) :: ZGRVOL(KLON,KLEV) !grid box volume for diagnostics
@@ -372,7 +400,6 @@ REAL(KIND=JPRB) :: ZIP(KLON,KLEV) !temporary variable for cloud ice water conten
 REAL(KIND=JPRB) :: ZICNC(KLON,KLEV) ! ice crystal number concentration [#/cm3]
 ! added here variables for dry deposition and sedimentation
 REAL(KIND=JPRB) :: ZTENCIH(KLON,KLEV,ntrac) !for HAM tendencies
-REAL(KIND=JPRB) :: ZTENCI(KLON,KLEV,KTRAC) !for OIFS tendencies
 REAL(KIND=JPRB) :: ZAHFSM(KLON)
 REAL(KIND=JPRB) :: ZWND(KLON)
 ! variables not needed for HAM aerosol dry deposition (if gas deposition and different surfaces are taken into account these need to be revised!)
@@ -387,10 +414,10 @@ REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON)
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
-REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass))
-REAL(KIND=JPRB) :: ZOUT4(KLON,KLEV),ZOUT5(KLON,klev),ZOUT6(KLON,klev),ZOUT7(KLON,klev),ZOUT8(KLON,klev),ZOUT9(KLON,klev)
-REAL(KIND=JPRB) :: ZZOUT1(KLON,KLEV),ZZOUT2(KLON,klev),ZZOUT3(KLON,KLEV),ZZOUT4(KLON,KLEV),ZZOUT5(KLON,klev),ZZOUT6(KLON,KLEV)
-REAL(KIND=JPRB) :: ZZOUT7(KLON,KLEV),ZZOUT8(KLON,klev),ZZOUT9(KLON,KLEV),ZZOUT10(KLON,KLEV),ZZOUT11(KLON,klev),ZZOUT12(KLON,KLEV)
+ REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass))
+!REAL(KIND=JPRB) :: ZOUT4(KLON,KLEV),ZOUT5(KLON,klev),ZOUT6(KLON,klev),ZOUT7(KLON,klev),ZOUT8(KLON,klev),ZOUT9(KLON,klev)
+!REAL(KIND=JPRB) :: ZZOUT1(KLON,KLEV),ZZOUT2(KLON,klev),ZZOUT3(KLON,KLEV),ZZOUT4(KLON,KLEV),ZZOUT5(KLON,klev),ZZOUT6(KLON,KLEV)
+!REAL(KIND=JPRB) :: ZZOUT7(KLON,KLEV),ZZOUT8(KLON,klev),ZZOUT9(KLON,KLEV),ZZOUT10(KLON,KLEV),ZZOUT11(KLON,klev),ZZOUT12(KLON,KLEV)
  
 REAL(KIND=JPRB) :: sedout(KLON,KLEV,ktrac)
 REAL(KIND=JPRB) :: ddepout(KLON,KLEV,KTRAC)
@@ -409,27 +436,24 @@ REAL(KIND=JPRB) :: ZSEDIFLUX(KLON,KLEV,ntrac)
 REAL(KIND=JPRB) :: ZDDEPFLUX(KLON,ntrac)
 REAL(KIND=JPRB) :: ZDDEPFLUX_SO2(KLON)
 REAL(KIND=JPRB) :: ZVDEP(KLON,ntrac) !ddep velocity for diagnostics from ham
-INTEGER(kind=JPIM)::ZISO4 ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
 INTEGER(kind=JPIM), parameter::ZKROW=1 ! KROW only used in ECHAM but needed inside HAM-codes so set as 1.
 INTEGER(kind=JPIM):: IBLK
-
 REAL(KIND=JPRB) :: reffi(KLON,KLEV,ZKROW), reffl(KLON,KLEV,ZKROW)
-
-INTEGER(kind=JPIM)::ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
-REAL(KIND=JPRB)::zhenry_so2(2),zheneff(KLON,klev),ze2(KLON,KLEV),zqtp1(KLON,KLEV),zza(KLON,klev),ze3(KLON,klev)
-
 INTEGER(kind=JPIM)::LWBANDS !laakso: number of LW bands
-INTEGER(KIND=JPIM) :: IWHAT, INWAVL, ITWAVL(20)
+INTEGER(KIND=JPIM) :: INWAVL, ITWAVL(20)
 REAL(KIND=JPRB) ::PRS1D(KLON,KLEV)
-!TEST
-REAL(KIND=JPRB) :: TEST1(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST2(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST3(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST4(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST5(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST6(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST7(KLON,KLEV)
-REAL(KIND=JPRB) :: TEST8(KLON,KLEV)
+INTEGER(kind=JPIM)::ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
+
+! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTENCI(KLON,KLEV,KTRAC) !for OIFS tendencies
+! [RCHG -> non used ]  INTEGER(kind=JPIM)::ZISO4 ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
+! [RCHG -> non used ] REAL(KIND=JPRB):: zza(KLON,klev)
+! [RCHG -> non used ]  REAL(KIND=JPRB)::zhenry_so2(2),zheneff(KLON,klev),ze3(KLON,klev), zqtp1(KLON,KLEV)
+! [RCHG -> non used ] INTEGER(KIND=JPIM) :: IWHAT 
+! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST1(KLON,KLEV), TEST2(KLON,KLEV)
+! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST3(KLON,KLEV), TEST4(KLON,KLEV)
+! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST5(KLON,KLEV), TEST6(KLON,KLEV)
+! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST7(KLON,KLEV), TEST8(KLON,KLEV)
+
 REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND), PASY(KLON,NASWBAND),PFAOD(KLON,NASWBAND)
 
 
@@ -442,45 +466,81 @@ REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND)
 #include "tm5m7_optics_aop_get.intfb.h"
 #include "troplev.intfb.h"
 #include "chem_inext.intfb.h"
-!#include "m7.intfb.h"
 #include "m7_simple_sulfur_drydep.intfb.h"
-! include calculations for ice effective radius
 #include "ice_effective_radius.intfb.h"
+!#include "m7.intfb.h"
+! include calculations for ice effective radius
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7',0,ZHOOK_HANDLE)
-ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL, YREAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC,YREAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM, &
- & YREAERLID=>YDMODEL%YRML_PHY_AER%YREAERLID, YREAERSNK=>YDMODEL%YRML_PHY_AER%YREAERSNK, YRERAD=>YDMODEL%YRML_PHY_RAD%YRERAD,&
- & YDRIP=>YDMODEL%YRML_GCONF%YRRIP,YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM, YRCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, YREPHY=>YDMODEL%YRML_PHY_EC%YREPHY, &
- & YRECLDP=>YDMODEL%YRML_PHY_EC%YRECLDP, & 
- & YDSPP_CONFIG=>YDMODEL%YRML_GCONF%YRSPP_CONFIG)
+ASSOCIATE( &
+         & YGFL         => YDMODEL%YRML_GCONF%YGFL,        & 
+         & YDPHYRAD     => YDMODEL%YRML_PHY_RAD,           &
+         & YDPHYAER     => YDMODEL%YRML_PHY_AER,           &
+         & YREAERSRC    => YDMODEL%YRML_PHY_AER%YREAERSRC, &
+         & YREAERATM    => YDMODEL%YRML_PHY_RAD%YREAERATM, &
+         & YREAERLID    => YDMODEL%YRML_PHY_AER%YREAERLID, &
+         & YREAERSNK    => YDMODEL%YRML_PHY_AER%YREAERSNK, &
+         & YRERAD       => YDMODEL%YRML_PHY_RAD%YRERAD,    &
+         & YDRIP        => YDMODEL%YRML_GCONF%YRRIP,       &
+         & YDCHEM       => YDMODEL%YRML_CHEM%YRCHEM,       &
+         & YRCOMPO      => YDMODEL%YRML_CHEM%YRCOMPO,      &
+         & YREPHY       => YDMODEL%YRML_PHY_EC%YREPHY,     &
+         & YRECLDP      => YDMODEL%YRML_PHY_EC%YRECLDP,    &
+         & YDSPP_CONFIG => YDMODEL%YRML_GCONF%YRSPP_CONFIG)
 
- ASSOCIATE(NACTAERO=>YGFL%NACTAERO, NAERO=>YGFL%NAERO, NGHG=>YGFL%NGHG, NCHEM=>YGFL%NCHEM, ZTRAC=>YGFL%NTRAC, NSO4SCHEME => YREAERSRC%NSO4SCHEME, &
- & NDIM=>YGFL%NDIM, YAEROUT=>YGFL%YAEROUT, YR=>YGFL%YR, YS=>YGFL%YS, &
- & LCHEM_DIA=>YRCOMPO%LCHEM_DIA, YCHEM=>YGFL%YCHEM, YAERO=>YGFL%YAERO, YGHG=>YGFL%YGHG, YTRAC=>YGFL%YTRAC, &
- & YDAERM7=>YDMODEL%YRML_PHY_AER%YREAEROPT, &! use this to transfer AOD, SSA and ASY to rad scheme
- & LAERDRYDP=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERDRYDP, LAERSEDIM=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERSEDIM, LAERSURF=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERSURF, & !add logicals for dry dep and sedi
- & YCDNC=>YDMODEL%YRML_GCONF%YGFL%YCDNC, YICNC=>YDMODEL%YRML_GCONF%YGFL%YICNC, YRE_LIQ=>YDMODEL%YRML_GCONF%YGFL%YRE_LIQ, YRE_ICE=>YDMODEL%YRML_GCONF%YGFL%YRE_ICE, & !included CDNC, ICNC, liq and ice eff rad
- & LAER6SDIA=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAER6SDIA, LAERCLIMG=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCLIMG, &
- & LAERCLIMZ=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCLIMZ, LAERGTOP=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERGTOP, &
- & LAERHYGRO=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERHYGRO, LAERLISI=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERLISI, &
- & LAERNGAT=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERNGAT, LAERSCAV=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERSCAV, &
- & LAERNITRATE => YDMODEL%YRML_CHEM%YRCOMPO%LAERNITRATE, &
- & LAERSCAV_CHEM=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERSCAV_CHEM, LAERVOL=>YDMODEL%YRML_PHY_RAD%YREAERATM%LAERVOL, &
- & LAERCHEM=>YDMODEL%YRML_GCONF%YGFL%LAERCHEM, &
+ ASSOCIATE( &
+         ! --- YGFL ------------------------------------------------
+         & NACTAERO => YGFL%NACTAERO, NAERO     => YGFL%NAERO,     &
+         & NGHG     => YGFL%NGHG,     NCHEM     => YGFL%NCHEM,     &
+         & ZTRAC    => YGFL%NTRAC,    NDIM      => YGFL%NDIM,      &
+         & YAEROUT  => YGFL%YAEROUT,  YR        => YGFL%YR,        &
+         & YS       => YGFL%YS,       YCHEM     => YGFL%YCHEM,     &
+         & YAERO    => YGFL%YAERO,    YGHG      => YGFL%YGHG,      &
+         & YTRAC    => YGFL%YTRAC,    YAEROCLIM => YGFL%YAEROCLIM, &
+         & YCDNC    => YGFL%YCDNC,    YICNC     => YGFL%YICNC,     &
+         & YRE_LIQ  => YGFL%YRE_LIQ,  YRE_ICE   => YGFL%YRE_ICE,   &
+         !included CDNC, ICNC, liq and ice eff rad
+         & NAERO_WVL_DIAG => YGFL%NAERO_WVL_DIAG,                  &
+         & LAERCHEM       => YGFL%LAERCHEM,                        &
+         ! --- YRCOMPO ---------------------------------------------
+         & LCHEM_DIA      => YRCOMPO%LCHEM_DIA,                    &
+         & AERO_SCHEME    => YRCOMPO%AERO_SCHEME,                  & !CHEM_SCHEME=>YDCHEM%CHEM_SCHEME,&
+         & LAERNITRATE    => YRCOMPO%LAERNITRATE,                  &
+         & NSO4SCHEME     => YREAERSRC%NSO4SCHEME,                 &
+         ! --- YREAERATM -------------------------------------------
+         & LAERDRYDP      => YREAERATM%LAERDRYDP,                  &
+         & LAERSEDIM      => YREAERATM%LAERSEDIM,                  &
+         & LAERSURF       => YREAERATM%LAERSURF,                   & !add logicals for dry dep and sedi
+         & LAER6SDIA      => YREAERATM%LAER6SDIA,                  &
+         & LAERCLIMG      => YREAERATM%LAERCLIMG,                  &
+         & LAERCLIMZ      => YREAERATM%LAERCLIMZ,                  &
+         & LAERGTOP       => YREAERATM%LAERGTOP,                   &
+         & LAERHYGRO      => YREAERATM%LAERHYGRO,                  &
+         & LAERLISI       => YREAERATM%LAERLISI,                   &
+         & LAERNGAT       => YREAERATM%LAERNGAT,                   &
+         & LAERSCAV       => YREAERATM%LAERSCAV,                   &
+         & LAERSCAV_CHEM  => YREAERATM%LAERSCAV_CHEM,              &
+         & LAERVOL        => YREAERATM%LAERVOL,                    &
+         & NXT3DAER       => YREAERATM%NXT3DAER,                   & 
+         ! --- YRERAD ----------------------------------------------
+         & LAERVISI       => YRERAD%LAERVISI,                      &
+         & NTSW           => YRERAD%NTSW,                          &
+         & RNS            => YRERAD%RNS,                           &
+         & RSIGAIR        => YRERAD%RSIGAIR,                       & !!! YAERCLIM is now become YAEROCLIM
+         & NRADFR         => YRERAD%NRADFR,                        & !FREQUENCY OF FULL RADIATION COMPUTATIONS
+         & NAEROOPT       => YRERAD%NAEROOPT,                      &
+         ! --- OTHERS ----------------------------------------------
+         & YDAERM7        => YDPHYAER%YREAEROPT,                   & ! use this to transfer AOD, SSA and ASY to rad scheme
+         & NWLID          => YREAERLID%NWLID,                      &
+         & YSURF          => YREPHY%YSURF,                         &
+         & RRHTAB         => YREAERSNK%RRHTAB,                     &
+         & RNICE          => YRECLDP%RNICE,                        & !default for ICNC
+         & RCLDMAX        => YRECLDP%RCLDMAX,                      & !max cloud value
+         & NSTART         => YDRIP%NSTART                          ) 
+
 ! & NINDSCAV=>YREAERATM%NINDSCAV, NTSCAV=>YREAERATM%NTSCAV, &
- & NXT3DAER=>YDMODEL%YRML_PHY_RAD%YREAERATM%NXT3DAER, &
- & NWLID=>YDMODEL%YRML_PHY_AER%YREAERLID%NWLID, &
 ! & NDDUST=>YREAERSRC%NDDUST, NTYPAER=>YREAERSRC%NTYPAER, &
- & YSURF=>YDMODEL%YRML_PHY_EC%YREPHY%YSURF, &
- & RRHTAB=>YDMODEL%YRML_PHY_AER%YREAERSNK%RRHTAB, &
- & RNICE=>YDMODEL%YRML_PHY_EC%YRECLDP%RNICE, & !default for ICNC
- & RCLDMAX=>YDMODEL%YRML_PHY_EC%YRECLDP%RCLDMAX, & !max cloud value
- & LAERVISI=>YDMODEL%YRML_PHY_RAD%YRERAD%LAERVISI, NTSW=>YDMODEL%YRML_PHY_RAD%YRERAD%NTSW, RNS=>YDMODEL%YRML_PHY_RAD%YRERAD%RNS, &
- & RSIGAIR=>YDMODEL%YRML_PHY_RAD%YRERAD%RSIGAIR,YAEROCLIM=>YDMODEL%YRML_GCONF%YGFL%YAEROCLIM, & !!! YAERCLIM is now become YAEROCLIM 
- & NSTART=>YDMODEL%YRML_GCONF%YRRIP%NSTART,AERO_SCHEME=>YDMODEL%YRML_CHEM%YRCOMPO%AERO_SCHEME,& !CHEM_SCHEME=>YDCHEM%CHEM_SCHEME,&
- & NAERO_WVL_DIAG=>YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG, &
- & NRADFR=>YDMODEL%YRML_PHY_RAD%YRERAD%NRADFR,NAEROOPT=>YDMODEL%YRML_PHY_RAD%YRERAD%NAEROOPT) !FREQUENCY OF FULL RADIATION COMPUTATIONS
 !     ------------------------------------------------------------------
 
 !*         0.     PROGNOSTIC AEROSOLS - FINAL COMPUTATIONS
@@ -512,116 +572,114 @@ ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL, YREAERSRC=>YDMODEL%YRML_PHY_AER%YREAERS
 !write(*,*) "15",  minval(PSO2DD)
 
 
+ZAHFSM  = 0._JPRB
+ZEPSCOV = 1.E-03_JPRB
+ZEPSWAT = 1.E-18_JPRB
+ZDEGRAD = 180._JPRB/RPI
 
-ZAHFSM =0._JPRB
-ZEPSCOV=1.E-03_JPRB
-ZEPSWAT=1.E-18_JPRB
-ZDEGRAD=180._JPRB/RPI
 CALL SURF_INQ(YSURF,PRWSAT=ZRWSAT)
 CALL SURF_INQ(YSURF,PRWPWP=ZRWPWP)
 
 !*         0.1    SWITCHING ON POSSIBLE DEBUG PRINTS AND ALLOCATING MEMORY
 !                 --------------------------------------------------------
 
-!ALLOCATE( ZAERSRC(KLON,NACTAERO) )
 ALLOCATE( ZAERNGT(KLON,NACTAERO) )
+ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
+
 !ALLOCATE( ZAERSCC(KLON,NACTAERO) )
-
+!ALLOCATE( ZAERSRC(KLON,NACTAERO) )
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
-ZAERNGT(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
 !ZAERSCC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
-
 !ZAEROUT1(:,:) =0._JPRB
 !ZAEROUT2(:,:) =0._JPRB
 !ZAEROUT3(:,:) =0._JPRB
 !ZAEROUT4(:,:) =0._JPRB
 !ZAEROUT5(:,:) =0._JPRB
+ ZOUT(:,:)    = 0._JPRB
+ ZOUT2(:,:)   = 0._JPRB
+ ZOUT3(:,:,:) = 0._JPRB
+!ZOUT4(:,:)   = 0._JPRB
+!ZOUT5(:,:)   = 0._JPRB
+!ZOUT6(:,:)   = 0._JPRB
+!ZOUT7(:,:)   = 0._JPRB
+!ZOUT8(:,:)   = 0._JPRB
+!ZOUT9(:,:)   = 0._JPRB
+!ZZOUT1(:,:)  = 0._JPRB
+!ZZOUT2(:,:)  = 0._JPRB
+!ZZOUT3(:,:)  = 0._JPRB
+!ZZOUT4(:,:)  = 0._JPRB
+!ZZOUT5(:,:)  = 0._JPRB
+!ZZOUT6(:,:)  = 0._JPRB
+!ZZOUT7(:,:)  = 0._JPRB
+!ZZOUT8(:,:)  = 0._JPRB
+!ZZOUT9(:,:)  = 0._JPRB
+!ZZOUT10(:,:) = 0._JPRB
+!ZZOUT11(:,:) = 0._JPRB
+!ZZOUT12(:,:) = 0._JPRB
 
-ZOUT(:,:) =0._JPRB
-ZOUT2(:,:) =0._JPRB
-ZOUT3(:,:,:) =0._JPRB
-ZOUT4(:,:) =0._JPRB
-ZOUT5(:,:) =0._JPRB
-ZOUT6(:,:) =0._JPRB
-ZOUT7(:,:) =0._JPRB
-ZOUT8(:,:) =0._JPRB
-ZOUT9(:,:) =0._JPRB
+M7TEND_IN(:,:,:)   = 0._JPRB
+M7TEND_OUT(:,:,:)  = 0._JPRB
+SEDOUT(:,:,:)      = 0._JPRB
+DDEPOUT(:,:,:)     = 0._JPRB
+WDEPOUT(:,:,:)     = 0._JPRB
+ZSEDIFLUX(:,:,:)   = 0._JPRB
+ZDDEPFLUX(:,:)     = 0._JPRB
+ZDDEPFLUX_SO2(:)   = 0._JPRB
+ZVDA(:,:)          = 0._JPRB
+SEDOUT_2D(:,:)     = 0._JPRB
+DDEPOUT_2D(:,:)    = 0._JPRB
+WDEPOUT_2D(:,:)    = 0._JPRB
 
-ZZOUT1(:,:) =0._JPRB
-ZZOUT2(:,:) =0._JPRB
-ZZOUT3(:,:) =0._JPRB
-ZZOUT4(:,:) =0._JPRB
-ZZOUT5(:,:) =0._JPRB
-ZZOUT6(:,:) =0._JPRB
-ZZOUT7(:,:) =0._JPRB
-ZZOUT8(:,:) =0._JPRB
-ZZOUT9(:,:) =0._JPRB
-ZZOUT10(:,:) =0._JPRB
-ZZOUT11(:,:) =0._JPRB
-ZZOUT12(:,:) =0._JPRB
+zaveragep(:,:,:)   = 0.0_JPRB
+zm7kappa(:,:,:)    = 0.0_JPRB
+zh2so4cs(:,:,:)    = 0.0_JPRB
+zm7prodcond(:,:,:) = 0.0_JPRB
 
-M7TEND_IN(:,:,:)=0._JPRB 
-M7TEND_OUT(:,:,:)=0._JPRB 
-SEDOUT(:,:,:)=0._JPRB 
-DDEPOUT(:,:,:)=0._JPRB 
-WDEPOUT(:,:,:)=0._JPRB
-ZSEDIFLUX(:,:,:)=0._JPRB 
-ZDDEPFLUX(:,:)=0._JPRB
-ZDDEPFLUX_SO2(:)=0._JPRB
-ZVDA(:,:)=0._JPRB 
-SEDOUT_2D(:,:)=0._JPRB 
-DDEPOUT_2D(:,:)=0._JPRB 
-WDEPOUT_2D(:,:)=0._JPRB
-
-zaveragep(:,:,:)= 0.0_JPRB
-zm7kappa(:,:,:)= 0.0_JPRB
-zh2so4cs(:,:,:)= 0.0_JPRB
-zm7prodcond(:,:,:)= 0.0_JPRB
-
-ZTAERO(:,:,:)=0._JPRB 
+ZTAERO(:,:,:)      = 0._JPRB
 
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
 ! computation of tropopause level 
 CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
 
-! Initializing tracer number and mixing ratios and gas concentrations to not be tendency updated values
-ZCEN(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
-ITRC=0
-DO JEXT=1,NGHG
-  ITRC=ITRC+1
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YGHG(JEXT)%MP9_PH)
-    ENDDO
-  ENDDO
-ENDDO
-DO JEXT=1,ZTRAC
-  ITRC=ITRC+1
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YTRAC(JEXT)%MP9_PH)
-    ENDDO
-  ENDDO
-ENDDO
-DO JEXT=1,NAERO
-  ITRC=ITRC+1
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YAERO(JEXT)%MP9_PH)
-    ENDDO
-  ENDDO
-ENDDO
-if(LAERCHEM) then 
-   DO JEXT=1,NCHEM
+
+    ! Initializing tracer number and mixing ratios and gas concentrations to not be tendency updated values
+    ZCEN(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+    ITRC=0
+    DO JEXT=1,NGHG
       ITRC=ITRC+1
       DO JK=1,KLEV
-         DO JL=KIDIA,KFDIA
-            ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YCHEM(JEXT)%MP9_PH)
-         ENDDO
+        DO JL=KIDIA,KFDIA
+           ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YGHG(JEXT)%MP9_PH)
+        ENDDO
       ENDDO
-   ENDDO
-end if
+    ENDDO
+    DO JEXT=1,ZTRAC
+      ITRC=ITRC+1
+      DO JK=1,KLEV
+        DO JL=KIDIA,KFDIA
+           ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YTRAC(JEXT)%MP9_PH)
+        ENDDO
+      ENDDO
+    ENDDO
+    DO JEXT=1,NAERO
+      ITRC=ITRC+1
+      DO JK=1,KLEV
+        DO JL=KIDIA,KFDIA
+           ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YAERO(JEXT)%MP9_PH)
+        ENDDO
+      ENDDO
+    ENDDO
+    if(LAERCHEM) then 
+       DO JEXT=1,NCHEM
+          ITRC=ITRC+1
+          DO JK=1,KLEV
+             DO JL=KIDIA,KFDIA
+                ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YCHEM(JEXT)%MP9_PH)
+             ENDDO
+          ENDDO
+       ENDDO
+    end if
 
 DO JAER=1,NACTAERO
   DO JK=1,KLEV
@@ -652,10 +710,10 @@ DO JK=1,KLEV
   ENDDO
 ENDDO
 
-ZM6RP(KIDIA:KFDIA,:,:)=0.0_JPRB
-ZM6DRY(KIDIA:KFDIA,:,:)=0.0_JPRB
-ZRHOP(KIDIA:KFDIA,:,:)=0.0_JPRB
-ZWW(KIDIA:KFDIA,:,:)=0.0_JPRB
+ZM6RP(KIDIA:KFDIA,:,:)  = 0.0_JPRB
+ZM6DRY(KIDIA:KFDIA,:,:) = 0.0_JPRB
+ZRHOP(KIDIA:KFDIA,:,:)  = 0.0_JPRB
+ZWW(KIDIA:KFDIA,:,:)    = 0.0_JPRB
 !ZAERML(KIDIA:KFDIA,:,:)=0.0_JPRB
 !ZAERNL(KIDIA:KFDIA,:,:)=0.0_JPRB
 
@@ -666,6 +724,7 @@ ENDIF
 
 
 
+WRITE(NULOUT,*) '[HAMM7_INTERFACE]' 
 
 !*         0.2    Preliminary computation
 !*         GAS-TO-PARTICLE CONVERSION (SO2 -> SO4)
@@ -742,6 +801,7 @@ ENDIF
 
 
 
+WRITE(NULOUT,*) '[HAMM7_INTERFACE]' 
 
 !*         1.1    COMPUTE RELATIVE HUMIDITY WITHOUT VERTICAL SMOOTING
 !                 ---------------------------------------------------
@@ -1723,12 +1783,14 @@ ENDDO
 
   IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
      ! input for HAM-M7
-     PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10)!PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
+
+     PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10) !PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
      do JK=1,KLEV
            
         PGFL(KIDIA:KFDIA,2,YAEROUT(1)%MP)= PGFL(KIDIA:KFDIA,2,YAEROUT(1)%MP)+PAER_SSA(KIDIA:KFDIA,JK,10)!PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
         PGFL(KIDIA:KFDIA,3,YAEROUT(1)%MP)= PGFL(KIDIA:KFDIA,3,YAEROUT(1)%MP)+PAER_ASYM(KIDIA:KFDIA,JK,10)!PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
      end do
+     
      PGFL(KIDIA:KFDIA,1:14,YAEROUT(12)%MP)=PAOD(KIDIA:KFDIA,1:14)
     
      do JN=1,naerocomp!ntrac!NACTAERO
@@ -1874,6 +1936,7 @@ ENDDO
 !if (allocated(reffl)) DEALLOCATE( reffl )
 !if (allocated(w_large)) DEALLOCATE( w_large )
 !if (allocated(w_turb)) DEALLOCATE( w_turb )
+
 
 END ASSOCIATE
 END ASSOCIATE

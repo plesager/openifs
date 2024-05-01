@@ -32,11 +32,13 @@ export OIFS_PLATFORM="hpc2020"
 #
 
 branch_path="$(pwd)"         # We run this script in its directoryr
+old=$IFS
 IFS=$IFS"/"                  # We will split path in char "/". IFS variable is bash stuff.
 array_path=()                # Initialize array to empty
 for i in $branch_path; do    # We fill array with elements 
     array_path+=($i)
 done   
+IFS=$old 
 
 branch_name=${array_path[4]} # In my current setting branch_name is in position 3 (from 0)
 echo 
@@ -46,7 +48,7 @@ export OIFS_CYCLE=48r1
 #---Base code assumes openifs-48r1 and openifs-expt are installed
 #---in $HOME. Either these can be changed by the user------------
 
-export OIFS_HOME="${PERM}/openifs/oifs_code/"$branch_name"/openifs-48r1"
+export OIFS_HOME="${PERM}/openifs/oifs_code/"$branch_name"/openifs-48r1_fix_ifstests"
 
 #---It is recommended that the openifs-expt and oifs_data dir
 #---exist in a location designed for permanent storage-----------
@@ -56,7 +58,8 @@ export OIFS_DATA_DIR="${HPCPERM}/openifs/oifs_data/"${OIFS_CYCLE}
 #---Set the path for the arch directory. Depending on system,i.e.,
 #---all libs are installed on the sytem, this is not required,
 #---so set to an empty string OIFS_ARCH=""
-export OIFS_ARCH="./arch/ecmwf/hpc2020"
+#export OIFS_ARCH="./arch/ecmwf/hpc2020/gnu/"
+export OIFS_ARCH="./arch/ecmwf/hpc2020/"
 
 #---Path to the executable for 3d global model. This is the
 #---default path for the exe, produced by openifs-test.sh.
