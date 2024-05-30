@@ -614,13 +614,13 @@ INTEGER:: KIDIA
 
   !--- 6) Convert microphysical model output quantities to SI units and store in streams: --------------
     !--- Ambient Count Median Radius from [cm] to [m]:
-    pm6rp(1:kproma,:,:)    = zm6rp/100._dp
+    pm6rp(1:kproma,:,:)    = zm6rp(1:kproma,:,:)/100._dp
     !--- Dry Count Median Radius from [cm] to [m]:
-    pm6dry(1:kproma,:,:)   = zm6dry/100._dp
+    pm6dry(1:kproma,:,:)   = zm6dry(1:kproma,:,:)/100._dp
     !--- Mean mode density from [g/cm3] to [kg/m3]:
-    prhop(1:kproma,:,:)    = zrhop*1000._dp !eehol: g/cm3 to kg/m3
+    prhop(1:kproma,:,:)    = zrhop(1:kproma,:,:)*1000._dp !eehol: g/cm3 to kg/m3
   !--- Store diagnostic aerosol properties 
-    pww(1:kproma,:,:)      = zww
+    pww(1:kproma,:,:)      = zww(1:kproma,:,:)
 #ifdef HAMMOZ
   
   DO jclass = 1, nclass

@@ -148,9 +148,7 @@ USE TYPE_MODEL,   ONLY: MODEL
 USE YOMCST,       ONLY: RD, RG, RPI
 USE YOMCT0,       ONLY: LIFSMIN, LIFSTRAJ
 USE YOMCT3,       ONLY: NSTEP
-USE TM5M7_DATA,   ONLY: mode_tracers, mode_tracers_by_mods, mode_start,         &
-                      & mode_end_so4, naermod, nmod,nsol, iisvoc,ielvoc,        &
-                      & iacs_n,iso4, MODAL_DATA, MODE_TRACERS, MODE_START,      &
+USE TM5M7_DATA,   ONLY: MODAL_DATA, MODE_TRACERS, MODE_START,      &
                       & MODE_TRACERS_BY_MODS, MODE_END_SO4, NAERMOD, NMOD, NSOL,&
                       & IISVOC, IELVOC, IACS_N, ISO4, ISO4ACS,ISO4COS
 USE YOMCHEM,      ONLY: IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
@@ -282,7 +280,8 @@ REAL(KIND=JPRB) :: ZQSAT(KLON,KLEV), ZRHO(KLON,KLEV)
 REAL(KIND=JPRB) :: ZTAER(KLON,KLEV)
 REAL(KIND=JPRB) :: ZTAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZRH(KLON,KLEV),ZTENC0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)!,ZTSO4(KLON,KLEV)
-REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)
+!REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)
+REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)! NMOD=7
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZRHOP(KLON,KLEV,NMOD)
@@ -358,6 +357,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 ! variables for the M7 call
 REAL(KIND=JPRB) :: ZGRVOL(KLON,KLEV) !grid box volume for diagnostics
 REAL(KIND=JPRB) :: ZPBL(KLON) !planetary boundary layer top level (in vdfmain.F90 ITOP=1)
+REAL(KIND=JPRB) :: ZXTM0(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTM1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTTE(KLON,KLEV,ntrac) !tracer tendency for HAM
 REAL(KIND=JPRB) :: ZXTTEM1(KLON,KLEV,ntrac) !tracer tendency for HAM
@@ -419,7 +419,7 @@ REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep 
 !REAL(KIND=JPRB) :: ZZOUT1(KLON,KLEV),ZZOUT2(KLON,klev),ZZOUT3(KLON,KLEV),ZZOUT4(KLON,KLEV),ZZOUT5(KLON,klev),ZZOUT6(KLON,KLEV)
 !REAL(KIND=JPRB) :: ZZOUT7(KLON,KLEV),ZZOUT8(KLON,klev),ZZOUT9(KLON,KLEV),ZZOUT10(KLON,KLEV),ZZOUT11(KLON,klev),ZZOUT12(KLON,KLEV)
  
-REAL(KIND=JPRB) :: sedout(KLON,KLEV,ktrac)
+REAL(KIND=JPRB) :: sedout(KLON,KLEV,ntrac)
 REAL(KIND=JPRB) :: ddepout(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: Wdepout(KLON,KLEV,ktrac)
 REAL(KIND=JPRB) :: sedout_2D(KLON,ktrac)
@@ -584,7 +584,7 @@ CALL SURF_INQ(YSURF,PRWPWP=ZRWPWP)
 !                 --------------------------------------------------------
 
 ALLOCATE( ZAERNGT(KLON,NACTAERO) )
-ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
+ZAERNGT(:,:) = 0._JPRB
 
 !ALLOCATE( ZAERSCC(KLON,NACTAERO) )
 !ALLOCATE( ZAERSRC(KLON,NACTAERO) )
@@ -598,6 +598,10 @@ ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
  ZOUT(:,:)    = 0._JPRB
  ZOUT2(:,:)   = 0._JPRB
  ZOUT3(:,:,:) = 0._JPRB
+!!! initialize those arrays are importnat for PGFL under GNU, Lianghai Wu
+ ZVDEP(:,:) = 0._JPRB ! ddep velocity as zero
+ ZXTEMS(:,:) = 0._JPRB ! surface emissions as zero for input
+ ZXTMD1(:,:,:) = 0._JPRB 
 !ZOUT4(:,:)   = 0._JPRB
 !ZOUT5(:,:)   = 0._JPRB
 !ZOUT6(:,:)   = 0._JPRB
@@ -637,6 +641,8 @@ zm7prodcond(:,:,:) = 0.0_JPRB
 
 ZTAERO(:,:,:)      = 0._JPRB
 
+ZCEN(:,:,:) = 0._JPRB
+
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
 ! computation of tropopause level 
@@ -644,7 +650,6 @@ CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
 
 
     ! Initializing tracer number and mixing ratios and gas concentrations to not be tendency updated values
-    ZCEN(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
     ITRC=0
     DO JEXT=1,NGHG
       ITRC=ITRC+1
@@ -654,6 +659,7 @@ CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
         ENDDO
       ENDDO
     ENDDO
+
     DO JEXT=1,ZTRAC
       ITRC=ITRC+1
       DO JK=1,KLEV
@@ -662,6 +668,8 @@ CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
         ENDDO
       ENDDO
     ENDDO
+
+
     DO JEXT=1,NAERO
       ITRC=ITRC+1
       DO JK=1,KLEV
@@ -670,6 +678,7 @@ CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
         ENDDO
       ENDDO
     ENDDO
+
     if(LAERCHEM) then 
        DO JEXT=1,NCHEM
           ITRC=ITRC+1
@@ -681,11 +690,12 @@ CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
        ENDDO
     end if
 
+
 DO JAER=1,NACTAERO
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
       ! check on max-values here to prevent excessive values in OPTICS_AOP_GET.. probably to be removed again!!
-      ZAEROK(JL,JK,JAER) =MIN(ZCEN (JL,JK,KAERO(JAER)), 1e10)
+      ZAEROK(JL,JK,JAER) =MIN(ZCEN(JL,JK,KAERO(JAER)), 1e10)
       ZTAEROK(JL,JK,JAER)=PTENC(JL,JK,KAERO(JAER))
     ENDDO
   ENDDO
@@ -848,24 +858,18 @@ else
 end if
 
 !calculate ICNC
-ZICNC(KIDIA:KFDIA,1:KLEV) = 0._JPRB
-ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
+ZICNC(:,:) = 0._JPRB
+ZICNC(:,:) = RNICE
 !Put tracer mixing ratios and tendencies to from OIFS to HAM
 !initialize to zero
-ZXTM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
-ZXTTE(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
-ZXTTEM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+ZXTM1(:,:,:) = 0._JPRB
+ZXTTE(:,:,:) = 0._JPRB
+ZXTTEM1(:,:,:) = 0._JPRB
 
-!write(*,*) "PTENC",PTENC(1,1,:)
-!write(*,*) "KAERO",KAERO
-!write(*,*) "ind_oifs_ham%ind_class_OIFS",ind_oifs_ham%ind_class_OIFS
 !number
 DO JCLASS=1,nclass
    DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
-         !write(*,*) "JCLASS",JCLASS
-         !write(*,*) "ntrac",ntrac
-         !write(*,*) "ind_oifs_ham%ind_class_HAM(JCLASS)",ind_oifs_ham%ind_class_HAM(JCLASS)
          ZXTM1(JL,JK,ind_oifs_ham%ind_class_HAM(JCLASS)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS)))
          ZXTTE(JL,JK,ind_oifs_ham%ind_class_HAM(JCLASS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS)))
       END DO
@@ -1055,7 +1059,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
              ZXTM1, PTP, ZA, ZB)
      END IF
 
-     DO JCLASS = 1,nclass
+     DO JCLASS = 1,nclass! nclass=7
         IF (sizeclass(jclass)%lsoluble) THEN 
 
            !ZRDRY(KIDIA:KFDIA,1:KLEV,JCLASS) = rdry_m7(KIDIA:KFDIA,1:KLEV,JCLASS) !eehol: for soluble modes rdry from rdry_m7
@@ -1087,8 +1091,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
      !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
      ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = ZCDNCACT(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg]
      ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-     !write(*,*) "YCDNC%MP9_PH",YCDNC%MP9_PH 
-     !write(*,*) "YICNC%MP9_PH",YICNC%MP9_PH 
      PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = (1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV) ! add CDNC to PGFL field (convert from #/m3 to #/cm3)
      PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,1:KLEV) ! add ICNC to PGFL field (does not need convert)
      !--> End store CDNC and ICNC
@@ -1182,14 +1184,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
            END DO
            ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = ZMRATEPS(KIDIA:KFDIA,1:KLEV) !?
            
-           ZDUMMY(KIDIA:KFDIA,:) = 0._JPRB ! initialize dummy variables for conv. case only
-           ZDUM2D(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! initialize dummy variables for conv. case only
-           ZDUM3D(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB ! initialize dummy variables for conv. case only
-           ZLFRAC_SO2(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
+           ZDUMMY(:,:) = 0._JPRB ! initialize dummy variables for conv. case only
+           ZDUM2D(:,:) = 0._JPRB ! initialize dummy variables for conv. case only
+           ZDUM3D(:,:,:) = 0._JPRB ! initialize dummy variables for conv. case only
+           ZLFRAC_SO2(:,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
            
            ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
            ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud ice water content (modified in wetdep)
-           ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+           ZTENCIH(:,:,:) = 0._JPRB
            ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)
            IF (.NOT.LAERCHEM)THEN
               call ham_conv_lfraq_so2(KFDIA,KLON,KLEV,PTP,zxtm1,zrho,ZLP,zlfrac_so2)
@@ -1256,7 +1258,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
         IF ( lsedimentation .AND. ANY(trlist%ti(:)%nsedi > 0) ) THEN
 
-           ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+           ZTENCIH(:,:,:) = 0._JPRB
            ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
            
            CALL sedi_interface(KLON, KFDIA, KLEV, ZKROW,   &
@@ -1346,12 +1348,12 @@ SELECT CASE (TRIM(AERO_SCHEME))
            END DO
            
            !--> init values
-           ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+           ZTENCIH(:,:,:) = 0._JPRB
            ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = ZXTTE(KIDIA:KFDIA,1:KLEV,:) ! init tendency before drydep
-           ZXTEMS(KIDIA:KFDIA,:) = 0._JPRB ! surface emissions as zero for input
-           ZXTMD1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB 
+           ZXTEMS(:,:) = 0._JPRB ! surface emissions as zero for input
+           ZXTMD1(:,:,:) = 0._JPRB 
            ZXTMD1(KIDIA:KFDIA,1:KLEV,:) = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + (ZTENCIH(KIDIA:KFDIA,1:KLEV,:) * time_step_len) ! update mixrat with tendency
-           ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
+           ZVDEP(:,:) = 0._JPRB ! ddep velocity as zero
            
            CALL drydep_interface(KLON, KFDIA,  KLEV, ZKROW,           &
                 ZQP(:,KLEV), ZQSAT(:,KLEV), PTP(:,KLEV), ZCFML, ZCFMW, ZCFMI,        &
@@ -1365,7 +1367,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
                 ZSRFL,  PUP(:,KLEV),     PVP(:,KLEV),   & !eehol: 10m u and v wind from lowest level.. needs to be revised in future!!
                 ZXTEMS, ZXTMD1, ZRHO(:,KLEV), PRS1, ZFOREST, ZTSI, & !eehol: air dens lowest, air press at int.
                 ZAZ0L, ZAZ0W, ZAZ0I, ZCDNL, ZCDNW, ZCDNI, ZDDEPFLUX, ZVDEP)  !eehol: ZCDNL and ZCDNW used for ustar and aerodyn. resist.
-           
 
            IF (.not. LAERCHEM)THEN
               CALL m7_simple_sulfur_drydep(YDMODEL, KIDIA,KFDIA, KLON, KLEV, &
@@ -1562,11 +1563,10 @@ ENDDO
 
 IF(MOD(NSTEP+1,NRADFR) == 0) THEN
 CALL GSTATS(2506,0)
-ZAER_TAU(KIDIA:KFDIA,:,:,:)=0.0_JPRB
-ZAER_SSA(KIDIA:KFDIA,:,:)=0.0_JPRB
-ZAER_ASYM(KIDIA:KFDIA,:,:)=0.0_JPRB
-ZAER_TAU_LW(KIDIA:KFDIA,:,:)=0.0_JPRB
-
+ZAER_TAU(:,:,:,:)=0.0_JPRB
+ZAER_SSA(:,:,:)=0.0_JPRB
+ZAER_ASYM(:,:,:)=0.0_JPRB
+ZAER_TAU_LW(:,:,:)=0.0_JPRB
 
 SELECT CASE (NAEROOPT) 
 
@@ -1644,12 +1644,9 @@ CASE (2)
    LWBANDS=16
    PRS1D(KIDIA:KFDIA,:) = PRS1(KIDIA:KFDIA,1:KLEV)-PRS1(KIDIA:KFDIA,0:KLEV-1)
    !CALL ham_rad_cache(KLON,KLEV)
-   CALL ham_rad(KFDIA,KLON, KLEV, ZKROW, LWBANDS, NASWBAND,                 &
-   ZXTM1+ZXTTE*time_step_len,         PRS1D,                                    &
-!<<<<<<< HEAD
-   ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW,ZM6RP)
+   ZXTM0 = ZXTM1+ZXTTE*time_step_len
+   CALL ham_rad(KFDIA,KLON, KLEV, ZKROW, LWBANDS, NASWBAND, ZXTM0, PRS1D,ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW,ZM6RP)
    !CALL ham_rad_cache_cleanup
-   !PAOD(KIDIA:KFDIA,:)=0._JPRB
    do JK = 1, KLEV
       do JL = KIDIA,KFDIA
          do IW=1,NASWBAND         
@@ -1663,7 +1660,6 @@ CASE (2)
          end do
       enddo
    enddo
-   !write(*,*)"max PAER_TAU", maxval(PAER_TAU)
 !=======
 !   ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW,rwet_m7)
 !   CALL HAM_RAD_CACHE_CLEANUP
@@ -1689,11 +1685,11 @@ END SELECT
 CALL GSTATS(2506,1)
 ENDIF  ! (MOD(NSTEP+1,NRADFR) == 0)
 
-PAOD(KIDIA:KFDIA,:) =0._JPRB
-PABS(KIDIA:KFDIA,:) =0._JPRB
-PFAOD(KIDIA:KFDIA,:)=0._JPRB
-PSSA(KIDIA:KFDIA,:) =0._JPRB
-PASY(KIDIA:KFDIA,:) =0._JPRB
+PAOD(:,:) =0._JPRB
+PABS(:,:) =0._JPRB
+PFAOD(:,:)=0._JPRB
+PSSA(:,:) =0._JPRB
+PASY(:,:) =0._JPRB
 do JK = 1, KLEV
    do JL = KIDIA,KFDIA
       do IW=1,NASWBAND  
@@ -1905,7 +1901,6 @@ ENDDO
      END if
 
   ENDIF
-
 
 !------------------------------------------------------------------------------
 !*         9.       RELEASE LOCAL MEMORY
