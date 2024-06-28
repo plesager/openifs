@@ -16,6 +16,8 @@
 export OIFS_HOST="ecmwf"
 export OIFS_PLATFORM="hpc2020"
 
+#--- if OIFS_DEBUGGER is set, oifs-run can use it to activate debugger ---------
+export OIFS_DEBUGGER="DDT"
 
 #--- set principal OIFS variables ------------------------------
 #

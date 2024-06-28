@@ -20,13 +20,19 @@ USE PARFPOS, ONLY : JPOSDYN, JPOSSCVA, JPOSPHY, JPOSVX2, JPOSFSU, &
 USE FULLPOS_MIX, ONLY : FULLPOS_TYPE
 USE TYPE_FPDSPHYS, ONLY : FPDSPHY
 
-!====================================================================================
-! Identifiers, used for example in FULL-POS.                                        |
-! Fields are divided into 5 classes: DYN3D, DYN2D, PHYSOL, CFU, XFU                 |
-! Some redundancies may occur.                                                      |
-! Identifiers are TFP_[rootfield] for DYN3D and DYN2D                               |
-! Identifiers are GFP_[rootfield] for PHYSOL, CFU, XFU                              |
-!====================================================================================
+! ╒════════════════════════════════════════════════════════════════════════════╕
+! │ MODULE YOMAFN                                        (updated 16-MAY-2024) │
+! │                                                                            │
+! │ Identifiers, used for example in FULL-POS.                                 │
+! │ Fields are divided into 5 classes: DYN3D, DYN2D, PHYSOL, CFU, XFU          │
+! │ Some redundancies may occur.                                               │
+! │ Identifiers are TFP_[rootfield] for DYN3D and DYN2D                        │
+! │ Identifiers are GFP_[rootfield] for PHYSOL, CFU, XFU                       │
+! │                                                                            │
+! │ Author : ECMWF(?)                                                          │
+! │ -------                                                                    │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
 IMPLICIT NONE
 

@@ -1,67 +1,79 @@
 SUBROUTINE hamm7_init(YGFL, YRRIP)
 
-!**   DESCRIPTION 
-!     ----------
-!
-!   init routine HAM-M7 aerosol in OpenIFS
-!
-!
-!
-!**   INTERFACE.
-!     ----------
-!      *hamm7_init* is called from *CNT4*.
-!     REMARK: the code assumes that TM5M7_INIT has already been called!
-
-!     Externals.  
-!     ---------                  
-
-!
-!     AUTHOR.
-!     -------
-!       Thomas Kühn (thk), FMI
-
-!     MODIFICATIONS.
-!     --------------
-!        ORIGINAL : 2020-11-11
+! ╭────────────────────────────────────────────────────────────────────────────╮
+! │                                                      (updated 14-MAY-2024) │
+! │ Purpose :                                                                  │
+! │ -------                                                                    │
+! │    init routine HAM-M7 aerosol in OpenIFS                                  │
+! │                                                                            │
+! │                                                                            │
+! │ Interface :                                                                │
+! │ ---------                                                                  │
+! │   *hamm7_init* is called from *CNT4*.                                      │
+! │   REMARK: the code assumes that TM5M7_INIT has already been called!        │
+! │                                                                            │
+! │                                                                            │
+! │ Input :                                                                    │
+! │ -----                                                                      │
+! │                                                                            │
+! │                                                                            │
+! │ Output :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │                                                                            │
+! │ Externals :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Method :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │ Reference :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Author :                                                                   │
+! │ -------                                                                    │
+! │     Orginal version:                                                       │
+! │     2020-11-11   - Thomas Kuehn (FMI/UEF)                                  │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ -------------                                                              │
+! │     ?          - Eemeli Holopainen (FMI) : ?                               │
+! │     May.  2024 - R. Checa-Garcia (KNMI)  : revision for CY48r1             │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
 !----------------------------------------------------------------------
 !*       0.0   USE STATEMENTS
 !              ---------------
 
-USE PARKIND1 , ONLY : &
-     JPRB
+! IFS/OPENIFS modules ---------------------------------------------------------
+USE PARKIND1, ONLY : JPRB
+USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMRIP,   ONLY : TRIP
+USE YOM_YGFL, ONLY : TYPE_GFLD   ! Gives type for YGFL
 
 !!!!TEMPORARY
-Use YOMMP0,only: &
-     MYPROC
+Use YOMMP0,   ONLY : MYPROC
 !!!!TEMPORARY
 
-USE YOMHOOK  , ONLY :      &
-     LHOOK, DR_HOOK, JPHOOK
 
-!USE YOM_YGFL , ONLY :      &
-!     YGFL
-USE YOMRIP, ONLY: TRIP
-USE YOM_YGFL , ONLY : TYPE_GFLD!YGFL
-
+! --- M7 modules --------------------------------------------------------------
 ! --> thk: bug fix
-USE MO_TIME_CONTROL, ONLY: &
-     init_mo_time_control
+USE MO_TIME_CONTROL, ONLY: init_mo_time_control
 ! <-- thk
 
-USE MO_SPECIES, ONLY:      &
-     speclist                ! tracer species in HAM
+USE MO_SPECIES,      ONLY: speclist            ! tracer species in HAM
 
-USE MO_HAM, ONLY:          &
-     sizeclass,            & ! aerosol classes in HAM
-     nclass,               & ! number of aerosol classes in HAM
-     aerocomp,             & ! aerosol compounds by size class in HAM
-     naerocomp,            & ! amount of aerosol mass tracers in HAM
-     subm_gasspec,         & ! gas phase species in HAM
-     subm_ngasspec           ! number of gas phase species in HAM
+USE MO_HAM, ONLY:     &
+     sizeclass,       & ! aerosol classes in HAM
+     nclass,          & ! number of aerosol classes in HAM
+     aerocomp,        & ! aerosol compounds by size class in HAM
+     naerocomp,       & ! amount of aerosol mass tracers in HAM
+     subm_gasspec,    & ! gas phase species in HAM
+     subm_ngasspec      ! number of gas phase species in HAM
 
-USE OIFS_to_HAM, ONLY: init_ind_oifs_ham, & ! init index list for OIFS and HAM
-                       ind_oifs_ham! index list type
+USE OIFS_to_HAM, ONLY: init_ind_oifs_ham, &  ! init index list for OIFS and HAM
+   &                   ind_oifs_ham          ! index list type
      !ind_class_OIFS,        & ! index list for aerosol sizeclasses from OIFS
      !ind_class_HAM,         & ! index list for aerosol sizeclasses from HAM
      !ind_mass_OIFS,        & ! index list for aerosol masses from OIFS
@@ -71,13 +83,11 @@ USE OIFS_to_HAM, ONLY: init_ind_oifs_ham, & ! init index list for OIFS and HAM
      !ind_cloud_OIFS,       & ! index list for cloud variables from OIFS
      !ind_cloud_HAM           ! index list for cloud variables from HAM
 
-USE MO_TRACDEF, ONLY:      &
-     GAS, AEROSOL,         & ! species type identifiers
-     GAS_OR_AEROSOL, ntrac, trlist        
+USE MO_TRACDEF,     ONLY:  GAS, AEROSOL,         & ! species type identifiers
+  &                        GAS_OR_AEROSOL, ntrac, trlist
 
-USE MO_HAM_M7_TRAC, ONLY:  &
-     idt_cdnc_ham,         & !index for HAM CDNC
-     idt_icnc_ham            !index for HAM ICNC
+USE MO_HAM_M7_TRAC, ONLY:  idt_cdnc_ham,         & !index for HAM CDNC
+  &                        idt_icnc_ham            !index for HAM ICNC
 
 USE MO_HAM_INIT, ONLY:     &
      start_ham,            &
@@ -87,8 +97,7 @@ USE MO_HAM_INIT, ONLY:     &
 USE MO_ADVECTION, ONLY:    & !eehol: added for advection initialization
      iadvec, tpcore
 
-USE MO_SUBMODEL, &
-     ONLY:     & !eehol: added mo_submodel routines 
+USE MO_SUBMODEL, ONLY:     & !eehol: added mo_submodel routines
      setsubmodel, lham, id_ham, starttracdef, endtracdef
 
 USE MO_SPECIES, &
@@ -106,21 +115,20 @@ USE MO_PARAM_SWITCHES, &
 
 
 IMPLICIT NONE
-TYPE(TYPE_GFLD)   ,INTENT(IN)    :: YGFL
-TYPE(TRIP)   ,INTENT(IN)    :: YRRIP
+TYPE(TYPE_GFLD), INTENT(IN)    :: YGFL
+TYPE(TRIP),      INTENT(IN)    :: YRRIP
 
 !----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
 !              ---------------
-INTEGER :: &                           ! looping indices
-     j_yaero, j_ychem, &               ! IFS
-     j_class, j_mass, j_spec, j_gas, j_cloud, & ! HAM
-     kt, znclass, znaerocomp, zsubm_ngasspec, zcloudind ! eehol: indices for OIFS to HAM
+INTEGER ::                                   &         ! looping indices
+ &  j_yaero, j_ychem,                        &         ! IFS
+ &  j_class, j_mass, j_spec, j_gas, j_cloud, &         ! HAM
+ &  kt, znclass, znaerocomp, zsubm_ngasspec, zcloudind ! eehol: indices for OIFS to HAM
 
-REAL(KIND=JPHOOK) :: &                   
-     ZHOOK_HANDLE                      ! return status
+CHARACTER(len=64) :: int_str, int_str_ham              ! eehol: integer as string
 
-CHARACTER(len=64) :: int_str, int_str_ham !eehol: integer as string
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE                      ! return status
 
 !----------------------------------------------------------------------
 !*       1.0   EXECUTABLE CODE
@@ -148,6 +156,8 @@ CALL init_splist !eehol: added init for splist
 CALL start_ham
 
 !eehol: define tracer numbers, idt, etc. with ham_define_tracer
+! RCHG: For the implementation in IFS code it would be worth to consider to 
+!       rename starttracdef and similar subroutines to m7_starttracdef
 IF (lham) THEN
    CALL starttracdef(id_ham)
    CALL ham_define_tracer
@@ -179,9 +189,12 @@ idt_icnc = idt_icnc_ham
 znclass = nclass
 znaerocomp = naerocomp
 zsubm_ngasspec = subm_ngasspec
-zcloudind = 2 !eehol CDNC and ICNC 
 
-CALL init_ind_oifs_ham(znclass,znaerocomp,zsubm_ngasspec,zcloudind)
+! RCHG -> for consistency I would define zcloudind in the MO_HAM like the similar
+!         definitions rather than here.
+zcloudind = 2                                            !eehol CDNC and ICNC
+
+CALL init_ind_oifs_ham(znclass, znaerocomp, zsubm_ngasspec, zcloudind) ! RCHG -> allocates and initialize to zero.
 !-->eehol
 
 ! assigning tracer indices as found in YGFL to the
@@ -203,9 +216,12 @@ ASSOCIATE(&
 ! AC-experiments/ctrl/Table/bins_hamm7ver1.csv and compare the names you get 
 ! in the files.
 
-! aerosol tracers
 
-!write(*,*) "MYPROC ", MYPROC 
+! RCHG -> this nested loop aims to indentify corresponding indices of OPENIFS vs HAM
+!         data structures. If the several files stored "fort.N" are just for testing
+!         purposes we may add a LLDEBUG flag to activate/deactive the savings. FIXME.
+
+! aerosol tracers
 LABEL_IFS_AERO: DO j_yaero = 1,NAERO
 
    ! looping over the number tracers in HAM
@@ -214,9 +230,8 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
       ! sizeclass names in HAM-M7 are two-letter (xy) combinations: 
       ! x: N,K,A,C = nucleation, Aitken, accumulation, and coarse, respectively, while
       ! y: S,I = soluble, insoluble, respectively.
-      ! In the IFS-csv table, these combinations are prefixed with '_N'
-      !write(*,*) "CNAME ", TRIM(YAERO(j_yaero)%CNAME)
-      !write(*,*) "sizeclass ",TRIM(sizeclass(j_class)%shortname)//'_N'
+      ! In the IFS-csv table, these combinations are suffixed with '_N'
+
       IF (TRIM(YAERO(j_yaero)%CNAME) == TRIM(sizeclass(j_class)%shortname)//'_N') THEN
 
          ! In case of a match, we set the tracer index in the HAM meta data to the
@@ -249,13 +264,9 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
       ! standard names are OC, BC, SO4, DU, and SS for organic carbon, black carbon
       ! sulfate, mineral dust and seasalt, respectively. Other species may be
       ! included as well, depending on the HAM setup.
+
       j_class = aerocomp(j_mass)%iclass  ! index to size class
       j_spec  = aerocomp(j_mass)%spid    ! index to species
-      !write(*,*) "CNAME ", TRIM(YAERO(j_yaero)%CNAME)
-      !write(*,*) "shortname ",(TRIM(speclist(j_spec)%shortname)//'_'//TRIM(sizeclass(j_class)%shortname))
-      !write(*,*) "sizeclass=POM_ ", 'POM_'//TRIM(sizeclass(j_class)%shortname)
-
-      ! write(*,*) "sizeclass ==OC ", TRIM(speclist(j_spec)%shortname)
 
       IF (TRIM(YAERO(j_yaero)%CNAME) == (TRIM(speclist(j_spec)%shortname)//'_'//TRIM(sizeclass(j_class)%shortname))) THEN
 
@@ -279,6 +290,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
          
          ! once the tracer is identified we can check the next one
          CYCLE LABEL_IFS_AERO
+
       ELSE IF ( (TRIM(YAERO(j_yaero)%CNAME) == 'POM_'//TRIM(sizeclass(j_class)%shortname)) .AND. (TRIM(speclist(j_spec)%shortname) == 'OC') ) THEN
 
          ! In case of a match, we set the tracer index in the HAM meta data to the
@@ -370,7 +382,9 @@ IF (LAERCHEM)THEN
                WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
                WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
                WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
-               WRITE(7000+MYPROC,'(a)') 'wetdep',trlist%ti(kt)
+               ! RCHG -> line below printed non string characters. Probably issue with dimensions
+               !         strings, so commented. FIXME
+               !WRITE(7000+MYPROC,'(a)') 'wetdep',trlist%ti(kt)
             END IF
 
             ! once the tracer is identified we can check the next one

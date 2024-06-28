@@ -63,19 +63,22 @@ SUBROUTINE AER_PHY3_LAYER(YDSURF, &
 
 !-----------------------------------------------------------------------
 
-USE TYPE_MODEL         , ONLY : MODEL
-USE SURFACE_FIELDS_MIX , ONLY : TSURF
-USE PARKIND1  ,ONLY : JPIM,    JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
-USE YOMCST    ,ONLY : RA, RPI
 
-USE YOMPHYDER ,ONLY : DIMENSION_TYPE, STATE_TYPE, AUX_TYPE, &
-   & AUX_DIAG_LOCAL_TYPE, SURF_AND_MORE_TYPE, FLUX_TYPE,  &
-   & GEMS_LOCAL_TYPE, SURF_AND_MORE_LOCAL_TYPE, AUX_RAD_TYPE, AUX_DIAG_TYPE
-USE YOECLDP   , ONLY : NCLDQL,  NCLDQI,  NCLDQR, NCLDQS
-USE TM5_PHOTOLYSIS, ONLY : NBANDS_TROP
-USE YOE_AERODIAG, ONLY : NPAERAOT, NPAERLISI_VAR, NPAERLISI_WVL, JPAERO_WVL_AOD
-USE TM5_CHEM_MODULE    , ONLY : NCHEM2AER
+USE TYPE_MODEL,         ONLY : MODEL
+USE SURFACE_FIELDS_MIX, ONLY : TSURF
+USE PARKIND1,           ONLY : JPIM,    JPRB
+USE YOMHOOK,            ONLY : LHOOK,   DR_HOOK, JPHOOK
+USE YOMLUN,             ONLY : NULOUT
+USE YOMCST,             ONLY : RA, RPI
+
+USE YOMPHYDER,          ONLY : DIMENSION_TYPE, STATE_TYPE, AUX_DIAG_LOCAL_TYPE,&
+                             & AUX_TYPE, SURF_AND_MORE_TYPE, FLUX_TYPE,        &
+                             & GEMS_LOCAL_TYPE, SURF_AND_MORE_LOCAL_TYPE,      &
+                             & AUX_RAD_TYPE, AUX_DIAG_TYPE
+USE YOECLDP,            ONLY : NCLDQL,  NCLDQI,  NCLDQR, NCLDQS
+USE TM5_PHOTOLYSIS,     ONLY : NBANDS_TROP
+USE YOE_AERODIAG,       ONLY : NPAERAOT, NPAERLISI_VAR, NPAERLISI_WVL, JPAERO_WVL_AOD
+USE TM5_CHEM_MODULE,    ONLY : NCHEM2AER
 
 !-----------------------------------------------------------------------
 
@@ -185,116 +188,125 @@ ELSE
   ZO3(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = STATE%O3(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)
 ENDIF
 !write(*,*)"AERO_SCHEME",TRIM(AERO_SCHEME)
+
 SELECT CASE (TRIM(AERO_SCHEME))
 
   CASE ("glomap")
     CALL ABOR1("OIFS - glomap should never be called from OIFS, EXIT")
   CASE ("tm5m7", "hamm7")
-   !Optical properties calculated only for radiation timesteps. 
-   !Using previous optical properties if not calculated
-  ! introduce simple routine to ensure values are non-zero:
+    ! Optical properties calculated only for radiation timesteps.
+    ! Using previous optical properties if not calculated
+    ! introduce simple routine to ensure values are non-zero:
 
+    IBLK=(KDIM%KSTGLO-1)/KDIM%KLON + 1
 
-   IBLK=(KDIM%KSTGLO-1)/KDIM%KLON + 1
-
-   DO JAER=1,14
+    ! FIXME Better than 1:14 is to define a variable with value 14 with a
+    !       meaningful name (RCHG)
+    DO JAER=1,14
       DO JK=1,KDIM%KLEV
-         DO JL=KDIM%KIDIA,KDIM%KFDIA
-            
-            GEMSL%ZAEROTAU(JL,JK,JAER)=YDAERM7%M7AOD(JL,JK,JAER,IBLK)
-            GEMSL%ZAEROSSA(JL,JK,JAER)=YDAERM7%M7SSA(JL,JK,JAER,IBLK)
-            GEMSL%ZAEROASY(JL,JK,JAER)=YDAERM7%M7ASYM(JL,JK,JAER,IBLK)
-         ENDDO
+        DO JL=KDIM%KIDIA,KDIM%KFDIA
+          GEMSL%ZAEROTAU(JL,JK,JAER) = YDAERM7%M7AOD( JL,JK,JAER,IBLK)
+          GEMSL%ZAEROSSA(JL,JK,JAER) = YDAERM7%M7SSA( JL,JK,JAER,IBLK)
+          GEMSL%ZAEROASY(JL,JK,JAER) = YDAERM7%M7ASYM(JL,JK,JAER,IBLK)
+        ENDDO
       ENDDO
-   ENDDO
+    ENDDO
 
-      ZTAUS_AER  = 0._JPRB
-      ZTAUA_AER  = 0._JPRB       
-      ZPMAER     = 0._JPRB
+    ZTAUS_AER  = 0._JPRB
+    ZTAUA_AER  = 0._JPRB
+    ZPMAER     = 0._JPRB
 
-  CALL HAMM7_INTERFACE &
-     &( YDMODEL, &
-     &  KDIM%KIDIA  , KDIM%KFDIA  , KDIM%KLON   , KDIM%KTDIA  , KDIM%KLEV , KDIM%KTILES , &
-     &  KDIM%KFLDX  , KDIM%KLEVX, &
-     &  GEMSL%ITRAC , GEMSL%IAERO ,  GEMSL%ICHEM, KDIM%KSTGLO, PAUX%PGEOMH,&
-     &  PAUX%PRS1   , PAUX%PRSF1  , GEMSL%ZAEROP, GEMSL%ZCAERO, GEMSL%ZCEN , PAUX%PAPHIF, &
-     &  FLUX%PFPLCL , FLUX%PFPLCN , FLUX%PFPLSL , FLUX%PFPLSN , PAUX%PGELAT, PAUX%PGELAM, &
-     &  STATE%A , STATE%CLD(:,:,NCLDQI), STATE%CLD(:,:,NCLDQL), STATE%CLD(:,:,NCLDQR), &
-     &  STATE%CLD(:,:,NCLDQS), PDIAG%PCOVPTOT, PDIAG%ZLU  , &
-     &  ZO3     , STATE%Q      , STATE%T      , ZTH          , GEMSL%ZTENC     , GEMSL%ZCFLX  , &
-     &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERWS , GEMSL%ZAERGUST  , GEMSL%ZAERUST, GEMSL%ZAERMAP, & 
-     &  GEMSL%ZCLAERS, GEMSL%ZPRAERS, PCHEM2AER, & 
-     !&  SURFL%ZALBD  , &
-     &  SURFL%ZFRTI  , PSURF%PSD_VF(:,YSD_VF%YLSM%MP)  , &
-     &  ZSNM , AUXL%ZWND  , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9) , &
-     &  GEMSL%ZAERFLX_M7, GEMSL%ZAERLIF, &
-     &  FLUX%PAERODDF, TSPHY  , PGFL   , &
-!VH total optical depth output...
-     &  PSURF%PSD_VD(:,YSD_VD%YODTOACC%MP), &
-     &  ZAERO_WVL_DIAG, &
-     !&  PSURF%PSD_VD(:,YSD_VD%YODTO469%MP), PSURF%PSD_VD(:,YSD_VD%YODTO670%MP), &
-     !&  PSURF%PSD_VD(:,YSD_VD%YODTO865%MP), PSURF%PSD_VD(:,YSD_VD%YODTO1240%MP), &
-     &  GEMSL%ZAEROTAU, GEMSL%ZAEROSSA,GEMSL%ZAEROASY, GEMSL%ZAEROTAULW,& 
-!VH Variables ZTAUS_AER etc ideally convoluted with GEMSL%ZAERTAULT, or similar.
-     &  ZTAUS_AER , ZTAUA_AER, ZPMAER,  & 
-!VH
-     &  PSURF%PSD_XA, PAUX%PVERVEL, AUXL%ZCCNL, AUXL%ZCCNO, PSURF%PAHFSTI, PSURF%PSD_VF(:,YSD_VF%YCI%MP), GEMSL%ZAZ0M, FLUX%PFTLHEV, & 
-     &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU)!,ZTSO2,ZTSO4,ZTSO4_AQ,ZFSO2,ZFSO4 ,ZFSO4_AQ&
-     !&) !eehol: u-wind,v-wind,low veg. cover, high veg. cover, sine of latitude
+    ! RCHG: Is HAMM7_INTERFACE the equivalent of AER_PHY3 or it has other
+    !       functionalities? For a practical point of view, we can have
+    !       HAMM7_PHY3 to we can associate equivalent functionalities between
+    !       both SCHEMES. => note that this is only reasonable if
+    !       (a) we agree with split of subroutines in AER scheme
+    !       (b) the hamm7 scheme is reasonable equivalent in procedures with aer.
+    !       The comment about is a general suggestion.
+    CALL HAMM7_INTERFACE (&
+      &  YDMODEL,                                                               &
+      &  KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, KDIM%KTDIA, KDIM%KLEV, KDIM%KTILES, &
+      &  KDIM%KFLDX, KDIM%KLEVX,                                                &
+      &  GEMSL%ITRAC , GEMSL%IAERO ,  GEMSL%ICHEM, KDIM%KSTGLO, PAUX%PGEOMH,    &
+      &  PAUX%PRS1   , PAUX%PRSF1  , GEMSL%ZAEROP, GEMSL%ZCAERO, GEMSL%ZCEN , PAUX%PAPHIF, &
+      &  FLUX%PFPLCL , FLUX%PFPLCN , FLUX%PFPLSL , FLUX%PFPLSN , PAUX%PGELAT, PAUX%PGELAM, &
+      &  STATE%A     ,                                                          &
+      &  STATE%CLD(:,:,NCLDQI), STATE%CLD(:,:,NCLDQL), STATE%CLD(:,:,NCLDQR),   &
+      &  STATE%CLD(:,:,NCLDQS), PDIAG%PCOVPTOT,        PDIAG%ZLU  ,             &
+      &  ZO3,   STATE%Q,   STATE%T,   ZTH    , GEMSL%ZTENC     , GEMSL%ZCFLX  , &
+      &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERWS , GEMSL%ZAERGUST  , GEMSL%ZAERUST, GEMSL%ZAERMAP, &
+      &  GEMSL%ZCLAERS, GEMSL%ZPRAERS, PCHEM2AER,                               &
+      !&  SURFL%ZALBD  , &
+      &  SURFL%ZFRTI  , PSURF%PSD_VF(:,YSD_VF%YLSM%MP) ,                        &
+      &  ZSNM , AUXL%ZWND  , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9) ,                  &
+      &  GEMSL%ZAERFLX_M7, GEMSL%ZAERLIF,                                       &
+      &  FLUX%PAERODDF, TSPHY  , PGFL   ,                                       &
+      !VH total optical depth output...
+      &  PSURF%PSD_VD(:,YSD_VD%YODTOACC%MP),                                    &
+      &  ZAERO_WVL_DIAG,                                                        &
+      !&  PSURF%PSD_VD(:,YSD_VD%YODTO469%MP), PSURF%PSD_VD(:,YSD_VD%YODTO670%MP), &
+      !&  PSURF%PSD_VD(:,YSD_VD%YODTO865%MP), PSURF%PSD_VD(:,YSD_VD%YODTO1240%MP), &
+      &  GEMSL%ZAEROTAU, GEMSL%ZAEROSSA,GEMSL%ZAEROASY, GEMSL%ZAEROTAULW,       &
+      !VH Variables ZTAUS_AER etc ideally convoluted with GEMSL%ZAERTAULT, or similar.
+      &  ZTAUS_AER , ZTAUA_AER, ZPMAER,                                         &
+      !VH
+      &  PSURF%PSD_XA, PAUX%PVERVEL, AUXL%ZCCNL, AUXL%ZCCNO, PSURF%PAHFSTI, PSURF%PSD_VF(:,YSD_VF%YCI%MP), GEMSL%ZAZ0M, FLUX%PFTLHEV, &
+      &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU) !,ZTSO2,ZTSO4,ZTSO4_AQ,ZFSO2,ZFSO4 ,ZFSO4_AQ&
+    !&) ! u-wind,v-wind,low veg. cover, high veg. cover, sine of latitude
 
-     DO JAER=1,14
+
+    ! FIXME Better than 1:14 is to define a variable with value 14 with a meaningful name (RCHG)
+    !       Note that %M7AODLW has 16 wavelenghts (see phys_radi/suecrad.F90, PLS)
+    DO JAER=1,14
        DO JK=1,KDIM%KLEV
          DO JL=KDIM%KIDIA,KDIM%KFDIA
-     
             YDAERM7%M7AOD(JL,JK,JAER,IBLK)   = GEMSL%ZAEROTAU(JL,JK,JAER)
-            YDAERM7%M7SSA(JL,JK,JAER,IBLK)   = GEMSL%ZAEROSSA(JL,JK,JAER)!*GEMSL%ZAEROTAU(JL,JK,JAER)
-            YDAERM7%M7ASYM(JL,JK,JAER,IBLK)  = GEMSL%ZAEROASY(JL,JK,JAER)!*GEMSL%ZAEROSSA(JL,JK,JAER)*GEMSL%ZAEROTAU(JL,JK,JAER) 
+            YDAERM7%M7SSA(JL,JK,JAER,IBLK)   = GEMSL%ZAEROSSA(JL,JK,JAER)   !*GEMSL%ZAEROTAU(JL,JK,JAER)
+            YDAERM7%M7ASYM(JL,JK,JAER,IBLK)  = GEMSL%ZAEROASY(JL,JK,JAER)   !*GEMSL%ZAEROSSA(JL,JK,JAER)*GEMSL%ZAEROTAU(JL,JK,JAER) 
             YDAERM7%M7AODLW(JL,JK,JAER,IBLK) = GEMSL%ZAEROTAULW(JL,JK,JAER)
             !weighed values calculated in raddvr. 
          ENDDO
        ENDDO 
      ENDDO 
 
-
-
-  CASE ("aer")
+   CASE ("aer")
 
 !*         1.     UNROLL THE DERIVED STRUCTURES AND CALL AER_PHY3
 
-    CALL AER_PHY3 &
-       &( YDMODEL, &
-       &  KDIM%KIDIA  , KDIM%KFDIA  , KDIM%KLON   , KDIM%KTDIA  , KDIM%KLEV , KDIM%KTILES , &
-       &  KDIM%KFLDX  , KDIM%KLEVX, &
-       &  GEMSL%ITRAC , GEMSL%IAERO ,  GEMSL%ICHEM, &
-       &  PAUX%PRS1   , PAUX%PRSF1  , GEMSL%ZAEROP, GEMSL%ZCAERO, GEMSL%ZCEN , PAUX%PAPHIF, &
-       &  FLUX%PFPLCL , FLUX%PFPLCN , FLUX%PFPLSL , FLUX%PFPLSN , PAUX%PGELAT, PAUX%PGELAM, &
-       &  STATE%A , STATE%CLD(:,:,NCLDQI), STATE%CLD(:,:,NCLDQL), STATE%CLD(:,:,NCLDQR), &
-       &  STATE%CLD(:,:,NCLDQS), PDIAG%PCOVPTOT, PDIAG%ZLU  ,&
-       &  FLUX%PFCCQL,FLUX%PFCCQN,FLUX%PFCSQL,FLUX%PFCSQN,&
-       &  ZO3          , STATE%Q      , STATE%T      , ZTH          , GEMSL%ZTENC     , GEMSL%ZCFLX  , &
-       &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERWS , GEMSL%ZAERGUST  , GEMSL%ZAERUST, GEMSL%ZAERMAP, &
-       &  GEMSL%ZCLAERS, GEMSL%ZPRAERS, PCHEM2AER, &
-       &  SURFL%ZALBD  , GEMSL%ZTAUAER, SURFL%ZFRTI  , PSURF%PSD_VF(:,YSD_VF%YLSM%MP)  , &
-       &  ZSNM , AUXL%ZWND  , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9) , &
-       &  GEMSL%ZAERFLX, GEMSL%ZAERLIF, &
-       &  FLUX%PAERODDF, PSURF%PSD_VF(:,YSD_VF%YFCA1%MP),PSURF%PSD_VF(:,YSD_VF%YFCA2%MP),&
-       &  TSPHY  , PGFL   , &
-       &  PSURF%PSD_VD(:,YSD_VD%YODSS%MP), PSURF%PSD_VD(:,YSD_VD%YODDU%MP),&
-       &  PSURF%PSD_VD(:,YSD_VD%YODOM%MP), PSURF%PSD_VD(:,YSD_VD%YODBC%MP), PSURF%PSD_VD(:,YSD_VD%YODSU%MP),&
-       &  PSURF%PSD_VD(:,YSD_VD%YODNI%MP),PSURF%PSD_VD(:,YSD_VD%YODAM%MP), PSURF%PSD_VD(:,YSD_VD%YODSOA%MP),&
-       &  PSURF%PSD_VD(:,YSD_VD%YODVFA%MP),PSURF%PSD_VD(:,YSD_VD%YODVSU%MP),PSURF%PSD_VD(:,YSD_VD%YODTOACC%MP),&
-       &  PSURF%PSD_VD(:,YSD_VD%YAEPM1%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM25%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM10%MP),&
-       &  GEMSL%ZAERAOT, GEMSL%ZAERLISI, PSURF%PSD_XA, &
-       &  ZAERO_WVL_DIAG &
-       &)
+     CALL AER_PHY3( &
+        &  YDMODEL, &
+        &  KDIM%KIDIA  , KDIM%KFDIA  , KDIM%KLON   , KDIM%KTDIA  , KDIM%KLEV , KDIM%KTILES , &
+        &  KDIM%KFLDX  , KDIM%KLEVX,                                            &
+        &  GEMSL%ITRAC , GEMSL%IAERO ,  GEMSL%ICHEM,                            &
+        &  PAUX%PRS1   , PAUX%PRSF1  , GEMSL%ZAEROP, GEMSL%ZCAERO, GEMSL%ZCEN , PAUX%PAPHIF, &
+        &  FLUX%PFPLCL , FLUX%PFPLCN , FLUX%PFPLSL , FLUX%PFPLSN , PAUX%PGELAT, PAUX%PGELAM, &
+        &  STATE%A , STATE%CLD(:,:,NCLDQI), STATE%CLD(:,:,NCLDQL), STATE%CLD(:,:,NCLDQR),    &
+        &  STATE%CLD(:,:,NCLDQS), PDIAG%PCOVPTOT, PDIAG%ZLU,                    &
+        &  FLUX%PFCCQL,FLUX%PFCCQN,FLUX%PFCSQL,FLUX%PFCSQN,                     &
+        &  ZO3          , STATE%Q      , STATE%T      , ZTH          , GEMSL%ZTENC     , GEMSL%ZCFLX  , &
+        &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERWS , GEMSL%ZAERGUST  , GEMSL%ZAERUST, GEMSL%ZAERMAP, &
+        &  GEMSL%ZCLAERS, GEMSL%ZPRAERS, PCHEM2AER,                             &
+        &  SURFL%ZALBD  , GEMSL%ZTAUAER, SURFL%ZFRTI  , PSURF%PSD_VF(:,YSD_VF%YLSM%MP)  , &
+        &  ZSNM , AUXL%ZWND  , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9) ,                &
+        &  GEMSL%ZAERFLX, GEMSL%ZAERLIF,                                        &
+        &  FLUX%PAERODDF, PSURF%PSD_VF(:,YSD_VF%YFCA1%MP),PSURF%PSD_VF(:,YSD_VF%YFCA2%MP),&
+        &  TSPHY  , PGFL   ,                                                    &
+        &  PSURF%PSD_VD(:,YSD_VD%YODSS%MP), PSURF%PSD_VD(:,YSD_VD%YODDU%MP),    &
+        &  PSURF%PSD_VD(:,YSD_VD%YODOM%MP), PSURF%PSD_VD(:,YSD_VD%YODBC%MP),  PSURF%PSD_VD(:,YSD_VD%YODSU%MP),   &
+        &  PSURF%PSD_VD(:,YSD_VD%YODNI%MP), PSURF%PSD_VD(:,YSD_VD%YODAM%MP),  PSURF%PSD_VD(:,YSD_VD%YODSOA%MP),  &
+        &  PSURF%PSD_VD(:,YSD_VD%YODVFA%MP),PSURF%PSD_VD(:,YSD_VD%YODVSU%MP), PSURF%PSD_VD(:,YSD_VD%YODTOACC%MP),&
+        &  PSURF%PSD_VD(:,YSD_VD%YAEPM1%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM25%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM10%MP),  &
+        &  GEMSL%ZAERAOT, GEMSL%ZAERLISI, PSURF%PSD_XA,                         &
+        &  ZAERO_WVL_DIAG )
 
+   CASE DEFAULT
 
-  CASE DEFAULT
-
-    CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME) )
+     CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME) )
 
 END SELECT
 
+! RCHG: This can be improved to using a variable with a sensible name instead 6.
+!       (not about M7)
 DO JAER=1,6
   DO JK=1,KDIM%KLEV
     DO JL=KDIM%KIDIA,KDIM%KFDIA

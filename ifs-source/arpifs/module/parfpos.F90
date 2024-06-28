@@ -46,6 +46,7 @@ SAVE
 !     JPOS3DF : Maximum number of 3D dynamic fields
 !     JPOS2DF : Maximum number of 2D dynamic fields
 !     JPOSDYN : Maximum number of dynamic fields
+!     JPOSTRAC: [FIXME: missing definition]
 !     JPOSGHGFLX : Maximum number of post-processable greenhouse gases
 !     JPOSGHG : Maximum number of post-processable greenhouse gases
 !     JPOSAERO: Maximum number of post-processable aerosols
