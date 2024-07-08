@@ -169,17 +169,17 @@ INTEGER(KIND=JPIM), PARAMETER :: INATS = 12
 INTEGER(KIND=JPIM) , PARAMETER :: INSOIL = 85
 INTEGER(KIND=JPIM) , PARAMETER :: INSOILMODE = 3
 INTEGER(KIND=JPIM) , PARAMETER :: INBIN = 3
-REAL(KIND=JPRB),PARAMETER :: ZZ0SBIS=3.E-05_JPRB   ! en m
+REAL(KIND=JPRB),PARAMETER :: ZZ0SBIS=3.E-05_JPRB   ! in m
 REAL(KIND=JPRB), PARAMETER :: ZCSTD = 3.4_JPRB
 REAL(KIND=JPRB), PARAMETER :: ZRVONKAR = 0.4_JPRB
 REAL(KIND=JPRB), PARAMETER :: ZSIGMAS = 3.0_JPRB
 !     Normalization constant
 REAL(KIND=JPRB), PARAMETER :: ZRCV=12.62_JPRB
 REAL(KIND=JPRB), PARAMETER :: ZLAMBDA=12.0_JPRB
-REAL(KIND=JPRB) , DIMENSION(INBIN,2) :: ZTRSIZE
-REAL(KIND=JPRB) , DIMENSION(3,12) :: ZMMD , ZPCENT , ZSIGMA
-REAL(KIND=JPRB) , DIMENSION(3,12) :: ZMMD2 , ZPCENT2 , ZSIGMA2
-REAL(KIND=JPRB), DIMENSION(2,ISIZE)  ::  ZAEROSIZE
+REAL(KIND=JPRB), DIMENSION(3,12)    :: ZMMD  , ZPCENT  , ZSIGMA
+REAL(KIND=JPRB), DIMENSION(3,12)    :: ZMMD2 , ZPCENT2 , ZSIGMA2
+REAL(KIND=JPRB), DIMENSION(INBIN,2) :: ZTRSIZE
+REAL(KIND=JPRB), DIMENSION(2,ISIZE) :: ZAEROSIZE
 
 !----------------  Other dust variables
 REAL(KIND=JPRB) :: ZSTOTAL , ZXK , ZXL , ZXM , ZXN, ZRWI, ZTOTV
@@ -196,7 +196,7 @@ REAL(KIND=JPRB), DIMENSION(ISIZE) :: ZFRAC
 REAL(KIND=JPRB), DIMENSION(INATS,KLON) :: ZFSOIL, ZFTEX
 
 
-INTRINSIC ERF
+INTRINSIC ERF   ! RCHG -> Is this used?
 
 !! REAL(KIND=JPRB)    :: ZDMSSRC(KLON)
 
@@ -307,65 +307,88 @@ data ZPCENT/0.90_JPRB , 0.10_JPRB , 0.00_JPRB , &
          &   0.50_JPRB , 0.00_JPRB , 0.50_JPRB/ 
 
 !-----------------------------------------------------------------------
-ASSOCIATE(YDVAB=>YDGEOMETRY%YRVAB,YDVETA=>YDGEOMETRY%YRVETA,YDVFE=>YDGEOMETRY%YRVFE,YDSTA=>YDGEOMETRY%YRSTA, &
- & YDLAP=>YDGEOMETRY%YRLAP,YDCSGLEG=>YDGEOMETRY%YRCSGLEG, &
- & YDCSGEOM=>YDGEOMETRY%YRCSGEOM,YDCSGEOM_NB=>YDGEOMETRY%YRCSGEOM_NB, &
- & YDGSGEOM=>YDGEOMETRY%YRGSGEOM, &
- & YDGSGEOM_NB=>YDGEOMETRY%YRGSGEOM_NB, &
- & YDSPGEOM=>YDGEOMETRY%YSPGEOM, YDEAERMAP=>YDMODEL%YRML_PHY_AER%YREAERMAP,YDEAERVOL=>YDMODEL%YRML_PHY_AER%YREAERVOL, &
- & YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
- & YDEAERSNK=>YDMODEL%YRML_PHY_AER%YREAERSNK, &
- & YDRIP=>YDMODEL%YRML_GCONF%YRRIP,YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC,YGFL=>YDMODEL%YRML_GCONF%YGFL, &
- & YDEPHY=>YDMODEL%YRML_PHY_EC%YREPHY,YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM)
+ASSOCIATE(&
+ ! --- YDGEOMETRY --------------------------------------
+ & YDVAB     => YDGEOMETRY%YRVAB,          YDVETA      => YDGEOMETRY%YRVETA,       &
+ & YDVFE     => YDGEOMETRY%YRVFE,          YDSTA       => YDGEOMETRY%YRSTA,        &
+ & YDLAP     => YDGEOMETRY%YRLAP,          YDCSGLEG    => YDGEOMETRY%YRCSGLEG,     &
+ & YDCSGEOM  => YDGEOMETRY%YRCSGEOM,       YDCSGEOM_NB => YDGEOMETRY%YRCSGEOM_NB,  &
+ & YDGSGEOM  => YDGEOMETRY%YRGSGEOM,       YDGSGEOM_NB => YDGEOMETRY%YRGSGEOM_NB,  &
+ & YDSPGEOM  => YDGEOMETRY%YSPGEOM,        NDGLG       => YDGEOMETRY%YRDIM%NDGLG,  &
+ & NGLOBALAT => YDGEOMETRY%YRMP%NGLOBALAT, NLOENG      => YDGEOMETRY%YRGEM%NLOENG, &
+ ! --- YDMODEL ------------------------------------------
+ & YDEAERMAP=>YDMODEL%YRML_PHY_AER%YREAERMAP,                                      &
+ & YDEAERVOL=>YDMODEL%YRML_PHY_AER%YREAERVOL,                                      &
+ & YDEAERSNK=>YDMODEL%YRML_PHY_AER%YREAERSNK,                                      &
+ & YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC,                                      &
+ & YDRIP    =>YDMODEL%YRML_GCONF%YRRIP,                                            &
+ & YDCOMPO  =>YDMODEL%YRML_CHEM%YRCOMPO,                                           &
+ & YGFL     =>YDMODEL%YRML_GCONF%YGFL,                                             &
+ & YDEPHY   =>YDMODEL%YRML_PHY_EC%YREPHY,                                          &
+ & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM)
 
-ASSOCIATE(NACTAERO=>YGFL%NACTAERO, NAERO=>YGFL%NAERO, YAERO=>YGFL%YAERO, &
- & NDGLG=>YDGEOMETRY%YRDIM%NDGLG, &
- & LAERCLIST=>YDEAERATM%LAERCLIST, LAERELVS=>YDEAERATM%LAERELVS, &
- & LAERVOL=>YDEAERATM%LAERVOL, &
- & NDUSRCP=>YDEAERMAP%NDUSRCP, RDDUAER=>YDEAERMAP%RDDUAER, &
- & RDUSRCP=>YDEAERMAP%RDUSRCP, &
- & RRHO_DD=>YDEAERSNK%RRHO_DD, &
- & LOCNDMS=>YDEAERSRC%LOCNDMS, NAERWND=>YDEAERSRC%NAERWND, &
- & LAERNITRATE=>YDCOMPO%LAERNITRATE, &
- & LAERSOA=>YDCOMPO%LAERSOA, &
- & LAERSOA_COUPLED=>YDCOMPO%LAERSOA_COUPLED, &
- & NDDUST=>YDEAERSRC%NDDUST, NDMSO=>YDEAERSRC%NDMSO, NSSALT=>YDEAERSRC%NSSALT, &
- & NTYPAER=>YDEAERATM%NTYPAER, RAERDUB=>YDEAERSRC%RAERDUB, &
- & RCODECA=>YDEAERSRC%RCODECA, RCOVSRA=>YDEAERSRC%RCOVSRA, &
- & RDDUSRC=>YDEAERSRC%RDDUSRC, RDMSMIN=>YDEAERSRC%RDMSMIN, &
- & RFCTSS=>YDEAERSRC%RFCTSS, RSIDECA=>YDEAERSRC%RSIDECA, &
- & RSIVSRA=>YDEAERSRC%RSIVSRA, &
- & NAERVOLC=>YDEAERVOL%NAERVOLC, NAERVOLE=>YDEAERVOL%NAERVOLE, &
- & NVOLDATS=>YDEAERVOL%NVOLDATS, NVOLERUP=>YDEAERVOL%NVOLERUP, &
- & NVOLDATE=>YDEAERVOL%NVOLDATE, &
- & RAERVOLC=>YDEAERVOL%RAERVOLC, RAERVOLE=>YDEAERVOL%RAERVOLE, &
- & NALBEDOSCHEME=>YDEPHY%NALBEDOSCHEME, LVDFTRAC=>YDEPHY%LVDFTRAC, YSURF=>YDEPHY%YSURF, &
- & NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
- & NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, &
- & NSTASS=>YDRIP%NSTASS, RHGMT=>YDRIP%RHGMT, RSTATI=>YDRIP%RSTATI,&
- & NDRYDEPVEL_DYN=> YDEAERSNK%NDRYDEPVEL_DYN, &
- & NCHEM=>YGFL%NCHEM, YCHEM=>YGFL%YCHEM, &
- & LAERDUST_NEWBIN=>YDEAERATM%LAERDUST_NEWBIN, &
- & LAERDUSTSIZEVAR=>YDEAERATM%LAERDUSTSIZEVAR, &
- & LAERDUSTSOURCE=>YDEAERATM%LAERDUSTSOURCE, &
- & LAERSOA_CHEM=>YDEAERATM%LAERSOA_CHEM, &
- & LAERCHEM=>YGFL%LAERCHEM)
+ASSOCIATE(&
+ ! --- YGFL ----------------------------------------------
+ & NACTAERO=>YGFL%NACTAERO, NAERO=>YGFL%NAERO, YAERO=>YGFL%YAERO,  &
+ ! --- YDEAERATM -----------------------------------------
+ & LAERCLIST       => YDEAERATM%LAERCLIST,                         &
+ & LAERELVS        => YDEAERATM%LAERELVS,                          &
+ & LAERVOL         => YDEAERATM%LAERVOL,                           &
+ & LAERDUST_NEWBIN => YDEAERATM%LAERDUST_NEWBIN,                   &
+ & LAERDUSTSIZEVAR => YDEAERATM%LAERDUSTSIZEVAR,                   &
+ & LAERDUSTSOURCE  => YDEAERATM%LAERDUSTSOURCE,                    &
+ & LAERSOA_CHEM    => YDEAERATM%LAERSOA_CHEM,                      &
+ ! --- YDEAERMAP -----------------------------------------
+ & NDUSRCP=>YDEAERMAP%NDUSRCP, RDDUAER=>YDEAERMAP%RDDUAER,         &
+ & RDUSRCP=>YDEAERMAP%RDUSRCP,                                     &
+ ! --- YDEAERSNK -----------------------------------------
+ & RRHO_DD       =>YDEAERSNK%RRHO_DD,                              &
+ & NDRYDEPVEL_DYN=>YDEAERSNK%NDRYDEPVEL_DYN,                       &
+ ! --- YDEAERSRC -----------------------------------------
+ & LOCNDMS => YDEAERSRC%LOCNDMS, NAERWND => YDEAERSRC%NAERWND,     &
+ & NDDUST  => YDEAERSRC%NDDUST,  NDMSO   => YDEAERSRC%NDMSO,       &
+ & NSSALT  => YDEAERSRC%NSSALT,  RAERDUB => YDEAERSRC%RAERDUB,     &
+ & RCODECA => YDEAERSRC%RCODECA, RCOVSRA => YDEAERSRC%RCOVSRA,     &
+ & RDDUSRC => YDEAERSRC%RDDUSRC, RDMSMIN => YDEAERSRC%RDMSMIN,     &
+ & RFCTSS  => YDEAERSRC%RFCTSS,  RSIDECA => YDEAERSRC%RSIDECA,     &
+ & RSIVSRA => YDEAERSRC%RSIVSRA,                                   &
+ ! --- YDEAERATM -----------------------------------------
+ & NTYPAER=>YDEAERATM%NTYPAER,                                     &
+ ! --- YDCOMPO --------------------------------------------
+ & LAERNITRATE     => YDCOMPO%LAERNITRATE,                         &
+ & LAERSOA         => YDCOMPO%LAERSOA,                             &
+ & LAERSOA_COUPLED => YDCOMPO%LAERSOA_COUPLED,                     &
+ ! --- YDEAERVOL ------------------------------------------
+ & NAERVOLC=>YDEAERVOL%NAERVOLC, NAERVOLE=>YDEAERVOL%NAERVOLE,     &
+ & NVOLDATS=>YDEAERVOL%NVOLDATS, NVOLERUP=>YDEAERVOL%NVOLERUP,     &
+ & NVOLDATE=>YDEAERVOL%NVOLDATE,                                   &
+ & RAERVOLC=>YDEAERVOL%RAERVOLC, RAERVOLE=>YDEAERVOL%RAERVOLE,     &
+ ! --- YDEPHY ---------------------------------------------
+ & NALBEDOSCHEME => YDEPHY%NALBEDOSCHEME,                          &
+ & LVDFTRAC      => YDEPHY%LVDFTRAC,                               &
+ & YSURF         => YDEPHY%YSURF,                                  &
+ ! --- YDRIP -----------------------------------------------
+ & NSTASS=>YDRIP%NSTASS, RHGMT=>YDRIP%RHGMT, RSTATI=>YDRIP%RSTATI, &
+ ! --- YGFL -----------------------------------------------
+ & NCHEM    => YGFL%NCHEM,                                         &
+ & YCHEM    => YGFL%YCHEM,                                         &
+ & LAERCHEM => YGFL%LAERCHEM)
 
 
 
 
 IF (LAERDUST_NEWBIN) THEN
-  ZTRSIZE(:,1)=(/0.01_JPRB , 1.0_JPRB , 2.5_JPRB/)
-  ZTRSIZE(:,2)=(/1.0_JPRB , 2.5_JPRB ,20.0_JPRB /)
-  ZAEROSIZE(1,:)=(/1.0E-08_JPRB , 2.0E-08_JPRB , 4.0E-08_JPRB ,   &
-         & 8.0E-08_JPRB , 1.6E-07_JPRB ,3.2E-07_JPRB ,  &
-         & 6.4E-07_JPRB , 1.28E-06_JPRB ,         &
-         & 2.56E-06_JPRB , 5.12E-06_JPRB , 10.24E-06_JPRB /)
-  ZAEROSIZE(2,:)=(/2.0E-08_JPRB , 4.0E-08_JPRB ,  &
-         & 8.0E-08_JPRB , 1.6E-07_JPRB ,3.2E-07_JPRB ,  &
-         & 6.4E-07_JPRB , 1.28E-06_JPRB ,       &
-         & 2.56E-06_JPRB , 5.12E-06_JPRB ,10.24E-06_JPRB ,      &
-         & 20.48E-06_JPRB/)
+  ZTRSIZE(:,1)=(/0.01_JPRB , 1.0_JPRB ,  2.5_JPRB /)
+  ZTRSIZE(:,2)=(/1.0_JPRB  , 2.5_JPRB , 20.0_JPRB /)
+  ZAEROSIZE(1,:)=(/1.0E-08_JPRB  , 2.0E-08_JPRB  , 4.0E-08_JPRB ,  &
+                 & 8.0E-08_JPRB  , 1.6E-07_JPRB  , 3.2E-07_JPRB ,  &
+                 & 6.4E-07_JPRB  , 1.28E-06_JPRB ,                 &
+                 & 2.56E-06_JPRB , 5.12E-06_JPRB , 10.24E-06_JPRB /)
+  ZAEROSIZE(2,:)=(/2.0E-08_JPRB  , 4.0E-08_JPRB  ,                 &
+                 & 8.0E-08_JPRB  , 1.6E-07_JPRB  , 3.2E-07_JPRB ,  &
+                 & 6.4E-07_JPRB  , 1.28E-06_JPRB ,                 &
+                 & 2.56E-06_JPRB , 5.12E-06_JPRB , 10.24E-06_JPRB, &
+                 & 20.48E-06_JPRB/)
 ELSE
   ZTRSIZE(:,1)=(/0.03_JPRB , 0.55_JPRB , 0.9_JPRB/)
   ZTRSIZE(:,2)=(/0.55_JPRB , 0.9_JPRB,20.0_JPRB /)
@@ -406,19 +429,6 @@ ZRAD2DEG= 180._JPRB/RPI
 ZUSTAR(:)=0.0_JPRB
 ZUSTART(:,:)=0.0_JPRB
 
-! For IF .AND. tests in GNU
-!ZBNDA = -9999._JPRB
-!ZBNDB = -9999._JPRB
-!ZBNDC = -9999._JPRB
-!ZBNDD = -9999._JPRB
-!ZBNDF = -9999._JPRB
-!ZBNDG = -9999._JPRB
-!ZBNDH = -9999._JPRB
-!ZBNDI = -9999._JPRB
-!ZBNDJ = -9999._JPRB
-!ZBNDK = -9999._JPRB
-!ZBNDL = -9999._JPRB
-!ZBNDM = -9999._JPRB
 !-----------------------------------------------------------------------
 
 !*       0.1   TIME AND DATE OF THE MODEL
@@ -498,6 +508,9 @@ DO JL=KIDIA,KFDIA
 !*       0.6   EMPIRICAL EFFICIENCY FACTORS FOR SOURCES
 !              ----------------------------------------
 
+! RCHG -> translate this block to a subroutine external 
+!      -> (that be shared with M7)
+
 PAERMAP(KIDIA:KFDIA,:) = 0._JPRB
 IF (NTYPAER(2) > 0) THEN
  DO JL=KIDIA,KFDIA
@@ -517,12 +530,9 @@ IF (NTYPAER(2) > 0) THEN
   ELSEIF (ZLON >= 285._JPRB .AND. ZLON < 310._JPRB) THEN
     ZBNDE= 44._JPRB+(ZLON-285._JPRB)*3._JPRB/25._JPRB
   ENDIF
-!  ZUSTAR = -9999._JPRB 
-!  ZUSTART = -9999._JPRB 
-  ZLONGB= -9999._JPRB !-- limits Britain
-!  ZBNDJ = -9999._JPRB
-!  ZBNDM = -9999._JPRB
-!  ZBNDL = -9999._JPRB
+
+!-- limits Britain
+  ZLONGB=-9999._JPRB
   IF (ZLON > 354._JPRB .AND. ZLON < 360._JPRB) THEN
     ZLONGB=ZLON
   ELSEIF (ZLON >= 0._JPRB .AND. ZLON < 3._JPRB) THEN
@@ -544,6 +554,7 @@ IF (NTYPAER(2) > 0) THEN
   ELSEIF (ZLAT <= -7._JPRB .AND. ZLAT > -11._JPRB) THEN
     ZBNDI= 286._JPRB+(-7._JPRB-ZLAT)*4._JPRB/4._JPRB
   ENDIF
+
   IF (ZLAT <= -11._JPRB .AND. ZLAT > -18._JPRB) THEN
     ZBNDJ= 294._JPRB+(-11._JPRB-ZLAT)*8._JPRB/7._JPRB
   ELSEIF (ZLAT <= -18._JPRB .AND. ZLAT > -27._JPRB) THEN
@@ -972,6 +983,8 @@ ZFSOIL(:,:)=0.0_JPRB
 
 IF (NTYPAER(2) /= 0) THEN
  !-----------------------------------------------
+ ! RCHG -> this will be eventially a very nested if so a more structured approach 
+ !         can meke more maintanable the code. 
 
  IF (NDDUST == 2 .OR. NDDUST == 4 ) THEN ! case P. Nabat formulation
 
@@ -992,6 +1005,9 @@ IF (NTYPAER(2) /= 0) THEN
  ! SANDY LOAM : SAND >= 0.52  CLAY < 0.20 | SAND >= (0.5 - CLAY)  CLAY < 0.07
  ! LOAM : CLAY >= 0.20 CLAY < 0.28 SILT >= 0.28 SILT < 0.5 | SAND >= (0.5 - CLAY)
  ! CLAY < 0.20
+
+ ! RCHG -> processing soil texture silt, clay, sand 
+ !      -> CALL SOIL_TEXTURE_DESERT(KIDIA, KFDIA, PAERLTS, PAERSCC, ZFTEX) ! out ZFTEX
  ZFTEX(:,:)=0.0
 
  DO JL=KIDIA,KFDIA
@@ -1046,6 +1062,10 @@ IF (NTYPAER(2) /= 0) THEN
       ZDP_ARRAY(JS) = ZDP_ARRAY(JS-1)*exp(ZDELDP)
  ENDDO
 
+ ! RCHG -> formally speaking this is done in both, M7 and here in different methods, so maybe 
+ !      -> it is good to unify? The difference here is the soil texture arrays format 
+  
+ !
  ! Determination of ZSREL=dSrel in MB95
  ! equations 29-30-31 in MB95
  ! ZSS=dS(Dp)
@@ -1447,6 +1467,8 @@ ENDIF
 !*       3.0   ORGANIC MATTER (ORGANIC CARBON, POM, SECONDARY ORGANIC MATTER)
 !              --------------------------------------------------------------
 
+! Here we are adding bins to have a track of the nspecies this technically not needed here 
+! but a data structure that ensampsulates that. 
 IF (NTYPAER(3) /= 0) THEN
  INBAER=INBAER+2
 ENDIF
@@ -1669,8 +1691,6 @@ IF (LAERVOL) THEN
             ZVOLESO2(JL)=RAERVOLE(JVOLE,4)*RAERVOLE(JVOLE,8)/ZVOLUME
 
             DO JK=ITOPPL,IBASPL
-
-
                 PTENC(JL,JK,KAERO(INBAER+1))=PTENC(JL,JK,KAERO(INBAER+1))+&
                & ZVOLEASH(JL)/PRHO(JL,JK) ! kg kg-1 s-1
 !- updating volcanic SO2 tendency (should be in variable 15)

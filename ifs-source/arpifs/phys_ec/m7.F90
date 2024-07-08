@@ -1,8 +1,8 @@
-SUBROUTINE m7(KIDIA, KFDIA, KLON,   KLEV,           &  ! TM5  indices
-              papp1,  prelhum, ptp1,           &  !   "   thermodynamics
-              pso4g,  pelvoc, psvoc,  paerml, paernl,     &       !  M7   tracers
-              prhop,  pww,    pm6rp,  pm6dry,  &  !   "   aerosol properties
-              ptime )                             ! TM5  time step
+SUBROUTINE m7(KIDIA, KFDIA, KLON,   KLEV,             &  ! TM5  indices
+              papp1,  prelhum, ptp1,                  &  !   "   thermodynamics
+              pso4g,  pelvoc, psvoc,  paerml, paernl, &  !  M7   tracers
+              prhop,  pww,    pm6rp,  pm6dry,         &  !   "   aerosol properties
+              ptime )                                    ! TM5  time step
   !
   !   ****m7* Aerosol model for the system so4,bc,oc,soa,ss,dust in 7 modes.
   !
@@ -48,8 +48,8 @@ SUBROUTINE m7(KIDIA, KFDIA, KLON,   KLEV,           &  ! TM5  indices
   !
 
   !USE mo_aero_m7, ONLY: lsnucl, lscoag, lscond,         &
-    USE TM5M7_DATA, ONLY:    nmod,   nss,    nsol,   naermod
-USE PARKIND1 , ONLY : JPIM, JPRB
+  USE TM5M7_DATA, ONLY : nmod, nss,  nsol, naermod
+  USE PARKIND1,   ONLY : JPIM, JPRB
 !  use tracer_data,   only : tracer_print
 !  use GO,            only : gol, goErr, goPr, goBug
  ! use mo_aero,       only : nsoa      !RM
@@ -85,21 +85,15 @@ USE PARKIND1 , ONLY : JPIM, JPRB
   INTEGER(KIND=JPIM),INTENT(IN) :: KIDIA, KFDIA, KLON, KLEV
 
   REAL(KIND=JPRB),INTENT(IN)    :: ptime
-
-  REAL(KIND=JPRB),INTENT(IN)    :: prelhum(KLON,KLEV),        papp1(KLON,KLEV),           &
-             ptp1(KLON,KLEV)  
-  REAL(KIND=JPRB),INTENT(INOUT)    ::           pso4g(KLON,KLEV),  pelvoc(KLON,KLEV),  psvoc(KLON,KLEV) !RM
- 
-  REAL(KIND=JPRB),INTENT(INOUT)    :: paerml(KLON,KLEV,naermod), paernl(KLON,KLEV,nmod),     &
-             pm6rp(KLON,KLEV,nmod),     pm6dry(KLON,KLEV,nsol),     &
-             prhop(KLON,KLEV,nmod),     pww(KLON,KLEV,nmod)
+  REAL(KIND=JPRB),INTENT(IN)    :: prelhum(KLON,KLEV), papp1(KLON,KLEV),  ptp1(KLON,KLEV)
+  REAL(KIND=JPRB),INTENT(INOUT) :: pso4g(KLON,KLEV),  pelvoc(KLON,KLEV),  psvoc(KLON,KLEV) !RM
+  REAL(KIND=JPRB),INTENT(INOUT) :: paerml(KLON,KLEV,naermod), paernl(KLON,KLEV,nmod),     &
+         &                         pm6rp(KLON,KLEV,nmod),     pm6dry(KLON,KLEV,nsol),     &
+         &                         prhop(KLON,KLEV,nmod),     pww(KLON,KLEV,nmod)
 
   ! Local variables:
 
-
-  REAL(KIND=JPRB)    :: zso4_5(KLON,KLEV),         zso4_6(KLON,KLEV),          &
-             zso4_7(KLON,KLEV)
-
+  REAL(KIND=JPRB)    :: zso4_5(KLON,KLEV), zso4_6(KLON,KLEV),  zso4_7(KLON,KLEV)
   REAL(KIND=JPRB)    :: zhplus(KLON,KLEV,nss)
 
   REAL(KIND=JPRB)    :: zttn(KLON,KLEV,naermod)
@@ -107,17 +101,15 @@ USE PARKIND1 , ONLY : JPIM, JPRB
   !
   !--- 0) Initialisations: -------------------------------------------------
   !
-  zhplus(:,:,:) = 0.
-  pm6dry(:,:,:) = 0. 
-  pm6rp(:,:,:)  = 0.
-  zttn(:,:,:)   = 0.
-  prhop(:,:,:)  = 0.
-  pww(:,:,:)    = 0. 
-  zso4_5(:,:)   = 0.
-  zso4_6(:,:)   = 0.
-  zso4_7(:,:)   = 0.
-
-  
+  zhplus(:,:,:) = 0._JPRB
+  pm6dry(:,:,:) = 0._JPRB
+  pm6rp(:,:,:)  = 0._JPRB
+  zttn(:,:,:)   = 0._JPRB
+  prhop(:,:,:)  = 0._JPRB
+  pww(:,:,:)    = 0._JPRB
+  zso4_5(:,:)   = 0._JPRB
+  zso4_6(:,:)   = 0._JPRB
+  zso4_7(:,:)   = 0._JPRB
 
 !!$  !
 !!$  !--- 1) Calculation of particle properties under ambient conditions: -----

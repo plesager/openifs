@@ -510,7 +510,6 @@ ENDIF
 ! Initialize aerosol indices (tm5m7 - if active)
 !   moving the CASE-clause that tests AERO_SCHEME from 
 !   ./src/ifs/phys_ec/tm5m7_init.F90 here
-
 IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
    SELECT CASE (TRIM(AERO_SCHEME))
 

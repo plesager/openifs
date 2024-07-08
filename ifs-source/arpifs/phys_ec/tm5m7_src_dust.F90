@@ -1,204 +1,182 @@
-SUBROUTINE TM5M7_SRC_DUST &
-  &( YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,&
-  &  PLSM , PWIND, PSNS, PZ0M, &
-  &  SP, PTL, &
-  &  Psoil_type,  &
-  &  PFRTI, PCVL, PCVH, KTVL, KTVH, &
-  &  emis_mass, emis_number ,PAERFLX,PGLON, PGLAT, &
-  &  PRWPWP,PRWSAT,PAERMAP,PALB,PALBD,PWS1,PHSDFOR)
+SUBROUTINE TM5M7_SRC_DUST( YDEPHY, YDEAERMAP, YDEAERSRC,                 &
+                         & KIDIA, KFDIA, KLON, KLEV, KTILES, KSW,        &
+                         & PLSM , PWIND, PSNS, PZ0M,                     &
+                         & SP, PTL, PSOIL_TYPE,                          &
+                         & PFRTI, PCVL, PCVH, KTVL, KTVH,                &
+                         & EMIS_MASS, EMIS_NUMBER ,PAERFLX,PGLON, PGLAT, &
+                         & PRWPWP,PRWSAT,PAERMAP,PALB,PALBD,PWS1,PHSDFOR)
 
-!*** * TM5M7_SRC_DUST* - SOURCE TERMS FOR DUST AEROSOLS
-!
-! Online dust emissions based on Tegen/Vignati/Strunk
-! ---------------------------------------------------
-!
-! Please read the section above for background information about the underlying 
-! approach. An improved and modified online implementation has been accomplished 
-! from which. It can be activated by setting 
-!
-!    input.emis.dust : ONLINE
-!
-! in the rc-file. An additional netcdf file is needed for some input parameters. 
-! The path to which needs to be defined in the key
-!
-!    input.emis.dust.dir : /ms_perm/TM/TM5/emissions/other/Dust_online/onlinedust.nc
-! 
-! For every time step there will be particles emitted, scaled to monthly 
-! amounts (both mass and numbers) in order to keep compliance with assumptions
-! about the aerosol emissions in sedimentation.F90. 
-!
-!
-!**   INTERFACE.
-!     ----------
-!          *TM5M7_SRC_DUST* IS CALLED FROM *TM5M7_SRC*.
+! RCHG -> Here a dependence is KLEV => it is that ok?
 
-!     AUTHOR.
-!     -------
-!
-!     T. van Noije et al. (?)
-!
-!     SOURCE.
-!     -------
-!
-!     MODIFICATIONS.
-!     --------------
-!
-!      Nov 2011 - Achim Strunk - v0
-!
-!          xxxx - ??
-!
-!      Sep 2020 - V. Huijnen: first (partial) introduction into OpenIFS
-!-----------------------------------------------------------------------
+! ╭────────────────────────────────────────────────────────────────────────────╮
+! │                                                      (updated 04-Jun-2024) │
+! │ Purpose :                                                                  │
+! │ -------                                                                    │
+! │  *tm5m7_src_dust* - SOURCE TERMS FOR MINERAL DUST AEROSOLS                 │
+! │                                                                            │
+! │                                                                            │
+! │ Interface :                                                                │
+! │ ---------                                                                  │
+! │   *tm5m7_src_dust* is called from tm5m7_src                                │
+! │                                                                            │
+! │                                                                            │
+! │ Input :                                                                    │
+! │ -----                                                                      │
+! │                                                                            │
+! │                                                                            │
+! │ Output :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │                                                                            │
+! │ Externals :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Method :                                                                   │
+! │ ------                                                                     │
+! │  Online dust emissions based on Tegen/Vignati/Strunk                       │
+! │                                                                            │
+! │  Please read the section above for background information about the        │
+! │  underlying approach. An improved and modified online implementation has   │
+! │  been accomplished from which. It can be activated by setting              │
+! │                                                                            │
+! │    input.emis.dust : ONLINE                                                │
+! │                                                                            │
+! │  in the rc-file. An additional netcdf file is needed for some input        │
+! │  parameters. The path to which needs to be defined in the key              │
+! │                                                                            │
+! │    input.emis.dust.dir :                                                   │
+! │    /ms_perm/TM/TM5/emissions/other/Dust_online/onlinedust.nc               │
+! │                                                                            │
+! │  For every time step there will be particles emitted, scaled to monthly    │
+! │  amounts (both mass and numbers) in order to keep compliance with          │
+! │  assumption sabout the aerosol emissions in sedimentation.F90.             │
+! │                                                                            │
+! │ Reference :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Author :                                                                   │
+! │ -------                                                                    │
+! │     Orginal version: T. van Noije et al. (KNMI)                            │ 
+! │     Nov 2011 - Achim Strunk - v0                                           │
+! │     Vincent Huijen (KNMI) adapted to OpenIFS                               │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ -------------                                                              │
+! │     Jun.  2024 - R. Checa-Garcia: revision for CY48r1 and refactory        │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
+
+
+! --- IFS/OpenIFS modules ------------------------------------------------------
+
 USE TYPE_MODEL,ONLY : MODEL
 USE YOMLUN,    ONLY : NULOUT
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOMCST, ONLY : RPI
-!USE YOMPHYDER, ONLY :  STATE_TYPE
-USE TM5M7_DATA, ONLY: NMOD, MODE_ACI, MODE_COI, sigma, sigma_lognormal, ddust,iacci,icoai
-USE TM5M7_EMIS_DATA, ONLY : MODAL_EMISSIONS, &
-    & nclass, nmode,nbin, nats,solspe, nsoilph, nfpar, NTRACED, &
-    & umin, z0_min, lai_lim,lai_lim2, ROA, &
-    & U1FAC,cd,  min_ai,max_ai,min_ci,max_ci,&
-    & vkarman,zz,airfac, DMIN,DMAX,DSTEP, &
-    & UTH,SREL,SRELV,SU_SRELV, &
-    & ratio_coa,ratio_acc,denom_acc_inv,denom_coa_inv, &
-    & mf_coa_r12_inv,mf_acc_r12_inv, &
-    & mmr_ai,mmr_ci
-!AER
-!USE GEOMETRY_MOD , ONLY : GEOMETRY
-!USE YOEAERATM ,ONLY : YREAERATM
-!USE YOEAERMAP ,ONLY : YREAERMAP
-!USE YOEAERSRC ,ONLY : YREAERSRC
-!USE YOEAERVOL ,ONLY : YREAERVOL
-!USE YOEAERSNK, ONLY : YREAERSNK
-!USE YOMRIP    ,ONLY : YRRIP
-!USE YOEPHY    ,ONLY : YREPHY
-!USE YOMCT3   , ONLY : NSTEP
+
+! -- M7 modules ----------------------------------------------------------------
+USE TM5M7_DATA,      ONLY: NMOD, MODE_ACI, MODE_COI, sigma, sigma_lognormal,   &
+                         & ddust,iacci,icoai
+USE TM5M7_EMIS_DATA, ONLY: MODAL_EMISSIONS, NTRACED,                           &
+                         & nclass, nmode,nbin, nats,solspe, nsoilph, nfpar,    &
+                         & umin, z0_min, lai_lim, lai_lim2, ROA,               &
+                         & U1FAC, cd,  min_ai, max_ai, min_ci, max_ci,         &
+                         & vkarman, zz, airfac, DMIN, DMAX, DSTEP,             &
+                         & UTH, SREL, SRELV, SU_SRELV,                         &
+                         & ratio_coa, ratio_acc, denom_acc_inv, denom_coa_inv, &
+                         & mf_coa_r12_inv, mf_acc_r12_inv,                     &
+                         & mmr_ai, mmr_ci
+                       
 USE YOEPHY   , ONLY : TEPHY
 USE YOEAERMAP, ONLY : TEAERMAP
 USE YOEAERSRC, ONLY : TEAERSRC
-IMPLICIT NONE
+
 
 !-----------------------------------------------------------------------
+!*     0.1   ARGUMENTS
+!            ---------
 
-!*       0.1   ARGUMENTS
-!              ---------
+TYPE(TEPHY),           INTENT(IN)    :: YDEPHY
+TYPE(TEAERMAP),        INTENT(INOUT) :: YDEAERMAP
+TYPE(TEAERSRC),        INTENT(IN)    :: YDEAERSRC
 
-!TYPE(MODEL)       ,INTENT(INOUT)    :: YDMODEL
-TYPE(TEPHY)   ,INTENT(IN) :: YDEPHY
-TYPE(TEAERMAP),INTENT(INOUT) :: YDEAERMAP
-TYPE(TEAERSRC),INTENT(IN) :: YDEAERSRC
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KIDIA
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KFDIA
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KLON
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KLEV
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KTILES
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KSW
 
-!TYPE (STATE_TYPE)              ,INTENT (IN)   :: TENDENCY_CML
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-INTEGER(KIND=JPIM),INTENT(IN)    :: KTILES
-
-
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PLSM(KLON)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PWIND(KLON)  ! 10m wind speed, see tm5m7_src.F90
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSNS(KLON)   ! Snow depth
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PZ0M(KLON)   ! Roughness length [m]
-REAL(KIND=JPRB)   ,INTENT(IN)    :: SP(KLON) ! Surface pressure
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PTL(KLON) ! surface temperature 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSOIL_TYPE(KLON)
-! REAL(KIND=JPRB)   ,INTENT(IN)    :: POT_SOURCE(KLON),CULT(KLON)
-! REAL(KIND=JPRB)   ,INTENT(IN)    :: SOILPH(KLON,NSOILPH)
-! REALD(KIND=JPRB)  ,INTENT(IN)    :: FPAR(KLON,NFPAR)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PFRTI(KLON,KTILES) ! Tile fraction (0-1)
+REAL(KIND=JPRB),       INTENT(IN)    :: PLSM(KLON)
+REAL(KIND=JPRB),       INTENT(IN)    :: PWIND(KLON)        ! 10m wind speed, see tm5m7_src.F90
+REAL(KIND=JPRB),       INTENT(IN)    :: PSNS(KLON)         ! Snow depth
+REAL(KIND=JPRB),       INTENT(IN)    :: PZ0M(KLON)         ! Roughness length [m]
+REAL(KIND=JPRB),       INTENT(IN)    :: SP(KLON)           ! Surface pressure
+REAL(KIND=JPRB),       INTENT(IN)    :: PTL(KLON)          ! surface temperature
+REAL(KIND=JPRB),       INTENT(IN)    :: PSOIL_TYPE(KLON)
+REAL(KIND=JPRB),       INTENT(IN)    :: PFRTI(KLON,KTILES) ! Tile fraction (0-1)
 !  1 : Water                      5 : Snow on low-veg + bare-soil 
 !  2 : Ice                        6 : Dry snow-free high veg
 !  3 : Wet skin                   7 : snow under high-veg
 !  4 : Dry snow-free low-veg      8 : bare soil
-REAL(KIND=JPRB)  , INTENT(IN)     :: PCVL(KLON), PCVH(KLON) ! Low/High vegetation cover
-INTEGER(KIND=JPIM), INTENT(IN)    :: KTVL(KLON), KTVH(KLON) ! Low/High vegetation type
-REAL(KIND=JPRB)   ,INTENT(INOUT)  :: PAERFLX(KLON,12,9)
+REAL(KIND=JPRB),       INTENT(IN)    :: PCVL(KLON), PCVH(KLON) ! Low/High vegetation cover
+INTEGER(KIND=JPIM),    INTENT(IN)    :: KTVL(KLON), KTVH(KLON) ! Low/High vegetation type
+! M7 
+TYPE(MODAL_EMISSIONS), INTENT(INOUT) :: emis_mass(NMOD)
+TYPE(MODAL_EMISSIONS), INTENT(INOUT) :: emis_number(NMOD)
+REAL(KIND=JPRB),       INTENT(INOUT) :: PAERFLX(KLON,12,9)
+REAL(KIND=JPRB),       INTENT(IN)    :: PGLON(KLON),PGLAT(KLON)
+REAL(KIND=JPRB),       INTENT(INOUT) :: PRWPWP, PRWSAT, PAERMAP(KLON,5)
+REAL(KIND=JPRB),       INTENT(IN)    :: PALB(KLON), PALBD(KLON,KSW)
+REAL(KIND=JPRB),       INTENT(IN)    :: PWS1(KLON),PHSDFOR(KLON)
 
-TYPE(MODAL_EMISSIONS),INTENT(INOUT) :: emis_mass(NMOD)
-TYPE(MODAL_EMISSIONS),INTENT(INOUT) :: emis_number(NMOD)
-INTEGER(KIND=JPIM),INTENT(IN)    :: KSW
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PRWPWP,PRWSAT,PAERMAP(KLON,5)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PALB(KLON),PWS1(KLON),PHSDFOR(KLON),PGLON(KLON),PGLAT(KLON), PALBD(KLON,KSW)
-!*       0.5   LOCAL VARIABLES
-!              ---------------
+!*    0.5   LOCAL VARIABLES
+!           ---------------
 
-INTEGER(KIND=JPIM) :: JL, IVEG, I_S1,I_S11, IFF, ID,JK,JAER, INBAER
-INTEGER(KIND=JPIM) :: IDUST,KK,KKK,KFIRST,KKMIN,NN
-REAL(KIND=JPRB)    :: NORM, XSEA, AREA_FRAC, TT, T_SCALE, DENS, RG1, RG2 ,FDP1,FDP2
-REAL(KIND=JPRB)    :: VEGET,LAI_MAX,LAI_AVG, LAI_CUR,z0s,dpd,uthp,flux_diam,cultfac1
-REAL(KIND=JPRB)    :: AAA,BB, CCC, AEFF,FF, XEFF, feff, DBSTART, USTAR, rho_air
-REAL(KIND=JPRB)    :: DLAST,DP
-REAL(KIND=JPRB)    :: AIRDENS_RATIO,AIRDENS_RATIO2
-REAL(KIND=JPRB)    :: FLUX_R1,FLUX_R2
-REAL(KIND=JPRB)    :: EMIS_FAC(KLON)
-REAL(KIND=JPRB)    :: NUMBER(KLON), MASS(KLON)
+!INTEGER(KIND=JPIM), PARAMETER ::  KBINDD=3 
+INTEGER(KIND=JPIM) :: JL, I_S1,I_S11, ID, JAER, INBAER
+!INTEGER(KIND=JPIM) :: IDUST,KK,KKK,KFIRST,KKMIN,NN
+!REAL(KIND=JPRB)    :: FDP1,FDP2
+!REAL(KIND=JPRB)    :: VEGET, z0s, dpd, uthp, flux_diam, cultfac1
+!REAL(KIND=JPRB)    :: AAA,BB, CCC, AEFF,FF, XEFF, feff, DBSTART, USTAR, rho_air
+!REAL(KIND=JPRB)    :: DLAST,DP
+!REAL(KIND=JPRB)    :: AIRDENS_RATIO,AIRDENS_RATIO2
+!REAL(KIND=JPRB)    :: FLUX_R1,FLUX_R2
 REAL(KIND=JPRB)    :: SNOWCOVER(KLON), DESERT(KLON)
 REAL(KIND=JPRB)    :: LAI_EFF(KLON),UMIN2(KLON), ALPHA(KLON), C_EFF(KLON)
-REAL(KIND=JPRB)    :: Z0(KLON) ! Local copy of roughness length
+REAL(KIND=JPRB)    :: Z0(KLON)        ! Local copy of roughness length
 REAL(KIND=JPRB)    :: SOIL_TYPE(KLON) ! Local copy of soil type
 
 REAL(KIND=JPRB)    :: FLUX_AI(KLON), FLUX_CI(KLON),FNUM_AI(KLON),FNUM_CI(KLON)
 REAL(KIND=JPRB)    :: FLUXTOT(NTRACED),FDUST(NTRACED) 
 REAL(KIND=JPRB)    :: FLUXTYP(NCLASS)
-REAL(KIND=JPRB)    :: ZDEPTILE
-REAL(KIND=JPRB)    :: TV_DAT(20) ! Local grid box fractions (0-1) for each of presumeably 20 IFS vegetation types
-
-!!! AER
-REAL(KIND=JPRB) :: ZGLAT(KLON), ZGLON(KLON),ZLAT,ZLON,ZLONE,ZLONW,ZINCLAT,ITYPDU
-REAL(KIND=JPRB) :: ZHDD, ZHSS
-REAL(KIND=JPRB) :: ZDETAH(KLON,KLEV), ZETA(KLON,KLEV) , ZETAH(KLON,0:KLEV)
-!REAL(KIND=JPRB) :: ZQSAT(KLON,KLEV) , ZRHCL(KLON,KLEV), ZTH(KLON,0:KLEV)
-!-- various alternate sources can be tested
-REAL(KIND=JPRB) :: ZFLX_SDUST(KLON,9,12), ZFLX_SSALT(KLON,9,3)
-!REAL(KIND=JPRB) :: ZLOCALTIM   , ZDIURN(KLON)
-REAL(KIND=JPRB) :: ZSCC2(KLON) , ZDEP2(KLON) , ZLTS2(KLON), ZLTSMIN(KLON), ZLTSMAX(KLON)
-REAL(KIND=JPRB) :: ZWNDDU(KLON), ZWNDSS(KLON), ZWND3(KLON) 
-REAL(KIND=JPRB) :: ZDUEMPOT(KLON,3)
-REAL(KIND=JPRB) :: ZDEGRAD , ZFSWET , ZSWETN, ZSWETN2
-REAL(KIND=JPRB) :: ZRWPWP , ZRWSAT , ZSO2MSS
-REAL(KIND=JPRB) :: ZEPSISS, ZEPSIDD, ZEPSIRA, ZEPSSNO, ZEPSARE
-REAL(KIND=JPRB)    :: ZBNDA, ZBNDB, ZBNDC, ZBNDD, ZBNDE, ZBNDF, ZBNDG, ZBNDH, ZBNDI
-REAL(KIND=JPRB)    :: ZBNDJ, ZBNDK, ZBNDL, ZBNDM
-REAL(KIND=JPRB)    :: ZREFRAD, ZREFSPD, ZRADREF,ZLONGB
+!REAL(KIND=JPRB)    :: ZDEPTILE
+REAL(KIND=JPRB)    :: TV_DAT(20) ! Local grid box fractions (0-1) for each of 
+                                 ! presumeably 20 IFS vegetation types
+! RCHG -> Here it i simportant to explain what are 9 , 12  
+!         => PROBABLY related to PAERFLUX dimensions 
+REAL(KIND=JPRB)    :: ZFLX_SDUST(KLON,9,12)
+REAL(KIND=JPRB)    :: ZSCC2(KLON), ZDEP2(KLON) 
+REAL(KIND=JPRB)    :: ZLTS2(KLON), ZLTSMIN(KLON), ZLTSMAX(KLON)
+REAL(KIND=JPRB)    :: ZWND3(KLON) 
+REAL(KIND=JPRB)    :: ZDUEMPOT(KLON,3)
+REAL(KIND=JPRB)    :: ZDEGRAD, ZFSWET, ZSWETN
+REAL(KIND=JPRB)    :: ZRWPWP, ZRWSAT 
+REAL(KIND=JPRB)    :: ZEPSSNO, ZEPSARE
+REAL(KIND=JPRB)    :: ZREFSPD, ZRADREF, ZREFRAD
 REAL(KIND=JPRB)    :: ZAERDUB
-LOGICAL ::  LLDUST(KLON,12), LLPDUSTS(KLON)
-!REAL(KIND=JPRB) :: ZFLX_SDUST(KLON,9,12)
-!REAL(KIND=JPRB), POINTER  :: RDDUAER(:),  RDUSRCP(:)
-!REAL(KIND=JPRB), POINTER  ::  RDDUSRC(:)!!! dimensions changed from (0:50,9) to (9)
 REAL(KIND=JPRB)    :: RDDUSRC(9)
-!INTEGER(KIND=JPIM)::KBINDD
-INTEGER(KIND=JPIM), PARAMETER ::  KBINDD=3 
+LOGICAL            :: LLDUST(KLON,12), LLPDUSTS(KLON)
+REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
-!-----------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST',0,ZHOOK_HANDLE)
 
-
-
-
- ! ASSOCIATE( YDEPHY=>YDMODEL%YRML_PHY_EC%YREPHY, &
- ! & YDEAERMAP=>YDMODEL%YRML_PHY_AER%YREAERMAP, &
- ! & YDEAERSRC=>YDMODEL%YRML_PHY_AER%YREAERSRC)
-
-
-ASSOCIATE( NDUSRCP=>YDEAERMAP%NDUSRCP, RDDUAER=>YDEAERMAP%RDDUAER, &
- & RDUSRCP=>YDEAERMAP%RDUSRCP, &
- & NDDUST=>YDEAERSRC%NDDUST,    &
- & NALBEDOSCHEME=>YDEPHY%NALBEDOSCHEME) ! LE4ALB to NALBEDOSCHEME
-! & RFCTSS=>YDEAERSRC%RFCTSS, ROMPHIL=>YDEAERSRC%ROMPHIL, &
-! & ROMPHOB=>YDEAERSRC%ROMPHOB, RSIDECA=>YDEAERSRC%RSIDECA, &
-! & RSIVSRA=>YDEAERSRC%RSIVSRA, &
- !& LE4ALB=>YDEPHY%LE4ALB, LVDFTRAC=>YDEPHY%LVDFTRAC, YSURF=>YDEPHY%YSURF)!, &
- !& NLOENG=>YDGEOMETRY%YRGEM%NLOENG, &
- !& NGLOBALAT=>YDGEOMETRY%YRMP%NGLOBALAT, &
- !& NSTASS=>YRRIP%NSTASS, RHGMT=>YRRIP%RHGMT, RSTATI=>YRRIP%RSTATI,&
- !& NCHEM=>YGFL%NCHEM, YCHEM=>YGFL%YCHEM, LAERSOA_CHEM=>YREAERATM%LAERSOA_CHEM, &
- !& LAERCHEM=>YGFL%LAERCHEM)
-
+ASSOCIATE( NDUSRCP       => YDEAERMAP%NDUSRCP, RDDUAER => YDEAERMAP%RDDUAER,   &
+         & RDUSRCP       => YDEAERMAP%RDUSRCP, NDDUST  => YDEAERSRC%NDDUST,    &
+         & NALBEDOSCHEME => YDEPHY%NALBEDOSCHEME) ! LE4ALB to NALBEDOSCHEME
 
 ! ifs vegetation                        
 !  
@@ -478,7 +456,7 @@ aeff=0.35_JPRB
          ELSE
             !>>> TvN
             ! Use minimum value for roughness length.
-            ! VH convert PZ0M from [m] to [cm]
+	    ! VH convert PZ0M from [m] to [cm]
             !z0(JL) = z0_min !max(z0_min,PZ0M(JL)*100._JPRB )
             z0(JL) = max(z0_min,PZ0M(JL)*100._JPRB )
             !write(3000,*)z0(JL),z0_min
@@ -830,7 +808,7 @@ aeff=0.35_JPRB
 !ZGRDLAT2=ZGRDLAT*0.55_JPRB
 
 !ZDDUAER(:) = 1.00_JPRB
-!KBINDD=3
+KBINDD=3
 
 RDDUAER(:) = 0.0_JPRB
 RDDUSRC(:)= 0.0_JPRB
@@ -1292,7 +1270,7 @@ ZFLX_SDUST(KIDIA:KFDIA,1:9,1:12)=0._JPRB
 
 
 INBAER=0
-ZAERDUB=1.E-11_JPRB
+RAERDUB=1.E-11_JPRB
 
  !- ECMWF dust emission fluxes come in either 3- or 10-size bins
  ! 0.03 - 0.55 - 0.9 - 20.
@@ -1340,7 +1318,7 @@ ZAERDUB=1.E-11_JPRB
 
          LLPDUSTS(JL)=.TRUE.
 
-         PAERMAP(JL,5)=ZAERDUB * ZDUEMPOT(JL,1)                         ! for diagnostics only
+         PAERMAP(JL,5)=RAERDUB * ZDUEMPOT(JL,1)                         ! for diagnostics only
       ENDIF
     ENDIF
   ENDDO   
@@ -1364,7 +1342,7 @@ ZAERDUB=1.E-11_JPRB
 !-- ECMWF formulation
         
         IF (LLPDUSTS(JL)) THEN
-           ZDEP2(JL)= ZAERDUB * ZDUEMPOT(JL,JAER)
+           ZDEP2(JL)= RAERDUB * ZDUEMPOT(JL,JAER)
            ZSCC2(JL)= 20._JPRB
 
 !-- Present formulation in MACC (June'11, still kept June'13)
@@ -1404,11 +1382,11 @@ ENDIF  ! case NDDUST == 3
 !-- PCFLX in kg m-2 s-1
 
 DO JAER=1,KBINDD
-   !INBAER=INBAER+1
+   INBAER=INBAER+1
    DO JL=KIDIA,KFDIA
-      !!!$IF (LLDUST(JL,NDDUST) .AND. ZFLX_SDUST(JL,JAER,NDDUST) > 0._JPRB) THEN
-      !!!$   ZFLX_SDUST(JL,JAER,NDDUST)=ZFLX_SDUST(JL,JAER,NDDUST)
-      !!!$ENDIF
+      IF (LLDUST(JL,NDDUST) .AND. ZFLX_SDUST(JL,JAER,NDDUST) > 0._JPRB) THEN
+         ZFLX_SDUST(JL,JAER,NDDUST)=ZFLX_SDUST(JL,JAER,NDDUST)
+      ENDIF
       !PCFLX(JL,KAERO(INBAER))=-ZFLX_SDUST(JL,JAER,NDDUST) * 1.E+00_JPRB
       if (JAER<2) then
          !----
@@ -1441,7 +1419,6 @@ END DO
 !!$  ENDDO
 
 
-!END ASSOCIATE
 END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_SRC_DUST

@@ -1,21 +1,5 @@
 MODULE TM5M7_DATA
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
-
-IMPLICIT NONE
-
-SAVE
-  
-  
-! Location of lookup table data. Default location is at the directory of the executable
-!CHARACTER(LEN=256) :: TM5M7_DATADIR='/perm/ms/nl/nk9/oifs43r3/data/cifs_input/tm5m7/optics/'
-CHARACTER(LEN=256) :: TM5M7_DATADIR='./'
-  
-TYPE MODAL_DATA
-  REAL(KIND=JPRB), DIMENSION(:,:), POINTER :: d2   ! KLON, KLEV
-  REAL(KIND=JPRB), DIMENSION(:)  , POINTER :: surf ! KLON
-END TYPE MODAL_DATA
-
   ! *TM5M7_DATA*  Contains parameters, switches and initialization
   !               routines for the tm5m7 aerosol scheme.
   !
@@ -26,32 +10,49 @@ END TYPE MODAL_DATA
   ! E. Vignati and J. Wilson (JRC / EI)            2000
   ! V. Huijnen (KNMI): copied from TM5 to IFS code 2020
 
+
+
+
+USE PARKIND1, ONLY : JPIM, JPRB
+
+IMPLICIT NONE
+
+SAVE
+  
+! Location of lookup table data. Default location is at the directory of the executable
+!CHARACTER(LEN=256) :: TM5M7_DATADIR='/perm/ms/nl/nk9/oifs43r3/data/cifs_input/tm5m7/optics/'
+CHARACTER(LEN=256) :: TM5M7_DATADIR='./'
+  
+TYPE MODAL_DATA
+  REAL(KIND=JPRB), DIMENSION(:,:), POINTER :: d2   ! KLON, KLEV
+  REAL(KIND=JPRB), DIMENSION(:)  , POINTER :: surf ! KLON
+END TYPE MODAL_DATA
+
   !--- 1) Define and pre-set switches for the processes of M7: -----------------------
 
   !--- Physical:
 
-  LOGICAL :: lsnucl     = .TRUE., & ! nucleation
-             lscoag     = .TRUE., & ! coagulation
-             lscond     = .TRUE.    ! condensation of H2SO4
-  
+  LOGICAL            :: lsnucl     = .TRUE., & ! nucleation
+     &                  lscoag     = .TRUE., & ! coagulation
+     &                  lscond     = .TRUE.    ! condensation of H2SO4
+     
   INTEGER(KIND=JPIM) :: nnucl      = 1         ! Choice of the nucleation scheme:
-                                               ! 
                                                !    nnucl = 1  Vehkamaeki (2002)
                                                !          = 2  Kulmala (1998) -NOT RECOMMENDED-
-
   !--- Technical:
 
   LOGICAL :: lmass_diag = .FALSE.   ! mass balance check in m7_interface
 
   !--- 2) Numbers of compounds and modes of m7: --------------------------------------
 
-  INTEGER(KIND=JPIM), PARAMETER :: naermod=23,        & !number of all compounds
-                                   nmod=7,            & !number of modes
-                                   nss=2,             & !number of sea salt compounds 
-                                   nsol=4,            & !number of soluble  compounds 
-                                   ngas=3,            & !number of gaseous  compounds 
-                                   nsulf=4,&              !number of sulfate  compounds 
-                                   ncomp=5              !number of compounds
+  INTEGER(KIND=JPIM), PARAMETER :: naermod=23,     & !number of all compounds
+     &                             nmod=7,         & !number of modes
+     &                             nss=2,          & !number of sea salt compounds 
+     &                             nsol=4,         & !number of soluble  compounds 
+     &                             ngas=3,         & !number of gaseous  compounds 
+     &                             nsulf=4,        & !number of sulfate  compounds 
+     &                             ncomp=5           !number of compounds
+
   !--- 3) List of indexes corresponding to the compound masses and mode numbers:------
 
   !--- 3.1) Mass index (in array aerml and ttn): 
@@ -80,16 +81,16 @@ END TYPE MODAL_DATA
   !           s   = soluble mode
   !           i   = insoluble mode
                                                                                   !  COMPOUND:
-  INTEGER(KIND=JPIM), PARAMETER ::                                                &
+  INTEGER(KIND=JPIM), PARAMETER ::                                               &
      &      iso4ns=1, iso4ks=2, iso4as=3, iso4cs=4,                              & !- Sulfate
      &                ibcks =5, ibcas =6, ibccs =7, ibcki =8,                    & !- Black Carbon
      &                iocks =9, iocas=10, ioccs=11, iocki=12,                    & !- Organic Carbon
      &                          issas=13, isscs=14,                              & !- Sea Salt
      &                          iduas=15, iducs=16,           iduai=17, iduci=18,& !- Dust  
      &      isoans=19,isoaks=20,isoaas=21,isoacs=22,isoaki=23                      !- SOA
-  ! MODE:           |         |         |         |         |
-  !         nucl.   | aitk.   | acc.    | coar.   | aitk.   | acc.    | coar.   |
-  !         soluble | soluble | soluble | soluble | insol.  | insol.  | insol.  |
+  ! MODE:            |         |         |         |         |
+  !         nucl .   | aitk.   | acc.    | coar.   | aitk.   | acc.    | coar.   |
+  !         solub le | soluble | soluble | soluble | insol.  | insol.  | insol.  |
 
    
   !--- 3.2) Number index (in array aernl):
@@ -202,7 +203,7 @@ END TYPE MODAL_DATA
                      ! (Aerosol Sci. Technol., 2005).
                      ! 
                      !dbc     = 2.,         & ! Density          bc     [g cm-3]
-                 &   dbc     = 1.8,       & ! Density          bc     [g cm-3]
+                 &   dbc     = 1.8,        & ! Density          bc     [g cm-3]
                      ! The density of OA is highly variable,
                      ! but in any case substantially lower than 2 g/cm3.
                      ! We adopt an average value of 1.3 g/cm3,
@@ -230,7 +231,7 @@ END TYPE MODAL_DATA
                      ! derive a value of 1.39 +- 0.13 for OA from biomass burning.
                      !
                      !doc     = 2.,         & ! Density          oc     [g cm-3]
-                 &   doc     = 1.3,         & ! Density          POM     [g cm-3]
+                 &   doc     = 1.3,        & ! Density          POM     [g cm-3]
                      !<<< TvN
                  &   dnacl   = 2.165,      & ! Density          NaCl   [g cm-3]
                  &   dna2so4 = 2.68,       & ! Density          Na2SO4 [g cm-3]
@@ -266,8 +267,7 @@ END TYPE MODAL_DATA
 
   !--- 10) Computational constants: ------------------------------------------------
 
-  REAL(KIND=JPRB), PARAMETER :: sqrt2=1.4142136,    & 
-                     pi=3.141592654
+  REAL(KIND=JPRB), PARAMETER :: sqrt2=1.4142136,  pi=3.141592654
 
   !--- 11) Data used for the calculation of the aerosol properties -----------------
   !       under ambient conditions:
@@ -318,6 +318,8 @@ END TYPE MODAL_DATA
   !
   ! component indices and families, to identify tracer
   !
+  ! RCHG -> Should be each of these identifers numbers equal to
+  !         the "i" of YAERO_NL(i) in the namelist? 
   INTEGER(KIND=JPIM), PARAMETER :: ISO4 = 1
   INTEGER(KIND=JPIM), PARAMETER :: INH4  = 2  ! Note: these are tracer fields in the scope of aerosol module. 
   INTEGER(KIND=JPIM), PARAMETER :: INO3_A = 3 ! Check how to treat when running with chemistry.  
@@ -438,7 +440,7 @@ END TYPE MODAL_DATA
   INTEGER(KIND=JPIM), PARAMETER :: mode_end_soa (nmod) = (/ isoanus, isoaais, isoaacs, isoacos, isoaaii,      0,      0 /)
   INTEGER(KIND=JPIM), PARAMETER :: mode_nm      (nmod) = (/       2,       4,       6,       6,       3,      1,      1 /)  ! # tracers in mode
   INTEGER(KIND=JPIM), PARAMETER :: mode_nm_sed  (nmod) = (/       2,       4,       9,       6,       3,      1,      1 /)  ! # tracers in mode
-  INTEGER(KIND=JPIM), PARAMETER :: mode_end     (nmod) = mode_start + mode_nm  ! last tracer in mode
+  INTEGER(KIND=JPIM), PARAMETER :: mode_end     (nmod) = mode_start + mode_nm                                               ! last tracer in mode
   INTEGER(KIND=JPIM), PARAMETER :: mode_tracers(0:6,nmod) = &
                     &   RESHAPE( (/ inus_n, iso4nus, isoanus, 0, 0, 0, 0, &
                     &               iais_n, iso4ais, ibcais, ipomais,isoaais, 0, 0, &
@@ -455,14 +457,14 @@ END TYPE MODAL_DATA
                     &               iaii_n, 0      , ibcaii, ipomaii, isoaaii, 0      , 0      , &
                     &               iaci_n, 0      , 0     , 0      , 0      , 0      , iduaci ,  &
                     &               icoi_n, 0      , 0     , 0      , 0      , 0      , iducoi  /), (/ 7, nmod/) )
-  INTEGER(KIND=JPIM), PARAMETER :: mode_tracers_sed(0:9,nmod) = &
-  &      RESHAPE( (/ inus_n, iso4nus, isoanus, 0, 0, 0, 0, 0,0,0,&
-  &     iais_n, iso4ais, ibcais, ipomais,isoaais, 0, 0, 0,0,0,&
-  &     iacs_n, iso4acs, ibcacs, ipomacs, issacs, iduacs, isoaacs, inh4,ino3_a,imsa,&
-  &     icos_n, iso4cos, ibccos, ipomcos, isscos, iducos, isoacos, 0,0,0,&
-  &     iaii_n, ibcaii,  ipomaii,isoaaii, 0, 0, 0,  0,0,0,&
-  &     iaci_n, iduaci, 0, 0, 0, 0, 0,  0,0,0,&
-  &     icoi_n, iducoi, 0, 0, 0, 0, 0 ,0,0,0/), (/ 10, nmod/) )
+  INTEGER(KIND=JPIM), PARAMETER :: mode_tracers_sed(0:9,nmod) = RESHAPE( (/&
+  &     inus_n, iso4nus, isoanus, 0,       0,       0,      0,       0,    0,      0,    &
+  &     iais_n, iso4ais, ibcais,  ipomais, isoaais, 0,      0,       0,    0,      0,    &
+  &     iacs_n, iso4acs, ibcacs,  ipomacs, issacs,  iduacs, isoaacs, inh4, ino3_a, imsa, &
+  &     icos_n, iso4cos, ibccos,  ipomcos, isscos,  iducos, isoacos, 0,    0,      0,    &
+  &     iaii_n, ibcaii,  ipomaii, isoaaii, 0,       0,      0,       0,    0,      0,    &
+  &     iaci_n, iduaci,  0,       0,       0,       0,      0,       0,    0,      0,    &
+  &     icoi_n, iducoi,  0,       0,       0,       0,      0,       0,    0,      0/),  (/ 10, nmod/) )
 
 
 
@@ -475,7 +477,7 @@ END TYPE MODAL_DATA
                      0.5  ,  0.7 ,   0.8 ,  0.9,  1.0,  &
                      1.2  ,  1.5 ,   2.0 ,  3.0,  4.0,  &
                      5.0  ,  6.0 ,   8.0 , 10.0, 15.0,  &
-                    20.0  , 50.0 , 100.0                   /)
+                    20.0  , 50.0 , 100.0                /)
 
 
 
@@ -517,17 +519,13 @@ END TYPE MODAL_DATA
 ! their scavenging efficiency has been changed to the value for that mode.
 ! For consistency, the same value is used for Pb210.
   integer, dimension(nscav),parameter :: &
-       nscav_type   = (/    &
-                            5,       6,        7,     8,  9,    10,   11,  &     ! particle number
-                            5,       6,        7,     8,     &                   ! sulphate mass
-                            6,       7,        8,     9,     &                   ! BC mass
-                            6,       7,        8,     9,     &                   ! POM mass
-                            7,       8,                      &                   ! SS mass
-                            7,       8,        10,    11,    &                   ! DUST mass
-                            5,       6,       7,         8,     9     /)         ! SOA mass
- 
-
-
-
+       nscav_type = (/    &
+                          5,    6,    7,    8,    9,    10,   11,  &     ! particle number
+                          5,    6,    7,    8,                     &     ! sulphate mass
+                          6,    7,    8,    9,                     &     ! BC mass
+                          6,    7,    8,    9,                     &     ! POM mass
+                          7,    8,                                 &     ! SS mass
+                          7,    8,    10,   11,                    &     ! DUST mass
+                          5,    6,    7,    8,    9     /)               ! SOA mass
 
 END MODULE TM5M7_DATA

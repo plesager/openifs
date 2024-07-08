@@ -123,7 +123,6 @@ TYPE (FLUX_TYPE)               , INTENT(INOUT) :: FLUX
 TYPE (AUX_DIAG_TYPE)           , INTENT(INOUT) :: PDIAG
 TYPE (VARIABLE_3D)             , INTENT(INOUT) :: FSD
 TYPE (STATE_TYPE)              , INTENT(INOUT) :: TENDENCY_LOC
-
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JRF, JL, JK
 REAL(KIND=JPRB)    :: ZGP2DSPP(KDIM%KLON, YDSPP_CONFIG%SM%NRFTOTAL)  !SPP pattern
@@ -132,7 +131,6 @@ REAL(KIND=JPRB)    :: ZFSD(KDIM%KLON,KDIM%KLEV)
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
-
 !-----------------------------------------------------------------------
 
 #include "cloudsc.intfb.h"
@@ -140,7 +138,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !     ------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('CLOUD_LAYER',0,ZHOOK_HANDLE)
-ASSOCIATE(TSPHY=>YDPHY2%TSPHY, &
+ASSOCIATE(& 
+ & TSPHY =>YDPHY2%TSPHY,                        &
  & YSD_VF=>YDSURF%YSD_VF, YSD_VD=>YDSURF%YSD_VD )
 
 

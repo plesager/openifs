@@ -64,6 +64,7 @@ TYPE(GEMS_LOCAL_TYPE)          , INTENT(INOUT) :: GEMSL
 !-----------------------------------------------------------------------
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
 !-----------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('LOCAL_ARRAYS_FIN',0,ZHOOK_HANDLE)

@@ -533,6 +533,7 @@ ELSE
   RAERVOLE(:,:)=0._JPRB
   RVOLERUZ(:)= 1._JPRB
 
+  ! LAERINIT =.FALSE. -> RCHG FIXME (is this needed)
 
 !-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU
   NAERWND  = 2

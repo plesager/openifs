@@ -34,6 +34,7 @@ MODULE OIFS_to_HAM
       INTEGER, PUBLIC, ALLOCATABLE :: ind_gas_HAM(:)       ! indices of gas HAM tracers
       INTEGER, PUBLIC, ALLOCATABLE :: ind_cloud_HAM(:)     ! indices of cloud HAM tracers
   end type ind_oifs_ham_type
+  !<--eehol
 
   TYPE(ind_oifs_ham_type) :: ind_oifs_ham
   !!$OMP THREADPRIVATE(ind_oifs_ham)

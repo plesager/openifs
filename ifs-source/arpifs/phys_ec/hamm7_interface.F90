@@ -57,7 +57,7 @@ SUBROUTINE HAMM7_INTERFACE( &
 ! │     May.  2020 - V. Huijnen     : Modifications for TM5M7                  │
 ! │     Sep.  2020 - T. Bergman     : TM5M7 work                               │
 ! │     Apr.  2024 - Lianghai Wu    : revision for CY48r1                      │
-! │     May.  2020 - R. Checa-Garcia: revision for CY48r1, fix, refactory      │
+! │     May.  2024 - R. Checa-Garcia: revision for CY48r1 and refactory        │
 ! │                                                                            │
 ! ╰────────────────────────────────────────────────────────────────────────────╯
 
@@ -433,7 +433,7 @@ REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep 
 !REAL(KIND=JPRB) :: ZZOUT1(KLON,KLEV),ZZOUT2(KLON,klev),ZZOUT3(KLON,KLEV),ZZOUT4(KLON,KLEV),ZZOUT5(KLON,klev),ZZOUT6(KLON,KLEV)
 !REAL(KIND=JPRB) :: ZZOUT7(KLON,KLEV),ZZOUT8(KLON,klev),ZZOUT9(KLON,KLEV),ZZOUT10(KLON,KLEV),ZZOUT11(KLON,klev),ZZOUT12(KLON,KLEV)
  
-REAL(KIND=JPRB) :: sedout(KLON,KLEV,ntrac)
+REAL(KIND=JPRB) :: sedout(KLON,KLEV,ktrac)   ! changed ntrack to ktrac (RCHG)
 REAL(KIND=JPRB) :: ddepout(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: Wdepout(KLON,KLEV,ktrac)
 REAL(KIND=JPRB) :: sedout_2D(KLON,ktrac)
@@ -599,7 +599,9 @@ CALL SURF_INQ(YSURF,PRWPWP=ZRWPWP)
 !                 --------------------------------------------------------
 
 ALLOCATE( ZAERNGT(KLON,NACTAERO) )
-ZAERNGT(:,:) = 0._JPRB
+
+! RCHG -> there is a recurrent error: initialize without KIDIA:KFDIA 
+ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 
 !ALLOCATE( ZAERSCC(KLON,NACTAERO) )
 !ALLOCATE( ZAERSRC(KLON,NACTAERO) )
@@ -610,6 +612,13 @@ ZAERNGT(:,:) = 0._JPRB
 !ZAEROUT3(:,:) =0._JPRB
 !ZAEROUT4(:,:) =0._JPRB
 !ZAEROUT5(:,:) =0._JPRB
+
+!
+! RCHG -> FIXME be careful. This subroutine has KIDIA, KFDIA in the 
+!         arguments so probably it is designed for parallel grid. 
+!         this initialization may overwrite zeros the proper way might
+!         be ARRAY(KIDIA:KFDIA,:,:) = 0._JPRB 
+!
  ZOUT(:,:)    = 0._JPRB
  ZOUT2(:,:)   = 0._JPRB
  ZOUT3(:,:,:) = 0._JPRB
@@ -664,6 +673,7 @@ ZCEN(:,:,:) = 0._JPRB
 CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
 
 ! Initializing tracer number and mixing ratios and gas concentrations to not be tendency updated values
+ZCEN(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ITRC=0
 DO JEXT=1,NGHG
   ITRC=ITRC+1
@@ -678,7 +688,7 @@ DO JEXT=1,ZTRAC
   ITRC=ITRC+1
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
-      ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YTRAC(JEXT)%MP9_PH)
+       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YTRAC(JEXT)%MP9_PH)
     ENDDO
   ENDDO
 ENDDO
@@ -861,14 +871,15 @@ ELSE
    ZSVOC(KIDIA:KFDIA,1:KLEV)=0.0_JPRB
 END IF
 
+! RCHG => before it has ZICNC(:,:)=0._JPRB which is a semantic error.
 !calculate ICNC
-ZICNC(:,:) = 0._JPRB
-ZICNC(:,:) = RNICE
+ZICNC(KIDIA:KFDIA,1:KLEV) = 0._JPRB
+ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
 !Put tracer mixing ratios and tendencies to from OIFS to HAM
 !initialize to zero
-ZXTM1(:,:,:) = 0._JPRB
-ZXTTE(:,:,:) = 0._JPRB
-ZXTTEM1(:,:,:) = 0._JPRB
+ZXTM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+ZXTTE(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+ZXTTEM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 
 !number
 DO JCLASS=1,nclass
@@ -927,6 +938,7 @@ END DO
 !         for these cases. For this we need to find the best flags or combinations 
 !         of flags. FIXME
 
+! IF (LAERRRTM) THEN
 !cloud
 DO JCLOUD=1,2 !CDNC and ICNC
   DO JK=1,KLEV
@@ -936,7 +948,7 @@ DO JCLOUD=1,2 !CDNC and ICNC
     END DO
   END DO
 END DO
-
+!ENDIF
 
 ! implementation of HAM-M7
 ZWND(:) = 0._JPRB
@@ -952,7 +964,6 @@ ENDDO
  
 SELECT CASE (TRIM(AERO_SCHEME))
   CASE ("tm5m7")
-
   ! ** OBSOLETE ** (PLS)
   
   !alaak: commented out because model crashes
@@ -985,7 +996,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
 !!$          PTSPHY)
 
   CASE("hamm7")
-
     ! Initializations for submodel interface
     ZGRVOL(KIDIA:KFDIA,1:KLEV) = 1.79e12_JPRB ! ZGRVOL is only used for diagnostics (only when HAMMOZ is on)
     ZPBL = 1 ! boundary layer top = 1 (ITOP=1)
@@ -1533,10 +1543,10 @@ ENDDO
 
 IF(MOD(NSTEP+1,NRADFR) == 0) THEN
 CALL GSTATS(2506,0)
-ZAER_TAU(:,:,:,:)=0.0_JPRB
-ZAER_SSA(:,:,:)=0.0_JPRB
-ZAER_ASYM(:,:,:)=0.0_JPRB
-ZAER_TAU_LW(:,:,:)=0.0_JPRB
+ZAER_TAU(KIDIA:KFDIA,:,:,:)  = 0.0_JPRB
+ZAER_SSA(KIDIA:KFDIA,:,:)    = 0.0_JPRB
+ZAER_ASYM(KIDIA:KFDIA,:,:)   = 0.0_JPRB
+ZAER_TAU_LW(KIDIA:KFDIA,:,:) = 0.0_JPRB
 
 SELECT CASE (NAEROOPT) 
 
@@ -1558,10 +1568,10 @@ CASE (1)
 
    ZAEROK = ZAEROK+ZTAERO*time_step_len
 
-   CALL TM5M7_OPTICS_AOP_GET(YGFL, YREAERSRC, KIDIA,KFDIA, KLON, KLEV,NACTAERO, &
-        &   NASWBAND, ASWBAND, 1, .false., &
-        &   ZRHO, ZAEROK,RW_MODE,RWD_MODE,H2O_MODE,&
-        &   ZAER_TAU, ZAER_SSA, ZAER_ASYM)
+   CALL TM5M7_OPTICS_AOP_GET( YGFL, YREAERSRC, KIDIA,KFDIA, KLON, KLEV,NACTAERO, &
+   &                          NASWBAND, ASWBAND, 1, .false., &
+   &                          ZRHO, ZAEROK,RW_MODE,RWD_MODE,H2O_MODE,&
+   &                          ZAER_TAU, ZAER_SSA, ZAER_ASYM)
 
    PAOD(KIDIA:KFDIA,:)=0._JPRB
    DO JK = 1, KLEV
@@ -1611,7 +1621,7 @@ CASE (1)
    LWBANDS=16
    PRS1D(KIDIA:KFDIA,:) = PRS1(KIDIA:KFDIA,1:KLEV)-PRS1(KIDIA:KFDIA,0:KLEV-1)
    !CALL ham_rad_cache(KLON,KLEV)
-   ZXTM0 = ZXTM1+ZXTTE*time_step_len
+   ZXTM0(KIDIA:KFDIA,1:KLEV,:) = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + ZXTTE(KIDIA:KFDIA,1:KLEV,:)*time_step_len
    CALL HAM_RAD(KFDIA, KLON, KLEV, ZKROW, LWBANDS, NASWBAND, ZXTM0, PRS1D, &
         & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, ZM6RP)
    !CALL ham_rad_cache_cleanup
@@ -1723,6 +1733,8 @@ ENDDO
 !      ENDDO
 !    ENDDO
 
+
+! RCHG -> TODO explain here LIFSMIN and LIFSTRAJ ---
 IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! input for HAM-M7
   PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10) !PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
@@ -1804,7 +1816,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! It is not clear when NACTERO and when NTRAC 
   DO JN=1,NACTAERO
     PGFL(KIDIA:KFDIA,JN,YAEROUT(22)%MP)=DDEPOUT(KIDIA:KFDIA,KLEV,KAERO(JN))
-    PGFL(KIDIA:KFDIA,JN,YAEROUT(28)%MP)=PAERSRC(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA, JN, YAEROUT(28)%MP) = PAERSRC(KIDIA:KFDIA,KAERO(JN)) ! Emissions per specie
   END DO
   DO JN=1,NTRAC
     PGFL(KIDIA:KFDIA,JN,YAEROUT(23)%MP)=WDEPOUT(KIDIA:KFDIA,KLEV,JN)

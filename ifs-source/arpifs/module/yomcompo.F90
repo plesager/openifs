@@ -42,12 +42,13 @@ SAVE
 ! │ - TCOMPO_EMIS_AUX -> a single emission auxiliary fields specific.          │
 ! │ - TCOMPO          ->                                                       │
 ! │                                                                            │
-! │ Author : ECMWF(?)                                                          │
+! │ Author : 2016-09-20   J. Flemming                                          │
 ! │ -------                                                                    │
 ! │                                                                            │
-! │ Modifications : (included before each type)                                │
+! │ Modifications :                                                            │
 ! │ -------------                                                              │
-! │ 15-May-2024  - R.Checa-Garcia     - Added info/comments                    │
+! │ May-2024   R.Checa-Garcia (KNMI) added to TCOMPO_EMIS the PSD at emission  │
+! │                                                                            │
 ! │                                                                            │
 ! ╘════════════════════════════════════════════════════════════════════════════╛
 
@@ -85,6 +86,15 @@ TYPE :: TCOMPO_EMIS
                                                            !   16=use-for-fire-inj; 32=use-for-volc-alti
   LOGICAL            :: NON_SIMPLE_TRACER = .FALSE.        ! Set if this is a non-simple-tracer species
                                                            !   (e.g. a GLOMAP component represented by multiple tracers)
+  ! PROPERTIES of PSD at EMISSION: RADIUS, SIGMA and MASS-DENSITY tracer
+  !            used to convert mass-flux into number-particles-flux 
+  !            for M7 backwards consistency PSD_SIGMA, PSD_RADIUS and MASS_DENSITY 
+  !            should those defined for each mode.
+  REAL(KIND=JPRB)    :: PSD_SIGMA     = 2.0_JPRB 
+  REAL(KIND=JPRB)    :: PSD_RADIUS    = 1.0_JPRB 
+  REAL(KIND=JPRB)    :: MASS_DENSITY  = 1000.0_JPRB
+  CHARACTER(LEN=16)  :: PSD_N0_TRACER = 'NONE'
+
 END TYPE TCOMPO_EMIS
 
 ! Type for a single emission auxiliary fields specification
@@ -95,7 +105,7 @@ TYPE :: TCOMPO_EMIS_AUX
 END TYPE TCOMPO_EMIS_AUX
 
 
-! Type for a ....
+! Type for ....
 TYPE :: TCOMPO
   ! --- SWITCHES ------------------
   LOGICAL :: LCHEM_DIA        ! mass diagnostics switch for global budget

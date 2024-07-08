@@ -1096,8 +1096,6 @@ ENDIF
   ! Also the stratospheric nudging is included. This tendency output from this chem_tm5 module
   ! should be considered with great care, i.e. it is not well-defined.
   ! Change units from kg/kg/sec to sec-1. Loss term is positive.
-  !write(*,*) "PTENC1",PTENC1(:,:,ICH4)
-  !write(*,*) "PCEN(JL,JLEV,ICH4)",PCEN(:,:,ICH4)
   DO JLEV=1,KLEV
     DO JL=KIDIA,KFDIA
       IF(PCEN(JL,JLEV,ICH4)> 0._JPRB ) THEN 

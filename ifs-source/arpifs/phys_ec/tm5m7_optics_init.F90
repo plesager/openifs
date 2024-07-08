@@ -156,9 +156,9 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_INIT',0,ZHOOK_HANDLE)
   enddo
      
 
-  if (allocated(opac)) deallocate( opac)
-  if (allocated(echamham)) deallocate(echamham )
-  if (allocated(segelstein )) deallocate(  segelstein )
+  if (allocated(opac))        deallocate( opac)
+  if (allocated(echamham))    deallocate( echamham )
+  if (allocated(segelstein )) deallocate( segelstein )
 
   !--
   

@@ -36,7 +36,6 @@ SAVE
 ! │                                                                            │
 ! │ Modifications : (included before each type)                                │
 ! │ -------------                                                              │
-! │ 15-May-2024  - R.Checa-Garcia     - Added info/comments                    │
 ! │                                                                            │
 ! ╘════════════════════════════════════════════════════════════════════════════╛
 
@@ -198,9 +197,7 @@ REAL(KIND=JPRB)     :: HENRYB                ! Henry constant b
 END TYPE TYPE_GFL_NAML
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
-! │                                                      (updated 15-May-2024) │
-! │                                                                            │
-! │ TYPE : TYPE_GFLD                                                           │
+! │ TYPE : TYPE_GFLD                                     (updated 15-May-2024) │
 ! │                                                                            │
 ! │       Derived types for describing the GFL structure.                      │
 ! │                                                                            │
