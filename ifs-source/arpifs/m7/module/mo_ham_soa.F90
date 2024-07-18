@@ -656,6 +656,7 @@ MODULE mo_ham_soa
       ! Declan O'Donnell, MPI-M, 2007
 
       !---inherited types, functions and data ---
+
       USE mo_memory_base,   ONLY: new_stream, default_stream_setting, add_stream_element, add_stream_reference
       USE mo_linked_list,   ONLY: t_stream, SURFACE
       USE mo_filename,      ONLY: trac_filetype

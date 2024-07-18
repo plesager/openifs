@@ -254,11 +254,6 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "abor1.intfb.h"
 #include "save_merr_tend.intfb.h"
 
-
-
-
-
-
 #include "cormass2.intfb.h"
 #include "cormass3b.intfb.h"
 #include "cormassdry.intfb.h"
@@ -297,9 +292,6 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "chem_init.intfb.h"
 #include "tm5m7_init.intfb.h"!m7
 #include "hamm7_init.intfb.h"!m7
-
-
-
 
 #include "chem_massdia.intfb.h"
 #include "couplnemo.intfb.h"

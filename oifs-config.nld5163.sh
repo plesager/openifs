@@ -50,7 +50,7 @@ export OIFS_CYCLE=48r1
 #---Base code assumes openifs-48r1 and openifs-expt are installed
 #---in $HOME. Either these can be changed by the user------------
 
-export OIFS_HOME="${PERM}/openifs/oifs_code/"$branch_name"/openifs-48r1_fix_ifstests"
+export OIFS_HOME="${PERM}/openifs/oifs_code/"$branch_name"/openifs-48r1"
 
 #---It is recommended that the openifs-expt and oifs_data dir
 #---exist in a location designed for permanent storage-----------

@@ -754,7 +754,7 @@ IF (LCHEM_DIA) THEN
   ZTENC0(KIDIA:KFDIA,1:KLEV, :) = 0._JPRB
 ENDIF 
 
-
+! RCHG -> I would move this block to a subroutine (here after a "contains") 
 !*         0.2    Preliminary computation
 !*         GAS-TO-PARTICLE CONVERSION (SO2 -> SO4)
 !*         (SO2 -> SO4)
@@ -829,6 +829,8 @@ ENDIF
 !end of *         (SO2 -> SO4)
 
 
+!RCHG -> I would move this to a second subroutine (again after "CONTAINS") 
+!
 !*         1.1    COMPUTE RELATIVE HUMIDITY WITHOUT VERTICAL SMOOTING
 !                 ---------------------------------------------------
 ! Q at saturation for RH calculation
@@ -1146,6 +1148,8 @@ SELECT CASE (TRIM(AERO_SCHEME))
          PRSF1, PRS1, &
          ZXTM1, ZXTTE)
 
+    ! RCHG -> This is wetdep interface it can be a subroutine afer "CONTAINS" 
+    !
     !--> Wet deposition for HAM-M7
     CALL GSTATS(2503,0)
 

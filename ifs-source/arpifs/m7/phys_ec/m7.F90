@@ -101,6 +101,8 @@ SUBROUTINE m7(KIDIA, KFDIA, KLON,   KLEV,             &  ! TM5  indices
   !
   !--- 0) Initialisations: -------------------------------------------------
   !
+  ! RCHG -> this subroutine depends on KIDIA and KFDIA so this Initialisations
+  !         are confusing/dangerous.
   zhplus(:,:,:) = 0._JPRB
   pm6dry(:,:,:) = 0._JPRB
   pm6rp(:,:,:)  = 0._JPRB

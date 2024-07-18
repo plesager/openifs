@@ -124,6 +124,10 @@ INTEGER(KIND=JPIM), PARAMETER :: JPOSEDRP=2
 ! + 1 totpreciprate + 20 for snowML (4*5 snowML GA)
 INTEGER(KIND=JPIM), PARAMETER :: JPOSFSU=28
 INTEGER(KIND=JPIM), PARAMETER :: JPOSSFX=1000
+
+! RCHG -> Not sure about this way of of programming where numbers are 
+!         added without definition of what the are. This limit the generalization 
+!         of the code, the ability to tests and the readability.
 INTEGER(KIND=JPIM), PARAMETER :: &
  & JPOSSGP=180+JPOSVX2+JPOSFSU+JPOSGHGFLX+JPOSCHEM+3*JPOSCHEMFLX+(JPOSAERO*JPOSAERODIAG)+ &
  & (JPOSAERO_WVL_DIAG*JPOSAERO_WVL_DIAG_TYPES)+JPOSEMIS2D+JPOSEMIS2DAUX+ &

@@ -56,6 +56,7 @@ REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7AOD(:,:,:,:)
 REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7SSA(:,:,:,:)
 REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7ASYM(:,:,:,:)
 REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7AODLW(:,:,:,:)
+
 END TYPE TEAERM7
 !     ------------------------------------------------------------------
 ! 9 refers to up to 9 bins (3 operationally for SS and DD) 

@@ -14,6 +14,10 @@
 !     -------
 !     2020-11-17   Tero Mielonen (TeMi)
 
+
+! RCHG -> A natural place for this module is arpifs/module 
+!         we moved to arpifs/m7/modules for the developing
+!         process (easier track of files for m7)
 MODULE YOMM7CTL
 
 USE PARKIND1  ,ONLY : JPIM

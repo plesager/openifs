@@ -26,24 +26,23 @@
 
 
 
-USE GEOMETRY_MOD , ONLY : GEOMETRY
-USE PARKIND1 , ONLY : JPRB, JPIM
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
-USE YOMLUN   , ONLY : NULOUT
+USE GEOMETRY_MOD,   ONLY : GEOMETRY
+USE PARKIND1,       ONLY : JPRB, JPIM
+USE YOMHOOK,        ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMLUN,         ONLY : NULOUT
 !USE YOMCOMPO , ONLY : YRCOMPO
-USE YOMCOMPO , ONLY : TCOMPO
-USE YOM_YGFL , ONLY : TYPE_GFLD!YGFL
+USE YOMCOMPO,       ONLY : TCOMPO
+USE YOM_YGFL,       ONLY : TYPE_GFLD!YGFL
 USE TM5_PHOTOLYSIS, ONLY : PHOTOLYSIS_INI, NBANDS_TROP,LMID,LMID_GRIDA,WAVE,WAV_GRID,WAV_GRIDA,LL_TM5_PHOTO_INI
-USE TM5M7_DATA, ONLY : &
-  & ISO4 ,  INH4 ,  INO3_A ,  IACS_N ,  ISO4ACS ,  IBCACS ,  IPOMACS ,  ISSACS ,  IDUACS , &
-  & ISOANUS ,  ISOAAIS ,  ISOAACS ,  ISOACOS ,  ISOAAII ,  IH2OPART ,IAII_N ,  IBCAII , &
-  & IPOMAII ,  IACI_N ,   IDUACI ,  IAIS_N ,  ISO4AIS ,  IBCAIS ,  IPOMAIS , ICOI_N , &
-  & IDUCOI  ,  ICOS_N ,  ISO4COS ,  IBCCOS ,  IPOMCOS ,  ISSCOS ,  IDUCOS ,  INUS_N , &
-  & ISO4NUS ,  IELVOC ,  IISVOC ,  IMSA, &   
-! Needed for the emissions declaration..
-  & sigma_lognormal, &
-  & xmc, sigma_lognormal, pom_density, &
-  & mode_aii, mode_ais, mode_acs
+USE TM5M7_DATA,     ONLY : ISO4 ,  INH4 ,  INO3_A ,  IACS_N ,  ISO4ACS ,  IBCACS , IPOMACS ,  ISSACS ,  IDUACS , &
+                         & ISOANUS ,  ISOAAIS ,  ISOAACS ,  ISOACOS ,  ISOAAII ,  IH2OPART ,IAII_N ,  IBCAII , &
+                         & IPOMAII ,  IACI_N ,   IDUACI ,  IAIS_N ,  ISO4AIS ,  IBCAIS ,  IPOMAIS , ICOI_N , &
+                         & IDUCOI  ,  ICOS_N ,  ISO4COS ,  IBCCOS ,  IPOMCOS ,  ISSCOS ,  IDUCOS ,  INUS_N , &
+                         & ISO4NUS ,  IELVOC ,  IISVOC ,  IMSA, &   
+                         ! Needed for the emissions declaration..
+                         & sigma_lognormal, &
+                         & xmc, sigma_lognormal, pom_density, &
+                         & mode_aii, mode_ais, mode_acs
 USE TM5M7_OPTICS_DATA, ONLY :WAVELENDEP,NWDEP,WDEP, & 
   & ASWBAND, NASWBAND,ALWWN1,ALWWN2
 USE YOERAD   , ONLY : TERAD!YRERAD
@@ -74,12 +73,12 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 
 
 IF (LHOOK) CALL DR_HOOK('TM5M7_INIT',0,ZHOOK_HANDLE)
-ASSOCIATE(NACTAERO=>YGFL%NACTAERO, YAERO=>YGFL%YAERO, &
-    &  NAERO=>YGFL%NAERO, &
-    &  AERO_SCHEME=>YRCOMPO%AERO_SCHEME,LAERCHEM=>YGFL%LAERCHEM)
+ASSOCIATE(&
+    & NACTAERO    => YGFL%NACTAERO, YAERO    => YGFL%YAERO,    &
+    & NAERO       => YGFL%NAERO,    LAERCHEM => YGFL%LAERCHEM, &
+    & AERO_SCHEME => YRCOMPO%AERO_SCHEME )
 
  
-
 !*             Init aerosol scheme 
 !              ---------------
 
@@ -210,19 +209,19 @@ SELECT CASE (TRIM(AERO_SCHEME))
    NASWBAND=YDERAD%NTSW
    if (allocated(ASWBAND)) deallocate(ASWBAND)
    allocate(ASWBAND(YDERAD%NTSW))
-     ASWBAND( 13)%wl = 0.257_JPRB
-     ASWBAND( 12)%wl = 0.313_JPRB
-     ASWBAND( 11)%wl = 0.398_JPRB
-     ASWBAND( 10)%wl = 0.530_JPRB
+     ASWBAND(13)%wl = 0.257_JPRB
+     ASWBAND(12)%wl = 0.313_JPRB
+     ASWBAND(11)%wl = 0.398_JPRB
+     ASWBAND(10)%wl = 0.530_JPRB
      ASWBAND( 9)%wl = 0.697_JPRB
      ASWBAND( 8)%wl = 0.973_JPRB
      ASWBAND( 7)%wl = 1.269_JPRB
      ASWBAND( 6)%wl = 1.447_JPRB
      ASWBAND( 5)%wl = 1.767_JPRB
-     ASWBAND(4)%wl = 2.040_JPRB
-     ASWBAND(3)%wl = 2.308_JPRB
-     ASWBAND(2)%wl = 2.752_JPRB
-     ASWBAND(1)%wl = 3.407_JPRB
+     ASWBAND( 4)%wl = 2.040_JPRB
+     ASWBAND( 3)%wl = 2.308_JPRB
+     ASWBAND( 2)%wl = 2.752_JPRB
+     ASWBAND( 1)%wl = 3.407_JPRB
      ASWBAND(14)%wl = 5.254_JPRB
 
 !    ASWBAND( 1)%wl = 0.257 

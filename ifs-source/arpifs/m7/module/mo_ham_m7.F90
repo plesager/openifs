@@ -449,7 +449,7 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
   REAL(dp):: paerml(kbdim,klev,naerocomp), & ! aerosol mass for individual compounds [molec. cm-3 for sulfate and ug m-3 for bc, oc, ss, and dust]
              paernl(kbdim,klev,nclass),    & ! aerosol number for each mode [cm-3]
              pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [cm]
-             pm6dry(kbdim,klev,nsol),    & ! dry radius for soluble modes [cm]
+             pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [cm]
              prhop(kbdim,klev,nclass),     & ! mean mode particle density [g cm-3]
              pww(kbdim,klev,nclass)          ! aerosol water content for each mode [kg(water) m-3(air)]
   
@@ -466,9 +466,9 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
   REAL(dp):: zso4_6(kbdim,klev)          ! mode x [molec. cm-3] (calculated in m7_prod_cond,
   REAL(dp):: zso4_7(kbdim,klev)          ! used in m7_concoag)
   
-  REAL(dp):: zttn(kbdim,klev,naerocomp)    ! average mass for single compound in each mode [in molec. for sulfate and in ug for bc, oc, ss, and dust]
+  REAL(dp):: zttn(kbdim,klev,naerocomp)  ! average mass for single compound in each mode [in molec. for sulfate and in ug for bc, oc, ss, and dust]
   REAL(dp):: zcs(kbdim,klev)             ! H2SO4 condensation sink of the aerosol population [s-1]
-  REAL(dp):: zcsi(kbdim,klev,nclass)       ! H2SO4 condensation sink of the individual aerosol modes [s-1]
+  REAL(dp):: zcsi(kbdim,klev,nclass)     ! H2SO4 condensation sink of the individual aerosol modes [s-1]
   REAL(dp):: zanew(kbdim,klev)           ! Number of nucleated particles [cm-3] over one timstep
   REAL(dp):: za4delt(kbdim,klev,naerocomp) ! Change in H2SO4 contents [cm-3] of the aerosol modes over one timstep
   REAL(dp)::   zout3(kbdim,klev,2*(naerocomp+nclass))
