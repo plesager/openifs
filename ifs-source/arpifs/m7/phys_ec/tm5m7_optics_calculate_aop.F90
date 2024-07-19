@@ -392,15 +392,9 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',0,ZHOOK_HANDLE)
        !=======================================================================
     enddo   ! loop over wavelengths
 
-    
-
-    !Nullify(Cext_table)
-    !Nullify(a_table)
-    !Nullify(g_table)
-    if (associated(Cext_table)) deallocate(Cext_table)
-    if (associated(a_table)) deallocate(a_table)
-    if (associated(g_table)) deallocate(g_table)
-
+    IF (ASSOCIATED(CEXT_TABLE)) NULLIFY(CEXT_TABLE)
+    IF (ASSOCIATED(A_TABLE))    NULLIFY(A_TABLE)
+    IF (ASSOCIATED(G_TABLE))    NULLIFY(G_TABLE)
 
     !do imode = 1,7
     !      print *, 'Radius,mode   :', imode, sum(aop_in(KIDIA:KFDIA,1:KLEV)%rg(imode))/((KFDIA-KIDIA+1)*KLEV)
@@ -413,7 +407,5 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',0,ZHOOK_HANDLE)
     !   print *, 'AOD per grid box:', wdep(i)%wl, sum(PAOP_OUT_EXT(KIDIA:KFDIA,1:KLEV,i,1))/((KFDIA-KIDIA+1)*KLEV)
     !enddo
 
-
-
-IF(LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',1,ZHOOK_HANDLE)
+    IF(LHOOK) CALL DR_HOOK('TM5M7_OPTICS_CALCULATE_AOP',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_OPTICS_CALCULATE_AOP

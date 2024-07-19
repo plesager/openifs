@@ -622,8 +622,8 @@ ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
  ZOUT(:,:)    = 0._JPRB
  ZOUT2(:,:)   = 0._JPRB
  ZOUT3(:,:,:) = 0._JPRB
-!!! initialize those arrays are importnat for PGFL under GNU, Lianghai Wu
- ZVDEP(:,:) = 0._JPRB ! ddep velocity as zero
+ ! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
+ ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
  ZXTEMS(:,:) = 0._JPRB ! surface emissions as zero for input
  ZXTMD1(:,:,:) = 0._JPRB 
 !ZOUT4(:,:)   = 0._JPRB
@@ -645,27 +645,27 @@ ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 !ZZOUT11(:,:) = 0._JPRB
 !ZZOUT12(:,:) = 0._JPRB
 
-M7TEND_IN(:,:,:)   = 0._JPRB
-M7TEND_OUT(:,:,:)  = 0._JPRB
-SEDOUT(:,:,:)      = 0._JPRB
-DDEPOUT(:,:,:)     = 0._JPRB
-WDEPOUT(:,:,:)     = 0._JPRB
-ZSEDIFLUX(:,:,:)   = 0._JPRB
-ZDDEPFLUX(:,:)     = 0._JPRB
-ZDDEPFLUX_SO2(:)   = 0._JPRB
-ZVDA(:,:)          = 0._JPRB
-SEDOUT_2D(:,:)     = 0._JPRB
-DDEPOUT_2D(:,:)    = 0._JPRB
-WDEPOUT_2D(:,:)    = 0._JPRB
+M7TEND_IN(KIDIA:KFDIA,:,:)   = 0._JPRB ! unused 2024-07-11
+M7TEND_OUT(KIDIA:KFDIA,:,:)  = 0._JPRB ! unused 2024-07-11
+SEDOUT(KIDIA:KFDIA,:,:)      = 0._JPRB
+DDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
+WDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
+ZSEDIFLUX(KIDIA:KFDIA,:,:)   = 0._JPRB
+ZDDEPFLUX(KIDIA:KFDIA,:)     = 0._JPRB
+ZDDEPFLUX_SO2(KIDIA:KFDIA)   = 0._JPRB
+ZVDA(KIDIA:KFDIA,:)          = 0._JPRB ! unused 2024-07-11
+SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
+DDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB ! unused 2024-07-11
+WDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB
 
-zaveragep(:,:,:)   = 0.0_JPRB
-zm7kappa(:,:,:)    = 0.0_JPRB
-zh2so4cs(:,:,:)    = 0.0_JPRB
-zm7prodcond(:,:,:) = 0.0_JPRB
+ZAVERAGEP(KIDIA:KFDIA,:,:)   = 0.0_JPRB ! unused 2024-07-11
+ZM7KAPPA(KIDIA:KFDIA,:,:)    = 0.0_JPRB ! unused 2024-07-11
+ZH2SO4CS(KIDIA:KFDIA,:,:)    = 0.0_JPRB ! unused 2024-07-11
+ZM7PRODCOND(KIDIA:KFDIA,:,:) = 0.0_JPRB ! unused 2024-07-11
 
-ZTAERO(:,:,:)      = 0._JPRB
+ZTAERO(KIDIA:KFDIA,:,:)      = 0._JPRB
 
-ZCEN(:,:,:) = 0._JPRB
+ZCEN(KIDIA:KFDIA,:,:) = 0._JPRB
 
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
@@ -1561,7 +1561,7 @@ CASE (0)
 CASE (1)
    ! Use TM5 codes to calculate optical properties (optical properties for LW = 0)
       !--> Add HAM updated tendency to ZTAERO and use that in optics
-   ZTAERO(:,:,:) = 0._JPRB
+   ZTAERO(KIDIA:KFDIA,:,:) = 0._JPRB
    DO JAER=1,NACTAERO
       DO JK=1,KLEV
          DO JL=KIDIA,KFDIA
@@ -1570,7 +1570,7 @@ CASE (1)
       ENDDO
    ENDDO
 
-   ZAEROK = ZAEROK+ZTAERO*time_step_len
+   ZAEROK(KIDIA:KFDIA,:,:) = ZAEROK(KIDIA:KFDIA,:,:) + ZTAERO(KIDIA:KFDIA,:,:)*TIME_STEP_LEN
 
    CALL TM5M7_OPTICS_AOP_GET( YGFL, YREAERSRC, KIDIA,KFDIA, KLON, KLEV,NACTAERO, &
    &                          NASWBAND, ASWBAND, 1, .false., &
@@ -1592,33 +1592,34 @@ CASE (1)
      ENDDO
    ENDDO
 
-   ! "I am not sure if the rest is needed" [who is I? FIXME]
+   ! "I am not sure if the rest is needed" [who is 'I'? FIXME]
+   ! [PLS, 2024-07-11] This is only assigning 0 to output variables. 
    
-   ALLOCATE( ZAOP_OUT_EXT( KLON, KLEV, NWDEP, 1)) ; ZAOP_OUT_EXT = 0.0_JPRB
-   ALLOCATE( ZAOP_OUT_A  ( KLON, KLEV, NWDEP)   ) ; ZAOP_OUT_A   = 0.0_JPRB
-   ALLOCATE( ZAOP_OUT_G  ( KLON, KLEV, NWDEP)   ) ; ZAOP_OUT_G   = 0.0_JPRB
-
-
-   ALLOCATE(ZTAUS_AER (KLON, KLEV,NWDEP)); ZTAUS_AER = 0.0
-   ALLOCATE(ZTAUA_AER (KLON, KLEV,NWDEP)); ZTAUA_AER = 0.0  
-   ALLOCATE(ZPMAER    (KLON, KLEV,NWDEP)); ZPMAER    = 0.0
+   !PLS-NOT-USED  ALLOCATE( ZAOP_OUT_EXT( KLON, KLEV, NWDEP, 1)) ; ZAOP_OUT_EXT = 0.0_JPRB
+   !PLS-NOT-USED  ALLOCATE( ZAOP_OUT_A  ( KLON, KLEV, NWDEP)   ) ; ZAOP_OUT_A   = 0.0_JPRB
+   !PLS-NOT-USED  ALLOCATE( ZAOP_OUT_G  ( KLON, KLEV, NWDEP)   ) ; ZAOP_OUT_G   = 0.0_JPRB
+   !PLS-NOT-USED  
+   !PLS-NOT-USED  ALLOCATE(ZTAUS_AER (KLON, KLEV,NWDEP)); ZTAUS_AER = 0.0
+   !PLS-NOT-USED  ALLOCATE(ZTAUA_AER (KLON, KLEV,NWDEP)); ZTAUA_AER = 0.0  
+   !PLS-NOT-USED  ALLOCATE(ZPMAER    (KLON, KLEV,NWDEP)); ZPMAER    = 0.0
 
    DO JB=1, NBANDS_TROP
-     PTAUS_AER(:,:,JB,1) = ZTAUS_AER(:,:,WAV_GRID(JB))
-     PTAUA_AER(:,:,JB,1) = ZTAUA_AER(:,:,WAV_GRID(JB))
-     PPMAER   (:,:,JB,1) = ZPMAER   (:,:,WAV_GRID(JB))
+     PTAUS_AER(KIDIA:KFDIA,:,JB,1) = 0.0_JPRB  !ZTAUS_AER(:,:,WAV_GRID(JB))
+     PTAUA_AER(KIDIA:KFDIA,:,JB,1) = 0.0_JPRB  !ZTAUA_AER(:,:,WAV_GRID(JB))
+     PPMAER   (KIDIA:KFDIA,:,JB,1) = 0.0_JPRB  !ZPMAER   (:,:,WAV_GRID(JB))
 
-     PTAUS_AER(:,:,JB,2) = ZTAUS_AER(:,:,WAV_GRIDA(JB))
-     PTAUA_AER(:,:,JB,2) = ZTAUA_AER(:,:,WAV_GRIDA(JB))
-     PPMAER   (:,:,JB,2) = ZPMAER   (:,:,WAV_GRIDA(JB))
+     PTAUS_AER(KIDIA:KFDIA,:,JB,2) = 0.0_JPRB  !ZTAUS_AER(:,:,WAV_GRIDA(JB))
+     PTAUA_AER(KIDIA:KFDIA,:,JB,2) = 0.0_JPRB  !ZTAUA_AER(:,:,WAV_GRIDA(JB))
+     PPMAER   (KIDIA:KFDIA,:,JB,2) = 0.0_JPRB  !ZPMAER   (:,:,WAV_GRIDA(JB))
    ENDDO
-   DEALLOCATE(ZTAUS_AER)
-   DEALLOCATE(ZTAUA_AER)
-   DEALLOCATE(ZPMAER)
-
-   DEALLOCATE(ZAOP_OUT_EXT)
-   DEALLOCATE(ZAOP_OUT_A  )
-   DEALLOCATE(ZAOP_OUT_G  )
+   
+   !PLS-NOT-USED  DEALLOCATE(ZTAUS_AER)
+   !PLS-NOT-USED  DEALLOCATE(ZTAUA_AER)
+   !PLS-NOT-USED  DEALLOCATE(ZPMAER)
+   !PLS-NOT-USED  
+   !PLS-NOT-USED  DEALLOCATE(ZAOP_OUT_EXT)
+   !PLS-NOT-USED  DEALLOCATE(ZAOP_OUT_A  )
+   !PLS-NOT-USED  DEALLOCATE(ZAOP_OUT_G  )
 
  CASE (2)
    ! Use HAM codes to calculate optical properties

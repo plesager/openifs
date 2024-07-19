@@ -778,9 +778,6 @@ LETRACGMS=.TRUE.
 !- monthly climatology of aerosols (SS, DU, OM, BC, SO4) from CAMS reanalyses (former MACC)
 IF (LEPHYS.AND..NOT.LARPEGEF) THEN ! LARPEGEF for the files conversions IFS->Arpege. REK
   NAERMACC=1    ! =0 inactive
-  FIXME: IF ( TRIM(AERO_SCHEME) == "hamm7" ) THEN
-    NAERMACC=0
-  ENDIF FIXME
 ELSE
   NAERMACC=0
 ENDIF
@@ -2555,6 +2552,14 @@ IF (LOUTPUT) THEN
    &  WRITE(UNIT=KULOUT,FMT='('' RSUN  FROM YOESW = '',6F10.5)')(YDESWRT%RSUN(I),I=1,NSW)
   IF (ALLOCATED(YDESWRT%RSUN2))&
    &  WRITE(UNIT=KULOUT,FMT='('' RSUN2 FROM YOESW = '',6F10.5)')(YDESWRT%RSUN2(I),I=1,NSW)
+
+!  ! Only print M7 options if used
+!  IF ( TRIM(AERO_SCHEME) == "hamm7" ) THEN
+    WRITE(UNIT=KULOUT,FMT='('' NCLOUDACT (M7) = '',I1)') NCLOUDACT
+    WRITE(UNIT=KULOUT,FMT='('' NAEROOPT (M7)  = '',I1)') NAEROOPT
+!  ELSE
+!    WRITE(UNIT=KULOUT,FMT='(A)') 'NCLOUDACT/NAEROOPT not used'
+!  ENDIF
 
 ENDIF
 

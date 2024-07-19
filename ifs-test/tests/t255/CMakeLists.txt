@@ -61,6 +61,9 @@ function( add_ifs_test TARGET )
       ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMCLham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMCLham7INIT_COMPO ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT_COMPO )
+
+    execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
       ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lookup_table.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lookup_table.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink

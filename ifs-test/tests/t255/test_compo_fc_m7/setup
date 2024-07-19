@@ -23,10 +23,8 @@ NVEXTR="7"
 NCEXTR="137"
 
 # NAMRIP
-CSTOP=${CSTOP:-"'t2'"}               # CSTOP: define num. timesteps 
-TSTEP=${TSTEP:-"600.000000"}         # TSTEP: define time-step in seconds (??)
-
-NPROC=8
+CSTOP=${CSTOP:-"'t6'"}            # CSTOP: define num. timesteps
+TSTEP=${TSTEP:-"600.000000"}        # TSTEP: define time-step in seconds
 
 # NAMCT0:
 NFRPOS=3
@@ -37,7 +35,7 @@ NFRPOS=3
 
 # Note: In this setup we include some details by blocks to have a 
 #       more structured and easier to read setup file. For the final
-#       namelist please check fort.4 after run the experiment.
+#       namelist please check the generated fort.4 after running the experiment.
 
 cat >> fort.4 << EOF
 &NAMGFL
@@ -117,8 +115,10 @@ cat >> fort.4 << EOF
  LEPO3RA=true,
  LO3_CHEM_UV=true,
  NGHGRAD=20,
- NAERMACC=1,
+ NAERMACC=0,
  LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
+ NAEROOPT=1,         ! Default (2) not working as of 2024-07-11
+ NCLOUDACT=0,        !
 /
 &NAMFPC
  CFPFMT="MODEL",
@@ -152,7 +152,7 @@ cat >> fort.4 << EOF
  LAERGTOP=true,
  LAERSEDIM=true,
   LAERSEDIMSS=true,
- LAERDRYDP=true,
+ LAERDRYDP=false,
  LAERSURF=true,
   NSSALT=4,
   NDDUST=2,
@@ -184,10 +184,10 @@ cat >> fort.4 << EOF
   KCHEM_NOXADV=0,
   LCHEM_ANAO3=false,
   KCHEM_SOLVE=2,
-    LCHEM_REVCHEM=false,
-    LCHEM_BASCOE_JON=false,
-    LCHEM_BASCOE_HETCHEM=true,
-    LCHEM_EXTENDJNO2=true,
+  LCHEM_REVCHEM=false,
+  LCHEM_BASCOE_JON=false,
+  LCHEM_BASCOE_HETCHEM=true,
+  LCHEM_EXTENDJNO2=true,
   LCHEM_JOUT=false,
   LCHEM_AEROI=false,
   LCHEM_O3RAD=true,
@@ -198,7 +198,7 @@ cat >> fort.4 << EOF
 &NAMMCC
   LMCCEC=true,
   LMCCIEC=false,
-  LMCC_COMPO=false,
+  LMCC_COMPO=true,
 /
 EOF
 
