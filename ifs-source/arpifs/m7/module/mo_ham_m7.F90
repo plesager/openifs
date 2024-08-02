@@ -838,6 +838,7 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
   REAL(dp) :: zinsmas(kbdim,klev,nclass)        ! mean mass for single particle per mode
 
   REAL(dp) :: ztmp1(kbdim,klev) !SF #458 temporary variable
+  REAL(dp) :: ztmp2(kbdim,klev) !SF #458 temporary variable
 
   LOGICAL :: ll1(kbdim,klev) !SF #458 temporary logical array
 
@@ -874,8 +875,8 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
                  .AND. (paerml(1:kproma,:,jn)     > cmin_aerml)
 
      ztmp1(1:kproma,:) = MERGE(paernl(1:kproma,:,jclass), 1._dp, ll1(1:kproma,:)) !SF 1. is a dummy val.
-     ztmp1(1:kproma,:) = zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:)
-     pttn(1:kproma,:,jn) = MERGE(ztmp1(1:kproma,:), zaltern_val, ll1(1:kproma,:))
+     ztmp2(1:kproma,:) = zunitfac*paerml(1:kproma,:,jn)/ztmp1(1:kproma,:)
+     pttn(1:kproma,:,jn) = MERGE(ztmp2(1:kproma,:), zaltern_val, ll1(1:kproma,:))
      !<<SF #458 (replacing WHERE statements)
 
      !---in case of fp underflow
@@ -902,12 +903,12 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
 
         ztmp1(1:kproma,:) = MERGE(zinsvol(1:kproma,:,jclass), 1._dp, ll1(1:kproma,:)) !SF 1. is a dummy val.
 
-        ztmp1(1:kproma,:) = zinsmas(1:kproma,:,jclass) / ztmp1(1:kproma,:)
-        prhop(1:kproma,:,jclass) = MERGE(ztmp1(1:kproma,:), prhop(1:kproma,:,jclass), ll1(1:kproma,:))
+        ztmp2(1:kproma,:) = zinsmas(1:kproma,:,jclass) / ztmp1(1:kproma,:)
+        prhop(1:kproma,:,jclass) = MERGE(ztmp2(1:kproma,:), prhop(1:kproma,:,jclass), ll1(1:kproma,:))
 
-        ztmp1(1:kproma,:) = ram2cmr(jclass)*((ztmp1(1:kproma,:)/z4piover3)**(1._dp/3._dp))
+        ztmp2(1:kproma,:) = ram2cmr(jclass)*((ztmp1(1:kproma,:)/z4piover3)**(1._dp/3._dp))
 
-        pm6rp(1:kproma,:,jclass) = MERGE(ztmp1(1:kproma,:), pm6rp(1:kproma,:,jclass), ll1(1:kproma,:))
+        pm6rp(1:kproma,:,jclass) = MERGE(ztmp2(1:kproma,:), pm6rp(1:kproma,:,jclass), ll1(1:kproma,:))
 
         !<<SF #458 (replacing WHERE statements)
 
