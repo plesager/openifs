@@ -1074,7 +1074,6 @@ CONTAINS
                 END SELECT
 
                 IF (itable == 1) THEN
-
                    CALL ham_rad_fitplus(kproma, kbdim,      klev,                &
                                          zxx,   znr2d,     zni2d,                &
                                          itable, lut1_sigma, zsigma2d,           & 
@@ -1444,7 +1443,6 @@ CONTAINS
              IF ((pxx(jl,jk)>=x0_min(ktable)) .AND. (pxx(jl,jk)<=x0_max(ktable)) .AND. &
                  (pnr(jl,jk)>=nr_min(ktable)) .AND. (pnr(jl,jk)<=nr_max(ktable)) .AND. &
                  (pni(jl,jk)>=ni_min(ktable)) .AND. (pni(jl,jk)<=ni_max(ktable))       ) THEN
-
                 Ndis=NINT( (LOG(pxx(jl,jk))-log_x0_min(ktable)) / &
                            (log_x0_max(ktable) - log_x0_min(ktable))*REAL(Ndismax(ktable),dp) )
                 Ndis=MIN(Ndismax(ktable)-1,MAX(0,Ndis))
@@ -1506,6 +1504,7 @@ CONTAINS
     ! commented by Lwu
     USE YOMMP0      ,ONLY : MYPROC
     USE MPL_MODULE ,ONLY : MPL_BROADCAST 
+    USE TM5M7_DATA, ONLY : TM5M7_DATADIR
     USE TM5M7_OPTICS_DATA, ONLY : NASWBAND,ASWBAND,wavenum1=>ALWWN1, wavenum2=>ALWWN2
 #endif
     USE mo_read_netcdf77, ONLY: read_var_nf77_3d
@@ -1592,7 +1591,8 @@ CONTAINS
           cfile='lut_optical_properties.nc'
 #else
           IF (MYPROC==RPRC) THEN !alaakso MUUTA TAMA
-             cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7.nc'
+             !cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7.nc'
+             cfile=TRIM(TM5M7_DATADIR)//'lut_optical_properties_M7.nc'
 #endif
 
 
@@ -1651,11 +1651,11 @@ CONTAINS
              cfile='lut_optical_properties_lw.nc'
 #else
              IF (MYPROC==RPRC) THEN !alaakso MUUTA TAMA
-                cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7_lw.nc'
+                !cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7_lw.nc'
+                cfile=TRIM(TM5M7_DATADIR)//'lut_optical_properties_lw_M7.nc'
 #endif
                 CALL message('ham_rad_initialize', 'Reading lookup table from '//TRIM(ADJUSTL(cfile)), level=em_info)
                 INQUIRE (file=cfile,exist=lex)
-
                 IF (lex) THEN
                    CALL read_var_nf77_3d (cfile,        "nr",       "ni",     "dis",     &
                         "sigma_1_lw", lut3_sigma, ierr                 )
