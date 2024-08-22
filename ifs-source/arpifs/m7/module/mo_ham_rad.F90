@@ -1591,10 +1591,8 @@ CONTAINS
           cfile='lut_optical_properties.nc'
 #else
           IF (MYPROC==RPRC) THEN !alaakso MUUTA TAMA
-             !cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7.nc'
              cfile=TRIM(TM5M7_DATADIR)//'lut_optical_properties_M7.nc'
 #endif
-
 
              CALL message('ham_rad_initialize', 'Reading lookup table from '//TRIM(ADJUSTL(cfile)), level=em_info)
              INQUIRE (file=cfile,exist=lex)
@@ -1618,9 +1616,8 @@ CONTAINS
                      "pp180_2", lut2_pp180, ierr                 )
 
              ELSE
-
                 CALL message('ham_rad_initialize','file '//TRIM(ADJUSTL(cfile))//' not available', level=em_error)
-
+                CALL finish('ham_rad_initialize','file '//TRIM(ADJUSTL(cfile))//' missing!',1)
              END IF
 
           END IF
@@ -1651,7 +1648,6 @@ CONTAINS
              cfile='lut_optical_properties_lw.nc'
 #else
              IF (MYPROC==RPRC) THEN !alaakso MUUTA TAMA
-                !cfile='/ec/res4/hpcperm/nklw/oifs48r1-data/lut_m7/lut_optical_properties_M7_lw.nc'
                 cfile=TRIM(TM5M7_DATADIR)//'lut_optical_properties_lw_M7.nc'
 #endif
                 CALL message('ham_rad_initialize', 'Reading lookup table from '//TRIM(ADJUSTL(cfile)), level=em_info)
@@ -1662,9 +1658,8 @@ CONTAINS
                    CALL read_var_nf77_3d (cfile,        "nr",       "ni",     "dis",     &
                         "sigma_2_lw", lut4_sigma, ierr                 )
                 ELSE
-
                    CALL message('ham_rad_initialize','file '//TRIM(ADJUSTL(cfile))//' not available', level=em_error)
-
+                   CALL finish('ham_rad_initialize','file '//TRIM(ADJUSTL(cfile))//' missing!',1)
                 END IF
 
              END IF

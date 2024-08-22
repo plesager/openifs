@@ -40,6 +40,10 @@ MODULE mo_exception
   INTEGER :: number_of_warnings  = 0
   INTEGER :: number_of_errors    = 0
 
+#ifndef HAMMOZ
+#include "abor1.intfb.h"
+#endif
+
 CONTAINS
 
   SUBROUTINE debug_messages_on
@@ -150,7 +154,10 @@ CONTAINS
 #endif
     
 #ifndef HAMMOZ
-       STOP 'mo_exception: finish ..'
+    ! Ideally we should check if we are in OpenIFS. Now assume it is the case:
+    CALL ABOR1(" HAMM7 AEROSOL SCHEME " )
+
+    !   STOP 'mo_exception: finish ..'
 #endif
        
   END SUBROUTINE finish

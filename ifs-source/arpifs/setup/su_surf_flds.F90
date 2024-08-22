@@ -1324,21 +1324,11 @@ IF(LECMWF) THEN
  
   !TM5/M7 ancillary data
   IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN
-  YSD_VF%YSOILTYPE => YSD_VF%YVF(YSD_VFD%IPTR)
-  !VH 14 Feb. 2024: for time being de-activate request for field 210055. But this has to be re-activated rather sooner than latesr, likely.
-  !IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN
-  !  IREQIN=1
-  !ELSE
+    YSD_VF%YSOILTYPE => YSD_VF%YVF(YSD_VFD%IPTR)
     IREQIN=1
-  !END IF
-  CALL SETUP_SFLP2(YSD_VFD,YSD_VF%YSOILTYPE, &
-
-   ! RCHG -> Here I can't remember if the needed string length for CDNAME is 15 or 16. Be careful about last space.
-   & KGRIB=NGRBSOILTYPE, CDNAME='TM5M7 soil type ',KTRAJ=2,KREQIN=IREQIN)
+    CALL SETUP_SFLP2(YSD_VFD,YSD_VF%YSOILTYPE, &
+     & KGRIB=NGRBSOILTYPE, CDNAME='TM5M7 soil type ',KTRAJ=2,KREQIN=IREQIN)
   END IF
-
-    
-  
 
   IF (NACTAERO > 0) THEN ! ZKFIXME: revert to LAEROSFC once emission refactoring complete
     IF (LAERCHEM) THEN
@@ -1356,9 +1346,6 @@ IF(LECMWF) THEN
     CALL SETUP_SFLP2(YSD_VFD,YSD_VF%YSO2DD,&
      & KGRIB=NGRBAERSO2DD,CDNAME='SO2 dry dep vel.',KTRAJ=2,KREQIN=IREQIN)
   ENDIF
-
-
-
 
   IF (NACTAERO > 0) THEN
     ! GLOMAP somehow still uses its own DMS input and SO2 precursor even with LAERCHEM...

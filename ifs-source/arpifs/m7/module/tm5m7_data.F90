@@ -18,11 +18,10 @@ USE PARKIND1, ONLY : JPIM, JPRB
 IMPLICIT NONE
 
 SAVE
-  
-! Location of lookup table data. Default location is at the directory of the executable
-!CHARACTER(LEN=256) :: TM5M7_DATADIR='/perm/ms/nl/nk9/oifs43r3/data/cifs_input/tm5m7/optics/'
+
+! Location of lookup tables and refractive indices = directory of the executable
 CHARACTER(LEN=256) :: TM5M7_DATADIR='./'
-  
+
 TYPE MODAL_DATA
   REAL(KIND=JPRB), DIMENSION(:,:), POINTER :: d2   ! KLON, KLEV
   REAL(KIND=JPRB), DIMENSION(:)  , POINTER :: surf ! KLON

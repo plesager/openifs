@@ -116,9 +116,7 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_INIT',0,ZHOOK_HANDLE)
 
   ! identify filenames from input
   lookuptable = "lookup_table.nc"
-  !CL_FILE_NAME="/perm/ms/nl/nm6/TM5_INPUT/photolysis/lookup_table.nc"
   CL_FILE_NAME = TRIM(TM5M7_DATADIR)//lookuptable
-
 
   CALL LOAD_TM5M7_OPTICS_DATA_1D(CL_FILE_NAME, 'mr', n_rir,n1r)
   CALL LOAD_TM5M7_OPTICS_DATA_1D(CL_FILE_NAME, 'mi', n_rii,kval)
@@ -132,7 +130,6 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_INIT',0,ZHOOK_HANDLE)
   CALL LOAD_TM5M7_OPTICS_DATA_3D(CL_FILE_NAME, 'a_200', n_x,n_rir,n_rii,a_200)
   CALL LOAD_TM5M7_OPTICS_DATA_3D(CL_FILE_NAME, 'g_159', n_x,n_rir,n_rii,g_159)
   CALL LOAD_TM5M7_OPTICS_DATA_3D(CL_FILE_NAME, 'g_200', n_x,n_rir,n_rii,g_200)
-
 
   refractive_indices = "refractive_indices_hdfstyle.nc"
   CL_FILE_NAME = TRIM(TM5M7_DATADIR)//refractive_indices

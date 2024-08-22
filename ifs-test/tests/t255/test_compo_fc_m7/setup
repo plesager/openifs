@@ -117,8 +117,8 @@ cat >> fort.4 << EOF
  NGHGRAD=20,
  NAERMACC=0,
  LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
- NAEROOPT=1,         ! Default (2) not working as of 2024-07-11
- NCLOUDACT=0,        !
+ NAEROOPT=2,
+ NCLOUDACT=0,
 /
 &NAMFPC
  CFPFMT="MODEL",
