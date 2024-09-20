@@ -1772,7 +1772,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   END DO
 
   ! RCHG: It seems that here 1:14 refers to 14 species. PLS: AOD of 14 short wavelengths stored in YAEROUT(12)%MP of first 14 tracers (juggling!!) 
-  PGFL(KIDIA:KFDIA,1:14,YAEROUT(12)%MP)=PAOD(KIDIA:KFDIA,1:14)
+  PGFL(KIDIA:KFDIA,1:14,YAEROUT(27)%MP)=PAOD(KIDIA:KFDIA,1:14)
 
   DO JN=1,NAEROCOMP !ntrac!NACTAERO
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_mass_OIFS(JN),YAEROUT(2)%MP)=ZDDEPFLUX(KIDIA:KFDIA,ind_oifs_ham%IND_mass_HAM(JN))
