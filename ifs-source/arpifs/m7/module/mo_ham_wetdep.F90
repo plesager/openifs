@@ -132,8 +132,8 @@ MODULE mo_ham_wetdep
                         pmfuxt, prhop1, pdpg,                                         &
                         pm6rp,  pm6dry,                                               &
                         reffi, reffl,                                                 &
-                        pnact, pfracn,                                  &
-                        pice,                                                   &
+                        pnact, pfracn,                                                &
+                        pice,                                                         &
                         peffice, peffwat, pclc, prevap,                               &
                         pdepint, pdepintbc, pdepintbcr, pdepintbcs,                   &
                         pdepintic, pdepintic_nucw, pdepintic_nucm,                    &
@@ -142,7 +142,6 @@ MODULE mo_ham_wetdep
   ! master routine for ham scavenging calculations
 
   ! HK --> USE mo_ham_streams,   ONLY: rwet
-  !USE mo_ham_m7,        ONLY: rwet_m7
 #ifdef SALSA
   USE mo_ham_salsa,     ONLY: rwet_salsa
 #endif
@@ -180,7 +179,7 @@ MODULE mo_ham_wetdep
 
   REAL(dp), INTENT(in)   :: pm6rp(kbdim,klev,nclass), pm6dry(kbdim,klev,nclass) ! m7: rwet_m7
   REAL(dp), INTENT(in)   :: reffi(kbdim,klev,1), reffl(kbdim,klev,1)
-  REAL(dp), INTENT(in)   :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
+  REAL(dp), INTENT(in)   :: pnact(kbdim,klev)  !number of activated particles [m-3]
   REAL(dp), INTENT(in)   :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
 
   REAL(dp), INTENT(inout) :: pxtte(kbdim,klev,ntrac),  & ! tracer tendency
@@ -344,7 +343,7 @@ MODULE mo_ham_wetdep
                      prhop1, pxtp1c, pxtp1c_sav, paclc, peffwat, &
                      pm6rp,  pm6dry, &
                      reffi, reffl,   &
-                     pnact, pfracn,                                  &
+                     pnact, pfracn,  &
                      zdxtwat_nuc, zdxtwat_imp, zdxtwat, zxtwat)
 
      ENDIF !water scavenging on
@@ -357,7 +356,7 @@ MODULE mo_ham_wetdep
                      prhop1, pxtp1c, pxtp1c_sav, paclc, peffice, &
                      pm6rp,  pm6dry, &
                      reffi, reffl,   &
-                     pnact, pfracn,                                  &
+                     pnact, pfracn,  &
                      zdxtice_nuc, zdxtice_imp, zdxtice, zxtice)
 
      ENDIF !ice scavenging on
@@ -455,8 +454,10 @@ MODULE mo_ham_wetdep
      !--- Calculate fraction of below cloud scavenged tracer:
      ll1(1:kproma,:) = (paclc(1:kproma,:) < zmin)
 
-     ztmp1(1:kproma,:) = -ztmst*MAX(sfrain(1:kproma,:,itrac_phase,imod),0._dp)
-     ztmp2(1:kproma,:) = -ztmst*MAX(sfsnow(1:kproma,:,itrac_phase,imod),0._dp)
+     !ztmp1(1:kproma,:) = -ztmst*MAX(sfrain(1:kproma,:,itrac_phase,imod),0._dp)
+     !ztmp2(1:kproma,:) = -ztmst*MAX(sfsnow(1:kproma,:,itrac_phase,imod),0._dp)
+     ztmp1(1:kproma,:) = -ztmst*MIN(MAX((1._dp)*sfrain(1:kproma,:,itrac_phase,imod),0._dp),1._dp) !eehol: test
+     ztmp2(1:kproma,:) = -ztmst*MIN(MAX((1._dp)*sfsnow(1:kproma,:,itrac_phase,imod),0._dp),1._dp) !eehol: test
 !SFnote: in the above two expressions, the MAX function is here only to rule out the cases where sfrain and/or
 !        sfsnow is/are equal to UNDEF, ie in cases where scavenging by rain and/or snow is not relevant.
 !        Initializing sfrain and sfsnow to 0 at the beginning would defeat the concept of having an UNDEF value,
@@ -542,7 +543,7 @@ MODULE mo_ham_wetdep
                      prhop1, pxtp1c, pxtp1c_sav, paclc, peff,       & !in
                      pm6rp,  pm6dry,                                & !in
                      reffi, reffl,                                  & !in
-                     pnact, pfracn,                                  &
+                     pnact, pfracn,                                 & !in
                      pdxt_nuc, pdxt_imp, pdxt, pxt)                   !out
 
   ! In-cloud scavenging master routine
@@ -566,8 +567,8 @@ MODULE mo_ham_wetdep
     REAL(dp), INTENT(in)  :: pm6rp(kbdim,klev,nclass), pm6dry(kbdim,klev,nclass)           ! m7:
     REAL(dp), INTENT(in)  :: reffi(kbdim,klev,1), reffl(kbdim,klev,1)
 
-    REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
-    REAL(dp), INTENT(in)    :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
+    REAL(dp), INTENT(in)  :: pnact(kbdim,klev)  !number of activated particles [m-3]
+    REAL(dp), INTENT(in)  :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
 
     REAL(dp), INTENT(out) :: pdxt_nuc(kbdim,klev)      ! change in tracer mass assoc. with nucleation scav 
                                                        ! (for relevant phase)
@@ -619,7 +620,7 @@ MODULE mo_ham_wetdep
                             prhop1, pxtp1c, pxtp1c_sav,                & ! in
                             pm6rp,  pm6dry,                            & ! in
                             reffi, reffl,                              & ! in
-                            pnact, pfracn,                                  &
+                            pnact, pfracn,                             & ! in
                             pfrac, pfrac_nuc, pfrac_imp)                 ! out
 
 ! Utility routine to compute the in-cloud scavenging fractions
@@ -628,8 +629,6 @@ MODULE mo_ham_wetdep
                                   csr_conv
     USE mo_ham,             ONLY: nham_subm, HAM_BULK, HAM_M7, HAM_SALSA
     
-    !--> eehol
-
     !--> USE mo_ham_streams,     ONLY: frac, rwet
     USE mo_math_constants,  ONLY: pi
     !--> HK
@@ -637,10 +636,8 @@ MODULE mo_ham_wetdep
     USE mo_ham_salsa_cloud, ONLY: pfrac_salsa
     USE mo_ham_salsa,       ONLY: rwet_salsa
 #endif
-    !USE mo_ham_activ,       ONLY: pfrac_m7
     !<-- HK
     IMPLICIT NONE
-    !<-- eehol 
 
     INTEGER, INTENT(in)   :: kproma, kbdim, klev, krow, ktop, kt, kmod
     INTEGER, INTENT(in)   :: kwat_phase  ! kwat_phase=1 --> water; kwat_phase=2 --> ice 
@@ -660,8 +657,8 @@ MODULE mo_ham_wetdep
 
     REAL(dp), INTENT(in)  :: pm6rp(kbdim,klev,nclass), pm6dry(kbdim,klev,nclass)           ! m7:
     REAL(dp), INTENT(in)  :: reffi(kbdim,klev,1), reffl(kbdim,klev,1)
-    REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
-    REAL(dp), INTENT(in)    :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
+    REAL(dp), INTENT(in)  :: pnact(kbdim,klev)  !number of activated particles [m-3]
+    REAL(dp), INTENT(in)  :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
 
     REAL(dp), INTENT(out) :: pfrac(kbdim,klev),     &  ! total      scavenging fraction
                              pfrac_nuc(kbdim,klev), &  ! nucleation scavenging fraction
@@ -726,7 +723,7 @@ MODULE mo_ham_wetdep
                        CALL ic_scav_nuc(kproma, kbdim, klev, krow, kwat_phase, &
                                         ktrac_phase, kmod,                     &
                                         pm6rp,  pm6dry,                        & !in
-                                        pnact, pfracn,                                  &
+                                        pnact, pfracn,                         &
                                         prhop1, pxtp1c_sav)
                     ENDIF !sfnuc(1,1,kwat_phase,ktrac_phase,kmod) == UNDEF
          
@@ -807,9 +804,12 @@ MODULE mo_ham_wetdep
     pfrac(1:kproma,:) = pfrac_nuc(1:kproma,:) + pfrac_imp(1:kproma,:) 
     
     !--- Confine the fraction between 0% and 100% :
-    pfrac(1:kproma,:)     = MAX(0._dp, MIN(1._dp, pfrac(1:kproma,:)))
-    pfrac_nuc(1:kproma,:) = MAX(0._dp, MIN(1._dp, pfrac_nuc(1:kproma,:)))
-    pfrac_imp(1:kproma,:) = MAX(0._dp, MIN(1._dp, pfrac_imp(1:kproma,:)))
+    !pfrac(1:kproma,:)     = MAX(0._dp, MIN(1._dp, pfrac(1:kproma,:)))
+    !pfrac_nuc(1:kproma,:) = MAX(0._dp, MIN(1._dp, pfrac_nuc(1:kproma,:)))
+    !pfrac_imp(1:kproma,:) = MAX(0._dp, MIN(1._dp, pfrac_imp(1:kproma,:)))
+    pfrac(1:kproma,:)     = MAX(0._dp, MIN(1._dp, (1._dp)*pfrac(1:kproma,:))) !eehol: test
+    pfrac_nuc(1:kproma,:) = MAX(0._dp, MIN(1._dp, (1._dp)*pfrac_nuc(1:kproma,:))) !eehol: test
+    pfrac_imp(1:kproma,:) = MAX(0._dp, MIN(1._dp, (1._dp)*pfrac_imp(1:kproma,:))) !eehol: test
 
   END SUBROUTINE get_icscavfrac
 
@@ -845,8 +845,8 @@ MODULE mo_ham_wetdep
     REAL(dp), INTENT(in)  :: pxtp1c_sav(kbdim,klev,ntrac) ! in-cloud tracer concentration as untouched by wetdep 
     REAL(dp), INTENT(in)  :: prhop1(kbdim,klev)           ! air density (t-dt)
     REAL(dp), INTENT(in)  :: pm6rp(kbdim,klev,nclass), pm6dry(kbdim,klev,nclass)           ! m7:
-    REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
-    REAL(dp), INTENT(in)    :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
+    REAL(dp), INTENT(in)  :: pnact(kbdim,klev)  ! number of activated particles [m-3]
+    REAL(dp), INTENT(in)  :: pfracn(kbdim,klev,nclass) ! fraction of activated particles per mode
 
     ! Local variables
     REAL(dp) :: zxie(kbdim,klev),         & ! factor for inverse error function calculation
@@ -873,10 +873,8 @@ MODULE mo_ham_wetdep
     ENDIF
 
     IF (ncd_activ == 2) THEN
-      !zrad_p(:,:) = rdry_m7(:,:,kmod) ! ARG activation is based on dry radius
       zrad_p(:,:) = pm6dry(:,:,kmod) ! ARG activation is based on dry radius
     ELSE
-      !zrad_p(:,:) = rwet_m7(:,:,kmod) ! Lin & Leaitch activation is based on wet radius
       zrad_p(:,:) = pm6rp(:,:,kmod) ! Lin & Leaitch activation is based on wet radius
     END IF
 
@@ -892,16 +890,12 @@ MODULE mo_ham_wetdep
        SELECT CASE(kwat_phase)
           CASE(1) !liq water
       
-             !ll1(1:kproma,:) = (zxtp1c(1:kproma,:,idt_cdnc) > zeps_mass) .AND. &
-             !                  (pna_m7(1:kproma,:,kmod) > zeps)
              ll1(1:kproma,:) = (zxtp1c(1:kproma,:,idt_cdnc) > zeps_mass) .AND. &
-                               (pnact(1:kproma,:,kmod) > zeps)
+                               (pnact(1:kproma,:) > zeps)
 
              !--> HK: modified to use variables instead of streams
-             !ztmp1(1:kproma,:) = zxtp1c(1:kproma,:,idt_cdnc) * prhop1(1:kproma,:)                & 
-             !                  * pfrac_m7(1:kproma,:,kmod) / MAX(pna_m7(1:kproma,:,kmod),zeps)
              ztmp1(1:kproma,:) = zxtp1c(1:kproma,:,idt_cdnc) * prhop1(1:kproma,:)                & 
-                               * pfracn(1:kproma,:,kmod) / MAX(pnact(1:kproma,:,kmod),zeps)
+                               * pfracn(1:kproma,:,kmod) / MAX(pnact(1:kproma,:),zeps)
              !<-- HK
              
           CASE(2) !ice
@@ -960,7 +954,7 @@ MODULE mo_ham_wetdep
                                     scavdropm, scavdropn, &
                                     scaviceplate
  
-    USE mo_activ,                ONLY: idt_icnc!, reffl, reffi
+    USE mo_activ,                ONLY: idt_icnc
     USE mo_ham_tools,            ONLY: scavcoef_bilinterp
 
     INTEGER, INTENT(in)     :: kproma, kbdim, klev, krow, ktop
@@ -1445,32 +1439,6 @@ MODULE mo_ham_wetdep
 
     INTEGER, INTENT(in) :: kproma, kbdim, klev
 
-    !INTEGER, POINTER  :: indexy1(kbdim,klev,2,nclass) => NULL()
-    !INTEGER, POINTER  :: indexy2(kbdim,klev,2,nclass) => NULL()   ! indices necessary for lookup table searches
-    !                                                 ! shape: (kbdim,klev,numb/mass,mode)
-
-    !REAL(dp), POINTER :: mr(kbdim,klev,2,nclass) => NULL()       ! median radius (wet)
-    !                                                 ! shape: (kbdim,klev, numb/mass, mode)
-    !REAL(dp), POINTER :: rcritrad(kbdim,klev,2,nclass) => NULL() ! critical radius [m] (ie min bound) for scav of mode
-    !                                                 ! shape: (kbdim,klev, liq/ice, mode)
-    !REAL(dp), POINTER :: sfnuc(kbdim,klev,2,2,nclass) => NULL()  ! in-cloud, nucleation scavenging fraction
-    !                                                 ! shape: (kbdim,klev, liq/ice, numb/mass, mode)
-    !REAL(dp), POINTER :: sfimp(kbdim,klev,2,2,nclass) => NULL()  ! in-cloud, impaction scavenging fraction
-    !                                                 ! shape:  (kbdim,klev, liq/ice, numb/mass, mode)
-    !REAL(dp), POINTER :: sfrain(kbdim,klev,2,nclass)  => NULL()  ! below-cloud, scavenging fraction by rain 
-    !                                                 ! shape: (kbdim,klev,numb/mass, mode)
-    !REAL(dp), POINTER :: sfsnow(kbdim,klev,2,nclass)  => NULL()  ! below-cloud, scavenging fraction by snow 
-    !                                             ! (kbdim,klev,numb/mass, mode)
-    !indexy1(1:kproma,:,:)  = UNDEF 
-    !indexy2(1:kproma,:,:)  = UNDEF 
-    !mr(1:kproma,:,:)       = UNDEF 
-    !rcritrad(1:kproma,:,:) = UNDEF
- 
-    !sfnuc(1:kproma,:,:,:)  = UNDEF 
-    !sfimp(1:kproma,:,:,:)  = UNDEF 
-
-    !sfrain(1:kproma,:,:)   = UNDEF 
-    !sfrain(1:kproma,:,:)   = UNDEF 
     CALL init_var(kproma, kbdim, klev, indexy1)
     CALL init_var(kproma, kbdim, klev, indexy2)
     CALL init_var(kproma, kbdim, klev, mr)
@@ -1490,7 +1458,6 @@ MODULE mo_ham_wetdep
 
     INTEGER, INTENT(in)     :: kproma, kbdim, klev
     REAL(dp), POINTER :: pvar(:,:,:,:)
-    !REAL(dp), allocatable :: pvar(:,:,:,:)
 
     IF (.NOT. ASSOCIATED(pvar)) ALLOCATE(pvar(kbdim,klev,2,nclass))
     pvar(1:kproma,:,:,:) = UNDEF 
@@ -1505,7 +1472,6 @@ MODULE mo_ham_wetdep
 
     INTEGER, INTENT(in)     :: kproma, kbdim, klev
     REAL(dp), POINTER :: pvar(:,:,:,:,:)
-    !REAL(dp), allocatable :: pvar(:,:,:,:,:)
 
     IF (.NOT. ASSOCIATED(pvar)) ALLOCATE(pvar(kbdim,klev,2,2,nclass))
     pvar(1:kproma,:,:,:,:) = UNDEF 

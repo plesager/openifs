@@ -12,7 +12,7 @@
  &    PLP, PIP, PAP,  PPTROPO, PALB, PWND, PLSM, PCSZA, PGELAT,&
  &    PGELAM, PGEMU,  PKOZO, KLEVTROP, PDV, PCEN , PTENC1, PBUDR, PBUDJ, PBUDX, POUT,&
  &    PAEROP,PWETDIAM, PWETVOL,PND,PAERAOT, PAERAAOT, PAERASY,PSOGTOSOA, & 
- &    PCHEM2GHG) 
+ &    PCHEM2GHG, PSO4_LPROD)
  
 
 !**   DESCRIPTION 
@@ -133,6 +133,7 @@ USE TM5_CHEM_MODULE, ONLY : NREAC, IO3, ICH4, IHNO3, &
 USE TM5_PHOTOLYSIS , ONLY : NPHOTO,NBANDS_TROP,NGRID, JNO2
 USE YOMCST   , ONLY : RD, RMD, RG , RPI, RMCO2
 USE YOMRIP0  , ONLY : NINDAT 
+USE TM5M7_DATA, ONLY: IACS_N, ICOS_N, ISO4COS, ISO4ACS, ISO4NUS, ISO4AIS
 
 ! TM5 chemistry ...
 USE TM5_KPP_Parameters, ONLY : NREACT, NVAR
@@ -189,6 +190,7 @@ REAL(KIND=JPRB)   ,INTENT(IN) :: PAERAAOT(KLON,KLEV,6)
 REAL(KIND=JPRB)   ,INTENT(IN) :: PAERASY(KLON,KLEV,6)
 REAL(KIND=JPRB)   ,INTENT(OUT):: PSOGTOSOA(KLON,KLEV,2)
 REAL(KIND=JPRB)   ,INTENT(OUT):: PCHEM2GHG(KLON,KLEV,NCHEM2GHG)
+REAL(KIND=JPRB)   ,INTENT(OUT):: PSO4_LPROD(KLON)
 
 !-----------------------------------------------------------------------
 
@@ -272,10 +274,14 @@ INTEGER(KIND=JPIM)                        :: IERR, IFLAG
 INTEGER(KIND=JPIM), DIMENSION(3)          :: JAER_TRACER
 INTEGER(KIND=JPIM), DIMENSION(2)          :: JRATE_TRACER
 
+!HAMM7-related
+REAL(KIND=JPRB), DIMENSION(KLON)          :: ZFACTOR_NUMCM3
+REAL(KIND=JPRB), DIMENSION(KLON,KAERO)    :: ZAEROI,ZAEROP
 
 REAL(KIND=JPRB)                           :: ZTAU_NUDGE
 REAL(KIND=JPRB)                           :: ZRGI, ZDELP, ZT0NO, ZT0NO2, ZCONC_HO2 
 LOGICAL                                   :: LLCOD_TM5
+
 ! Switch for selection of aerosol parameterization for photolysis
 INTEGER(KIND=JPIM), PARAMETER             :: ITAU_MACC=0
 ! Switch for selection of HNO3 BC parameterization. 1=updated
@@ -316,6 +322,7 @@ INTEGER(KIND=JPIM), DIMENSION(INSOA)      :: JSOA_TRACER
 #include "tm5_stratbc_ch4.intfb.h"
 #include "tm5_sundis.intfb.h"
 #include "tm5_wetchem.intfb.h"
+#include "tm5_wetchem_m7.intfb.h"
 #include "cod_op_tm5.intfb.h"
 #include "o3chem.intfb.h"
 ! KPP code - TROP - Code already included in chem_tm5bascoe.F90...
@@ -495,7 +502,7 @@ ENDIF
 ! ITAU_MACC = 2_JPIM  ! Use simple (but wrong) climatology for aerosol optical depth if no prognostic MACC aerosol is used 
 
 IF ( LCHEM_AEROI ) THEN 
-  IF (TRIM(AERO_SCHEME)=="aer" .OR. TRIM(AERO_SCHEME)=="hamm7")THEN
+  IF (TRIM(AERO_SCHEME)=="aer" .OR. TRIM(AERO_SCHEME)=="hamm7")THEN !FIXME: no M7 and LCHEM_AEROI?
     ! * from MACC fields
     CALL TM5_MACC_AEROSOL(KIDIA,KFDIA,KLON,KLEV, KAERO, &
       &   PRS1   , PAEROP  , ZRHCL   ,   &
@@ -615,9 +622,20 @@ DO JK=ILEVMIN,KLEV
      ENDDO
 
      IF (LAERCHEM) THEN
+
+       SELECT CASE (TRIM(AERO_SCHEME))
+
+       CASE ("aer")
 !*       use aerosol scheme SO4 for WETCHEM and EQSAM
-      ISSO4 = SUM(NTYPAER(1:4)) + 1
-      ZCVM0(JL,ISO4) = MAX(PAEROP(JL,JK,ISSO4) / YCHEM(ISO4)%RMOLMASS *ZAIRDM(JL), 0._JPRB)        
+         ISSO4 = SUM(NTYPAER(1:4)) + 1
+         ZCVM0(JL,ISO4) = MAX(PAEROP(JL,JK,ISSO4) / YCHEM(ISO4)%RMOLMASS *ZAIRDM(JL), 0._JPRB)
+
+       CASE ("hamm7")
+!*       identify corresponding tracer in M7 aero scheme
+         ZCVM0(JL,ISO4) = MAX((PAEROP(JL,JK,ISO4NUS)+ PAEROP(JL,JK,ISO4AIS) +PAEROP(JL,JK,ISO4ACS) +PAEROP(JL,JK,ISO4COS)) / YCHEM(ISO4)%RMOLMASS *ZAIRDM(JL) ,0._JPRB)
+         
+       END SELECT
+       
      ENDIF
 
      IF (LAERNITRATE) THEN
@@ -675,7 +693,7 @@ IF ( KCHEM_SOLVE == 1_JPIM) THEN
    ZDT_EBI=PTSTEP/ITEREBI
    DO IB=1_JPIM,ITEREBI  
 
-
+     !PLS-2024-09-09 THE EBI IS INCOMPLETE (missing M7 case and more)
 !3.1  wet sulphur/ammonia chemistry
       CALL TM5_WETCHEM(YGFL,KIDIA,KFDIA,KLON,ZDT_EBI,PTP(:,JK),PAP(:,JK),PRSF1(:,JK),PLP(:,JK),ZCVM1,ZHPLUS,ZCVM)
 
@@ -717,7 +735,37 @@ ELSEIF( KCHEM_SOLVE == 2_JPIM) THEN
    ITEREBI = 1_JPIM
    ! select KPP...
 !3.1  wet sulphur/ammonia chemistry
-      CALL TM5_WETCHEM(YGFL, KIDIA, KFDIA, KLON,PTSTEP,PTP(:,JK),PAP(:,JK),PRSF1(:,JK),PLP(:,JK),ZCVM1,ZHPLUS,ZCVM)
+
+   IF (LAERCHEM .AND. TRIM(AERO_SCHEME) == "hamm7") THEN
+     
+     ! conversion factor for aerosol number [#/kg] to [# /cm3]..
+     ZFACTOR_NUMCM3(KIDIA:KFDIA) = 1E-6_JPRB*ZCVM(KIDIA:KFDIA,IAIR)
+
+     DO JT=1,KAERO
+       !* For now only initialize fields that are required in wetchem
+       IF (ANY( (/ ISO4COS,ISO4ACS,ISO4NUS,ISO4AIS /) == JT) ) THEN
+         ZAEROI(KIDIA:KFDIA,JT) = MAX(PAEROP(KIDIA:KFDIA,JK,JT) / 96. *ZAIRDM(KIDIA:KFDIA) ,0._JPRB) 
+         !*  initialize final (ZAEROP) concentrations
+         ZAEROP(KIDIA:KFDIA,JT) = ZAEROI(KIDIA:KFDIA,JT)
+       ELSEIF (ANY( (/IACS_N,ICOS_N/) == JT ) ) THEN
+         ZAEROI(KIDIA:KFDIA,JT) = MAX(PAEROP(KIDIA:KFDIA,JK,JT) * ZFACTOR_NUMCM3(KIDIA:KFDIA) , 0._JPRB)
+         !*  initialize final (ZAEROP) concentrations
+         ZAEROP(KIDIA:KFDIA,JT) = ZAEROI(KIDIA:KFDIA,JT)
+         ! ELSE
+         !  ZAEROI(KIDIA:KFDIA,JT) = 0._JPRB
+       ENDIF
+     ENDDO
+
+     CALL TM5_WETCHEM_M7(KIDIA, KFDIA, KLON, KAERO, PTSTEP, PTP(1:KLON,JK), &
+          &  PAP(1:KLON,JK),PRSF1(1:KLON,JK),PLP(1:KLON,JK),ZCVM1,ZHPLUS,ZCVM, &
+          &  ZAEROP, PSO4_LPROD)
+
+     PSO4_LPROD(KIDIA:KFDIA) = PSO4_LPROD(KIDIA:KFDIA)*96._JPRB /(ZAIRDM(KIDIA:KFDIA) * PTSTEP)
+     
+   ELSE
+     ! All cases except M7 scheme
+     CALL TM5_WETCHEM(YGFL, KIDIA, KFDIA, KLON,PTSTEP,PTP(:,JK),PAP(:,JK),PRSF1(:,JK),PLP(:,JK),ZCVM1,ZHPLUS,ZCVM)
+   ENDIF
 
 !3.2  Call selected kpp solver 
 DO JL=KIDIA,KFDIA

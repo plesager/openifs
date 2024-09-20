@@ -154,8 +154,8 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   REAL(dp), OPTIONAL :: ppbl    (kbdim)            ! Planetary boundary layer top level
 
   REAL(dp), OPTIONAL :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [cm]
-                        pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [cm]
-                        prhop(kbdim,klev,nclass),     & ! mean mode particle density [g cm-3]
+                        pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [cm] -> FMI suggests this unit should be [m]
+                        prhop(kbdim,klev,nclass),     & ! mean mode particle density [g cm-3] -> FMI suggests this unit should be [kg m-3]
                         pww(kbdim,klev,nclass)         ! aerosol water content for each mode [kg(water) m-3(air)]
 
 

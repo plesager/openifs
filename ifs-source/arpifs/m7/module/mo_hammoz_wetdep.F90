@@ -927,7 +927,7 @@ MODULE mo_hammoz_wetdep
                               pxtte, pxtp10, pxtp1c,                   &
                               pfrain, pfsnow, pfevapr, pfsubls,        &
                               pmfu, pmfuxt,                            &
-                              paclc, pclc, prhou, pxtbound)
+                              paclc, pclc, prhou, pxtbound, pxtpscavic, pxtpscavbc)
 
   USE mo_tracdef,       ONLY: ln, ntrac, trlist, AEROSOLMASS, AEROSOLNUMBER, GAS
   USE mo_species,       ONLY: speclist
@@ -956,7 +956,8 @@ MODULE mo_hammoz_wetdep
              ! mean mode actual radius for each mode (wet for soluble and dry for insoluble modes) [cm]
   REAL(dp), INTENT(in)    :: pm6dry(kbdim,klev,nclass)                                               ! in cloudy part [kg/kg]
 
-  REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
+!  REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
+  REAL(dp), INTENT(in)    :: pnact(kbdim,klev)  !number of activated particles per mode [m-3]
   REAL(dp), INTENT(in)    :: pfracn(kbdim,klev,nclass) !fraction of activated particles per mode
 
   REAL(dp), INTENT(in)    :: reffi(kbdim,klev,1), reffl(kbdim,klev,1)
@@ -976,7 +977,8 @@ MODULE mo_hammoz_wetdep
   REAL(dp), INTENT(inout) :: pxtp10   (kbdim,klev,ntrac) ! ambient  tracer mass mixing ratio (t+dt)
   REAL(dp), INTENT(inout) :: pmfuxt   (kbdim,klev,ntrac) ! updraft mass flux
   REAL(dp), INTENT(inout) :: pxtbound (kbdim,ntrac)      ! conv massfix boundary condition
-
+  REAL(dp), INTENT(inout) :: pxtpscavic (kbdim,ntrac)      ! diagnostic ic scavenged mr
+  REAL(dp), INTENT(inout) :: pxtpscavbc (kbdim,ntrac)      ! diagnostic bc scavenged mr
   !--- local variables
 
   INTEGER  :: jt, ispec, ierr,          &
@@ -1141,7 +1143,9 @@ MODULE mo_hammoz_wetdep
      ENDIF !end aerosol or gas scavenging
 
      !--- update the boundary condition (instantaneous wet deposition) for xt_conv_massfix
-     pxtbound(1:kproma,jt) = zdepint(1:kproma)
+     pxtbound(1:kproma,jt)   = zdepint(1:kproma)
+     pxtpscavic(1:kproma,jt) = zdepintic(1:kproma)
+     pxtpscavbc(1:kproma,jt) = zdepintbc(1:kproma)
 
 #ifdef HAMMOZ
      !--- diagnostics

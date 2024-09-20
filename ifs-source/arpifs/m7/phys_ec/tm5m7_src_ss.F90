@@ -337,7 +337,7 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
        !but increases more strongly at higher temperatures.
        !For CMIP6 a reference temperature of 15 degC is used.
        ! PSST in Kelvin
-       tt=min(30.,max(-1.0,PSST(JL)-273.15))
+       tt=min(30.,max(-1.0,PSST(JL)-273.15_JPRB))
        !For a reference temperature of 20 degC, use:
        !t_scale = 0.03159982*tt + 0.36800362
        !For a reference temperature to 15 degC, use:

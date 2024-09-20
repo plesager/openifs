@@ -191,7 +191,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
   CASE ("glomap")
     CALL ABOR1("OIFS - glomap should never be called from OIFS, EXIT")
-  CASE ("tm5m7", "hamm7")
+  CASE ("hamm7")
     ! Optical properties calculated only for radiation timesteps.
     ! Using previous optical properties if not calculated
     ! introduce simple routine to ensure values are non-zero:
@@ -231,6 +231,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
       &  STATE%A     ,                                                          &
       &  STATE%CLD(:,:,NCLDQI), STATE%CLD(:,:,NCLDQL), STATE%CLD(:,:,NCLDQR),   &
       &  STATE%CLD(:,:,NCLDQS), PDIAG%PCOVPTOT,        PDIAG%ZLU  ,             &
+      &  PDIAG%PMFU,                                                            &
       &  ZO3,   STATE%Q,   STATE%T,   ZTH    , GEMSL%ZTENC     , GEMSL%ZCFLX  , &
       &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERWS , GEMSL%ZAERGUST  , GEMSL%ZAERUST, GEMSL%ZAERMAP, &
       &  GEMSL%ZCLAERS, GEMSL%ZPRAERS, PCHEM2AER,                               &

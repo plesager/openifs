@@ -4,7 +4,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PRS1,      PRSF1,     PAEROP,    PCAERO,      PCEN,     PAPHIF,            &
  & PFPLCL,    PFPLCN,    PFPLSL,    PFPLSN,      PGELAT,   PGELAM,            &
  & PAP,       PIP,       PLP,       PRP,         PSP,      PCOVPTOT,          &
- & PLU,       PO3P,      PQP,       PTP,         PTHP,     PTENC,    PCFLX,   &
+ & PLU,       PMFU,      PO3P,      PQP,         PTP,      PTHP,     PTENC,    PCFLX,   &
  & PAERDDP,   PAERSDM,   PAERSRC,   PAERWS,      PAERGUST, PAERUST,  PAERMAP, &
  & PCLAERS,   PPRAERS,   PCHEM2AER,                                           &
  & PFRTI,     PLSM,      PSNS,      PWND,        PWS1,     PAERFLX,  PAERLIF, &
@@ -171,23 +171,21 @@ USE YOMLUN,       ONLY: NULOUT
 
 ! [RCHG -> var non used ]  USE YOMCST,       ONLY: RMSO2, RMSO4, RMD, RNAVO
 ! [RCHG -> var non used ]  USE YOESRTCOP,    ONLY: RSASWA, RSASWB, RSFUA0, RSFUA1
-! [RCHG -> var non used ]  USE YOMCOMPO , ONLY :  YRCOMPO  
 
-! implementation of HAM-M7
+! HAM-M7
 USE MO_HAM,                  ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
 USE OIFS_TO_HAM,             ONLY: ind_oifs_ham
-USE MO_HAM_SUBM,             ONLY: HAM_SUBM_INTERFACE !eehol: replaced HAM-M7 call with submodel interface
-USE MO_ACTIV,                ONLY: activ_updraft,nw, idt_cdnc, idt_icnc !eehol: HAM-M7 activation updraft calculation, effective radii
-USE MO_HAM_ACTIV,            ONLY: ham_activ_abdulrazzak_ghan, ham_activ_koehler_ab !eehol: HAM-M7 activation
-USE MO_PARAM_SWITCHES,       ONLY: ncd_activ !eehol: for activation
-USE MO_TRACDEF,              ONLY: ntrac, trlist
-                            !eehol: number of tracer for mass/number mixing ratio conversion, trlist for wet deposition flags
-USE MO_TRACER_PROCESSES,     ONLY: xt_borrow !eehol: conserving the negative tracer values from tendency
-USE MO_SUBMODEL,             ONLY: lwetdep,lsedimentation !eehol: logical for wetdeposition, sedimentation
-USE MO_TIME_CONTROL,         ONLY: time_step_len ! time step length for tendency
+USE MO_HAM_SUBM,             ONLY: HAM_SUBM_INTERFACE                   ! replaced HAM-M7 call with submodel interface
+USE MO_ACTIV,                ONLY: activ_updraft,nw, idt_cdnc, idt_icnc ! HAM-M7 activation updraft calculation, effective radii
+USE MO_HAM_ACTIV,            ONLY: ham_activ_abdulrazzak_ghan, ham_activ_koehler_ab ! HAM-M7 activation
+USE MO_PARAM_SWITCHES,       ONLY: ncd_activ        ! for activation
+USE MO_TRACDEF,              ONLY: ntrac, trlist    ! number of tracer for mass/number mixing ratio conversion, trlist for wet deposition flags
+USE MO_TRACER_PROCESSES,     ONLY: xt_borrow, xt_conv_massfix ! conserving the negative tracer values from tendency, and convective case
+USE MO_SUBMODEL,             ONLY: lwetdep,lsedimentation     ! logical for wetdeposition, sedimentation
+USE MO_TIME_CONTROL,         ONLY: time_step_len    ! time step length for tendency
 USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface call
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
-USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface ! sedimentation interface call
+USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
 
@@ -240,7 +238,7 @@ REAL(KIND=JPRB),INTENT(IN)    :: PVP(KLON,KLEV) ! added v component of wind
 REAL(KIND=JPRB),INTENT(IN)    :: PCVL(KLON) ! added low vegetation cover
 REAL(KIND=JPRB),INTENT(IN)    :: PCVH(KLON) ! added high vegetation cover
 REAL(KIND=JPRB),INTENT(IN)    :: PGEMU(KLON) ! sine of latitude
-
+REAL(KIND=JPRB),INTENT(IN)    :: PMFU(KLON,KLEV)  ! Conv. mass flux up
 REAL(KIND=JPRB),INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAERDDP(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
@@ -358,10 +356,7 @@ REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14
 ! [RCHG -> non used ] REAL(KIND=JPRB) :: ZVISCON, ZVISRAY
 ! [RCHG -> non used ] REAL(KIND=JPRB) :: pmrateps(KLON,KLEV),pmrater(KLON,KLEV),pfevapr(KLON,KLEV)
 ! [RCHG -> non used ] REAL(KIND=JPRB) :: pfsubls(KLON,KLEV),pmsnowacl(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZDPG(KLON,KLEV),zxtp1c(KLON,KLEV,KTRAC),zxtp10(KLON,KLEV,KTRAC)
 ! [RCHG -> non used ]    INTEGER(KIND=JPIM) ::KTOP
-! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZRHOP1(KLON,KLEV)!,zdummy,zdum2d(KLON,KLEV),zdum3d(KLON,KLEV,nmod)
-! [RCHG -> non used ]     REAL(KIND=JPRB) :: zlfrac_so2(KLON,KLEV),ZFLXR,ZFLXS,ZFLXRB,ZFLXSB
 ! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZAEROUT1(KLON,KLEV),ZAEROUT2(KLON,KLEV),ZAEROUT3(KLON,KLEV),ZAEROUT4(KLON,KLEV),ZAEROUT5(KLON,KLEV)
 
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
@@ -389,19 +384,24 @@ REAL(KIND=JPRB) :: ZB(KLON,KLEV,nclass) !hygroscopicity parameter B of the Koehl
 REAL(KIND=JPRB) :: ZSC(KLON,KLEV,nclass) !critical supersaturation [% 0-1]
 REAL(KIND=JPRB) :: ZNACT(KLON,KLEV,nclass) !number of activated particles per mode [m-3]
 REAL(KIND=JPRB) :: ZFRACN(KLON,KLEV,nclass) !fraction of activated particles per mode
-REAL(KIND=JPRB) :: ZCDNCACT(KLON,KLEV)     !number of activated particles
+REAL(KIND=JPRB) :: ZCDNCACT(KLON,KLEV)     !number of activated particles [m-3]
 REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)! liquid effective radius
 ! variables for HAM-M7 wet deposition
-REAL(KIND=JPRB) :: ZXTP1(KLON,KLEV,ntrac) !updated tracer mass/number mixing ratio
+REAL(KIND=JPRB) :: ZXTP1(KLON,KLEV,ntrac)  !updated tracer mass/number mixing ratio
 REAL(KIND=JPRB) :: ZXTP1C(KLON,KLEV,ntrac) !in-cloud tracer mass/number mixing ratio
 REAL(KIND=JPRB) :: ZXTP10(KLON,KLEV,ntrac) !ambient tracer mass/number mixing ratio
 REAL(KIND=JPRB) :: ZDUMMY(KLON,ntrac) !placeholder for pxtbound which is only necessary in the conv. case (conv. massfix boundary condition)
 REAL(KIND=JPRB) :: ZDUM3D(KLON,KLEV,ntrac) !updraft mass flux (for conv case only)
+
+REAL(KIND=JPRB) :: ZWDEP_SCAV_IC(KLON,ntrac) !in-cloud scavenged mr
+REAL(KIND=JPRB) :: ZWDEP_SCAV_BC(KLON,ntrac) !below cloud scavenged mr
+REAL(KIND=JPRB) :: ZFUXT3D(KLON,KLEV,ntrac) !updraft mass flux (for conv case only)
+
 REAL(KIND=JPRB) :: ZDUM2D(KLON,KLEV) !convective flux needed only for conv. case (see cuflx)
 REAL(KIND=JPRB) :: ZLFRAC_SO2(KLON,KLEV) !liquid tracer fraction (SO2) -ham specific-
 REAL(KIND=JPRB) :: ZDPG(KLON,KLEV) !dp/g
 REAL(KIND=JPRB) :: ZQP(KLON,KLEV) !full level humidity with treshold
-LOGICAL :: LSTRAT = .TRUE. !logical switch for stratiform or convective case (TRUE for strat., FALSE for conv.)
+LOGICAL :: LSTRAT  !logical switch for stratiform or convective case (TRUE for strat., FALSE for conv.)
 REAL(KIND=JPRB) :: ZFEVAPR(KLON,KLEV) !evaporation of rain [kg/m2/s]
 REAL(KIND=JPRB) :: ZFSUBLS(KLON,KLEV) !sublimation of snow [kg/m2/s]
 REAL(KIND=JPRB) :: ZMRATEPR(KLON,KLEV) !rain formation rate in cloudy part
@@ -428,35 +428,38 @@ REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON)
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
- REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass))
-!REAL(KIND=JPRB) :: ZOUT4(KLON,KLEV),ZOUT5(KLON,klev),ZOUT6(KLON,klev),ZOUT7(KLON,klev),ZOUT8(KLON,klev),ZOUT9(KLON,klev)
-!REAL(KIND=JPRB) :: ZZOUT1(KLON,KLEV),ZZOUT2(KLON,klev),ZZOUT3(KLON,KLEV),ZZOUT4(KLON,KLEV),ZZOUT5(KLON,klev),ZZOUT6(KLON,KLEV)
-!REAL(KIND=JPRB) :: ZZOUT7(KLON,KLEV),ZZOUT8(KLON,klev),ZZOUT9(KLON,KLEV),ZZOUT10(KLON,KLEV),ZZOUT11(KLON,klev),ZZOUT12(KLON,KLEV)
+REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass))
  
-REAL(KIND=JPRB) :: sedout(KLON,KLEV,ktrac)   ! changed ntrack to ktrac (RCHG)
-REAL(KIND=JPRB) :: ddepout(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: Wdepout(KLON,KLEV,ktrac)
-REAL(KIND=JPRB) :: sedout_2D(KLON,ktrac)
-REAL(KIND=JPRB) :: ddepout_2D(KLON,KTRAC)
-REAL(KIND=JPRB) :: Wdepout_2D(KLON,ktrac)
+REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
+REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB) :: SEDOUT_2D(KLON,KTRAC)
+
+REAL(KIND=JPRB) :: DDEPOUT_2D(KLON,KTRAC)
+REAL(KIND=JPRB) :: WDEPOUT_2D(KLON,KTRAC)
+
+REAL(KIND=JPRB) :: WDEPOUT_IC_2D(KLON,KTRAC)
+REAL(KIND=JPRB) :: WDEPOUT_BC_2D(KLON,KTRAC)
+
 REAL(KIND=JPRB) :: M7TEND_OUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: M7TEND_IN(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: zaveragep(KLON,klev,(nclass+naerocomp))
-REAL(KIND=JPRB) :: zm7kappa(KLON,klev,(nclass+naerocomp))
-REAL(KIND=JPRB) :: zh2so4cs(KLON,klev,(nclass+naerocomp))
-REAL(KIND=JPRB) :: zm7prodcond(KLON,klev,(nclass+naerocomp))
+REAL(KIND=JPRB) :: ZAVERAGEP(KLON,KLEV,(NCLASS+NAEROCOMP))
+REAL(KIND=JPRB) :: ZM7KAPPA(KLON,KLEV,(NCLASS+NAEROCOMP))
+REAL(KIND=JPRB) :: ZH2SO4CS(KLON,KLEV,(NCLASS+NAEROCOMP))
+REAL(KIND=JPRB) :: ZM7PRODCOND(KLON,KLEV,(NCLASS+NAEROCOMP))
 REAL(KIND=JPRB) :: ZVDA(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
-REAL(KIND=JPRB) :: ZSEDIFLUX(KLON,KLEV,ntrac) 
-REAL(KIND=JPRB) :: ZDDEPFLUX(KLON,ntrac)
+REAL(KIND=JPRB) :: ZSEDIFLUX(KLON,KLEV,NTRAC)
+REAL(KIND=JPRB) :: ZSEDIFLUXSURF(KLON,NTRAC)  
+REAL(KIND=JPRB) :: ZDDEPFLUX(KLON,NTRAC)
 REAL(KIND=JPRB) :: ZDDEPFLUX_SO2(KLON)
-REAL(KIND=JPRB) :: ZVDEP(KLON,ntrac) !ddep velocity for diagnostics from ham
-INTEGER(kind=JPIM), parameter::ZKROW=1 ! KROW only used in ECHAM but needed inside HAM-codes so set as 1.
-INTEGER(kind=JPIM) :: IBLK
-REAL(KIND=JPRB)    :: reffi(KLON,KLEV,ZKROW), reffl(KLON,KLEV,ZKROW)
-INTEGER(kind=JPIM) :: LWBANDS !laakso: number of LW bands
+REAL(KIND=JPRB) :: ZVDEP(KLON,NTRAC) !ddep velocity for diagnostics from ham
+INTEGER(KIND=JPIM), parameter::ZKROW=1 ! KROW only used in ECHAM but needed inside HAM-codes so set as 1.
+INTEGER(KIND=JPIM) :: IBLK
+REAL(KIND=JPRB)    :: REFFI(KLON,KLEV,ZKROW), REFFL(KLON,KLEV,ZKROW)
+INTEGER(KIND=JPIM) :: LWBANDS !laakso: number of LW bands
 INTEGER(KIND=JPIM) :: INWAVL, ITWAVL(20)
 REAL(KIND=JPRB)    :: PRS1D(KLON,KLEV)
-INTEGER(kind=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
+INTEGER(KIND=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
 
 ! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTENCI(KLON,KLEV,KTRAC) !for OIFS tendencies
 ! [RCHG -> non used ]  INTEGER(kind=JPIM)::ZISO4 ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
@@ -561,32 +564,6 @@ ASSOCIATE( &
 !*         0.     PROGNOSTIC AEROSOLS - FINAL COMPUTATIONS
 !                 ----------------------------------------
 
-!write(*,*) "PGEOH", minval(PGEOH)
-!write(*,*) "PRS1",  minval(PRS1)   , minval(PRSF1)  , minval(PAEROP) 
-!write(*,*) "PCAERO ",  minval(PCAERO) , minval(PCEN)  , minval(PAPHIF)
-!write(*,*) "PFPLSN ",  minval(PFPLSN) , minval(PGELAT), minval(PGELAM)
-!write(*,*) "PFPLCL ",  minval(PFPLCL) , minval(PFPLCN) , minval(PFPLSL)
-!write(*,*) "PRP  ",  minval(PRP)  ,    minval(PSP)  
-!write(*,*) "PAP",  minval(PAP)    , minval(PIP)    , minval(PLP)
-!write(*,*) "1",  minval(PCOVPTOT), minval(PLU)    , minval(PO3P)  ,minval(PQP)   , minval(PTP)  
-!write(*,*) "2",  minval(PTHP)   , minval(PTENC)  ,minval( PCFLX)
-!write(*,*) "3",  minval(PAERDDP), minval(PAERSDM), minval(PAERSRC), minval(PAERWS)
-!write(*,*) "4",   minval(PAERGUST), minval(PAERUST), minval(PAERMAP)
-!write(*,*) "5",  minval(PCLAERS), minval(PPRAERS), minval(PCHEM2AER)
-!write(*,*) "6.2",  minval(PFRTI)
-!write(*,*) "6.3",  minval(PLSM)
-!write(*,*) "6.4",  minval(PSNS) 
-!write(*,*) "7",  minval(PWND)  , minval(PWS1)   , minval(PAERFLX), minval(PAERLIF)
-!!write(*,*) "8",  minval(PAERODDF),PTSPHY 
-!!write(*,*) "9",  minval(PODTO)  , minval(PAERO_WVL_DIAG)
-!write(*,*) "10",  minval(PAER_TAU), minval(PAER_SSA),minval(PAER_ASYM),minval(PAER_TAU_LW)
-!!write(*,*) "11",  minval(PTAUS_AER),minval(PTAUA_AER),minval(PPMAER)
-!write(*,*) "12",  minval(PEXTRA), minval(PVERVEL), minval(PCCNL), minval(PCCNO)
-!write(*,*) "13",  minval(PAHFSTI), minval(PCI), minval(PZ0M), minval(PAHFLEV)
-!write(*,*) "14",  minval(PUP), minval(PVP), minval(PCVL), minval(PCVH), minval(PGEMU)!
-!write(*,*) "15",  minval(PSO2DD)
-
-
 ZAHFSM  = 0._JPRB
 ZEPSCOV = 1.E-03_JPRB
 ZEPSWAT = 1.E-18_JPRB
@@ -599,51 +576,25 @@ CALL SURF_INQ(YSURF,PRWPWP=ZRWPWP)
 !                 --------------------------------------------------------
 
 ALLOCATE( ZAERNGT(KLON,NACTAERO) )
-
-! RCHG -> there is a recurrent error: initialize without KIDIA:KFDIA 
 ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 
 !ALLOCATE( ZAERSCC(KLON,NACTAERO) )
 !ALLOCATE( ZAERSRC(KLON,NACTAERO) )
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
 !ZAERSCC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
-!ZAEROUT1(:,:) =0._JPRB
-!ZAEROUT2(:,:) =0._JPRB
-!ZAEROUT3(:,:) =0._JPRB
-!ZAEROUT4(:,:) =0._JPRB
-!ZAEROUT5(:,:) =0._JPRB
+!ZAEROUT1(KIDIA:KFDIA,:) =0._JPRB
+!ZAEROUT2(KIDIA:KFDIA,:) =0._JPRB
+!ZAEROUT3(KIDIA:KFDIA,:) =0._JPRB
+!ZAEROUT4(KIDIA:KFDIA,:) =0._JPRB
+!ZAEROUT5(KIDIA:KFDIA,:) =0._JPRB
 
-!
-! RCHG -> FIXME be careful. This subroutine has KIDIA, KFDIA in the 
-!         arguments so probably it is designed for parallel grid. 
-!         this initialization may overwrite zeros the proper way might
-!         be ARRAY(KIDIA:KFDIA,:,:) = 0._JPRB 
-!
- ZOUT(:,:)    = 0._JPRB
- ZOUT2(:,:)   = 0._JPRB
- ZOUT3(:,:,:) = 0._JPRB
- ! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
- ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
- ZXTEMS(:,:) = 0._JPRB ! surface emissions as zero for input
- ZXTMD1(:,:,:) = 0._JPRB 
-!ZOUT4(:,:)   = 0._JPRB
-!ZOUT5(:,:)   = 0._JPRB
-!ZOUT6(:,:)   = 0._JPRB
-!ZOUT7(:,:)   = 0._JPRB
-!ZOUT8(:,:)   = 0._JPRB
-!ZOUT9(:,:)   = 0._JPRB
-!ZZOUT1(:,:)  = 0._JPRB
-!ZZOUT2(:,:)  = 0._JPRB
-!ZZOUT3(:,:)  = 0._JPRB
-!ZZOUT4(:,:)  = 0._JPRB
-!ZZOUT5(:,:)  = 0._JPRB
-!ZZOUT6(:,:)  = 0._JPRB
-!ZZOUT7(:,:)  = 0._JPRB
-!ZZOUT8(:,:)  = 0._JPRB
-!ZZOUT9(:,:)  = 0._JPRB
-!ZZOUT10(:,:) = 0._JPRB
-!ZZOUT11(:,:) = 0._JPRB
-!ZZOUT12(:,:) = 0._JPRB
+ZOUT(KIDIA:KFDIA,:)    = 0._JPRB
+ZOUT2(KIDIA:KFDIA,:)   = 0._JPRB
+ZOUT3(KIDIA:KFDIA,:,:) = 0._JPRB
+! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
+ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
+ZXTEMS(KIDIA:KFDIA,:) = 0._JPRB ! surface emissions as zero for input
+ZXTMD1(KIDIA:KFDIA,:,:) = 0._JPRB 
 
 M7TEND_IN(KIDIA:KFDIA,:,:)   = 0._JPRB ! unused 2024-07-11
 M7TEND_OUT(KIDIA:KFDIA,:,:)  = 0._JPRB ! unused 2024-07-11
@@ -651,12 +602,15 @@ SEDOUT(KIDIA:KFDIA,:,:)      = 0._JPRB
 DDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
 WDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
 ZSEDIFLUX(KIDIA:KFDIA,:,:)   = 0._JPRB
+ZSEDIFLUXSURF(KIDIA:KFDIA,:) = 0._JPRB
 ZDDEPFLUX(KIDIA:KFDIA,:)     = 0._JPRB
 ZDDEPFLUX_SO2(KIDIA:KFDIA)   = 0._JPRB
 ZVDA(KIDIA:KFDIA,:)          = 0._JPRB ! unused 2024-07-11
 SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
 DDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB ! unused 2024-07-11
 WDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB
+WDEPOUT_IC_2D(KIDIA:KFDIA,:) = 0._JPRB
+WDEPOUT_BC_2D(KIDIA:KFDIA,:) = 0._JPRB
 
 ZAVERAGEP(KIDIA:KFDIA,:,:)   = 0.0_JPRB ! unused 2024-07-11
 ZM7KAPPA(KIDIA:KFDIA,:,:)    = 0.0_JPRB ! unused 2024-07-11
@@ -873,7 +827,6 @@ ELSE
    ZSVOC(KIDIA:KFDIA,1:KLEV)=0.0_JPRB
 END IF
 
-! RCHG => before it has ZICNC(:,:)=0._JPRB which is a semantic error.
 !calculate ICNC
 ZICNC(KIDIA:KFDIA,1:KLEV) = 0._JPRB
 ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
@@ -899,34 +852,40 @@ DO JMASS=1,naerocomp
       ZXTM1(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))
       ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))
       ! in case of simple sulfur scheme add SO4_AQ part into SO4_ACS
-      ! both original tendency and m7tendency
+      ! both original tendency and m7tendency [FIXME: what??]
+      
+      !ADD SO4 from wet chemistry to tendencies
+      if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4_AS') then   
+        ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,2)
+      end if
 
     END DO
   END DO
 END DO
 !gas
 DO JGAS=1,subm_ngasspec
+  JO=ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
+  JH=ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
       IF (LAERCHEM) THEN
-        ZXTM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = ZCEN(JL,JK,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-        ZXTTE(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = PTENC(JL,JK,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-        !ADD SO4 from wet chemistry to tendencies
-        IF (ind_oifs_ham%ind_gas_OIFS(JGAS) == ISO4ACS )THEN
-          ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_OIFS(JGAS))=ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_OIFS(JGAS))+PCHEM2AER(KIDIA:KFDIA,1:KLEV,2)
-        ELSEIF( ind_oifs_ham%ind_gas_OIFS(JGAS) == ISO4COS)THEN
-          ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_OIFS(JGAS))=ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_OIFS(JGAS))+PCHEM2AER(KIDIA:KFDIA,1:KLEV,3)
+        ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
+        IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
+          ZXTTE(JL,JK,JH) = PCHEM2AER(JL,JK,1)
+        ELSE
+          ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
         END IF
-      ELSE !simple sulfur scheme  
-        IF(TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2')THEN
-          ZXTM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-          ZXTTE(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-          ZXTTEM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
+      ELSE
+        ! Simple sulfur scheme
+        IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
+          ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
+          ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO))
+          ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
           
-        ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas')THEN
-          ZXTM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-          ZXTTE(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) 
-          ZXTTEM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) 
+        ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
+          ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
+          ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO)) 
+          ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
         END IF
 
       END IF
@@ -953,7 +912,7 @@ END DO
 !ENDIF
 
 ! implementation of HAM-M7
-ZWND(:) = 0._JPRB
+ZWND(KIDIA:KFDIA) = 0._JPRB
 DO JL=KIDIA,KFDIA
   ZWND(JL)=MAX(1.0E-10_JPRB,PAERWS(JL)) ! make threshold for wind speed
   ! Compute average fluxes over tiles
@@ -1023,13 +982,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
     !-----------------------------------------------------------------
     ! Submodel interface call (HAM aerosol microphysics)
     
-    ! changes to particles:
-    ! Update SO4ACS and SO4OCS tendencies to include the contribution from wet chemistry
-    IF (LAERCHEM) THEN
-      ZTAEROK(KIDIA:KFDIA,1:KLEV,ISO4ACS)=ZTAEROK(KIDIA:KFDIA,1:KLEV,ISO4ACS)+PCHEM2AER(KIDIA:KFDIA,1:KLEV,2)
-      ZTAEROK(KIDIA:KFDIA,1:KLEV,ISO4COS)=ZTAEROK(KIDIA:KFDIA,1:KLEV,ISO4COS)+PCHEM2AER(KIDIA:KFDIA,1:KLEV,3)
-    END IF
-
     CALL GSTATS(2501,0)
 
     CALL HAM_SUBM_INTERFACE(&
@@ -1040,7 +992,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
          & ZM6RP, ZM6DRY,             & !mean mode actual radius [m], dry radius for soluble modes [m] 
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
-         & ZPBL,  zout3)                !boundary layer top level, outputs
+         & ZPBL,  ZOUT3)                !boundary layer top level, outputs
     
     CALL GSTATS(2501,1)
 
@@ -1098,12 +1050,13 @@ SELECT CASE (TRIM(AERO_SCHEME))
     !-----------------------------------------------------------------
     
     
-    !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
-    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = ZCDNCACT(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg]
-    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = (1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV) ! add CDNC to PGFL field (convert from #/m3 to #/cm3)
-    PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,1:KLEV) ! add ICNC to PGFL field (does not need convert)
-    !--> End store CDNC and ICNC
+     !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
+     ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
+     ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
+
+     PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX(((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV)),1._JPRB) ! add CDNC to PGFL field (convert from #/m3 to #/cm3) and treshold minimum value to 1 cm-3
+     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,1:KLEV) ! add ICNC to PGFL field (does not need convert)
+     !--> End store CDNC and ICNC
 
 
     !-----------------------------------------------------------------
@@ -1144,30 +1097,27 @@ SELECT CASE (TRIM(AERO_SCHEME))
     !-----------------------------------------------------------------
 
     !--- Mass conserving correction of negative tracer values:
-    CALL xt_borrow(KFDIA, KLON,  KLEV, KLEV+1, ntrac, &
+    CALL XT_BORROW(KFDIA, KLON,  KLEV, KLEV+1, NTRAC, &
          PRSF1, PRS1, &
          ZXTM1, ZXTTE)
 
     ! RCHG -> This is wetdep interface it can be a subroutine afer "CONTAINS" 
     !
+    !-----------------------------------------------------------------
     !--> Wet deposition for HAM-M7
     CALL GSTATS(2503,0)
 
     IF ( LAERSCAV ) THEN
 
       !--> initialize mixing ratios for wet deposition
-      !-- initialise in-cloud and interstitial mixing ratios
-      !   set both equal to tracer mixing ratio as starting point
-      !   ham_wet_chemistry will re-compute these values if lham=true
+      !    Only ZXTP1, in case LWETDEP=false or no tracers subject to wet dep, since it may be used in drydep!
       DO JT = 1,NTRAC
-        ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * time_step_len
-        ZXTP1C(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
-        ZXTP10(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
+        ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
       END DO
 
       !<-- call wetdep interface for wet deposition
       !-- interface to wet deposition routine (also from cuflx_subm)
-      IF ( lwetdep .AND. ANY(trlist%ti(:)%nwetdep > 0) ) THEN
+      IF ( LWETDEP .AND. ANY(trlist%ti(:)%nwetdep > 0) ) THEN
 
         ! for calculating the rain and snow evaporation/formation variables used in wet deposition
         DO JK=1,KLEV
@@ -1193,38 +1143,114 @@ SELECT CASE (TRIM(AERO_SCHEME))
         END DO
         ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = ZMRATEPS(KIDIA:KFDIA,1:KLEV) !?
 
-        ZDUMMY(:,:) = 0._JPRB ! initialize dummy variables for conv. case only
-        ZDUM2D(:,:) = 0._JPRB ! initialize dummy variables for conv. case only
-        ZDUM3D(:,:,:) = 0._JPRB ! initialize dummy variables for conv. case only
-        ZLFRAC_SO2(:,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
+        ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
 
         ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
         ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud ice water content (modified in wetdep)
-        ZTENCIH(:,:,:) = 0._JPRB
+
         ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)
+
         IF (.NOT.LAERCHEM)THEN
-          CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,zxtm1,zrho,ZLP,zlfrac_so2)
+          CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,ZXTM1,ZRHO,ZLP,ZLFRAC_SO2)
         END IF
 
-        CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & !eehol: ktop = 1 (top level index), lstrat = TRUE for strat. case
-                ZDPG,  ZMRATEPR, ZMRATEPS,   ZMSNOWACL,          & !eehol: dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
-                ZLP,  ZIP,                                       & !eehol: cloud water content, cloud ice water content
-                ZM6RP,  ZM6DRY,                                  & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
-                reffi,  reffl,                                   & ! m7 aerosol
-                ZNACT, ZFRACN,                                   &
-                PTP, ZXTM1, ZLFRAC_SO2, ZXTTE, ZXTP10, ZXTP1C,   & !eehol: temperature, zlfrac_so2 only needed in gas scavenging (0 for now)
-                PFPLSL, PFPLSN, ZFEVAPR, ZFSUBLS,                & !eehol: rain flux, snow flux, 
-                ZDUM2D, ZDUM3D,                                  & !eehol: as zero as these are not needed in strat. case
-                ZAP,  PCOVPTOT, ZRHO, ZDUMMY)  !eehol: cloud frac., precip. frac., air dens.
+        !Double call to wet deposition. One for convective case and one for stratiform case.
+        
+        ! WETDEP CONVECTIVE CASE
+        
+        !-- initialise in-cloud and interstitial mixing ratios
+        !   set both equal to tracer mixing ratio as starting point
+        !   ham_wet_chemistry will re-compute these values if lham=true
+        DO JT = 1,NTRAC
+          ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
+          ZXTP1C(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
+          ZXTP10(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
+        END DO
 
+        ZDUMMY(KIDIA:KFDIA,:) = 0._JPRB         ! output: massfix boundary condition (updated in mo_hammoz_wetdep)
+        ZWDEP_SCAV_IC(KIDIA:KFDIA,:) = 0._JPRB  ! output: diagnostic wdep in-cloud
+        ZWDEP_SCAV_BC(KIDIA:KFDIA,:) = 0._JPRB  ! output: diagnostic wdep below cloud
+        ZDUM2D(KIDIA:KFDIA,1:KLEV) = 0._JPRB    ! dummy "fraction of grid box covered by precip" for conv. case (zero at start as in ECHAM)
+        ZDUM3D(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB  ! dummy "previous tracer mixing ratio" for conv. case
+        ZFUXT3D(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB ! initialize updr mass flux for conv. case only (updated in wetdep so put 0 at start)
+
+        LSTRAT = .FALSE. !False for convective case
+        IF (.NOT. LSTRAT) THEN
+          CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
+
+          CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = FALSE for conv. case
+                  ZDPG,  ZMRATEPR, ZMRATEPS,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                  ZLP,  ZIP,                                         & ! cloud water content, cloud ice water content
+                  ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
+                  REFFI,  REFFL,                                     & ! effective radii
+                  ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
+                  PTP, ZDUM3D, ZLFRAC_SO2,                           & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
+                  ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
+                  PFPLSL, PFPLSN, ZFEVAPR, ZFSUBLS,                  & ! rain flux, snow flux, 
+                  PMFU, ZFUXT3D,                                     & ! conv flux, updraft mass flux (updated in wetdep)
+                  ZAP,  ZDUM2D, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
+
+          CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .FALSE., ZDUMMY) ! call convective mass conserving
+        END IF
+
+        !Add convective case wet removal fluxes to diagnostics
         DO JMASS=1,NAEROCOMP
           JY=KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))
-          WDEPOUT_2D(KIDIA:KFDIA, JY) = WDEPOUT_2D(KIDIA:KFDIA,JY) + ZDUMMY(KIDIA:KFDIA,ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
         END DO
 
         DO JCLASS=1,NCLASS
           JY=KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))
-          WDEPOUT_2D(KIDIA:KFDIA,JY) = WDEPOUT_2D(KIDIA:KFDIA,JY) + ZDUMMY(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+        END DO
+
+        ! WETDEP STRATIFORM CASE
+
+        !-- initialise in-cloud and interstitial mixing ratios
+        !   set both equal to tracer mixing ratio as starting point
+        !   ham_wet_chemistry will re-compute these values if lham=true
+        DO JT = 1,NTRAC
+          ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
+          ZXTP1C(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
+          ZXTP10(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
+        END DO
+
+        ZDUMMY(KIDIA:KFDIA,:) = 0._JPRB        ! output: massfix boundary condition (updated in mo_hammoz_wetdep)
+        ZWDEP_SCAV_IC(KIDIA:KFDIA,:) = 0._JPRB ! output: diagnostic wdep in-cloud
+        ZWDEP_SCAV_BC(KIDIA:KFDIA,:) = 0._JPRB ! output: diagnostic wdep below cloud
+        ZDUM2D(KIDIA:KFDIA,1:KLEV) = 0._JPRB   ! dummy conv flux for strat. case
+        ZDUM3D(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB ! dummy updraft mass flux for strat. case
+
+        LSTRAT = .TRUE. !True for strat case
+        CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = TRUE for strat. case
+                ZDPG,  ZMRATEPR, ZMRATEPS,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                ZLP,  ZIP,                                         & ! cloud water content, cloud ice water content
+                ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
+                REFFI,  REFFL,                                     & ! effective radii
+                ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
+                PTP, ZXTM1, ZLFRAC_SO2,                            & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
+                ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
+                PFPLSL, PFPLSN, ZFEVAPR, ZFSUBLS,                  & ! rain flux, snow flux, 
+                ZDUM2D, ZDUM3D,                                    & ! zeroes as these are not needed in strat. case
+                ZAP,  PCOVPTOT, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
+
+        ! Add stratiform case wet removal fluxes to diagnostics
+        DO JMASS=1,NAEROCOMP
+          JY=KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+        END DO
+
+        DO JCLASS=1,NCLASS
+          JY=KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
         END DO
 
       END IF
@@ -1246,13 +1272,12 @@ SELECT CASE (TRIM(AERO_SCHEME))
     IF (LAERSEDIM) THEN
       IF ( lsedimentation .AND. ANY(trlist%ti(:)%nsedi > 0) ) THEN
 
-        ZTENCIH(:,:,:) = 0._JPRB
         ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
 
         CALL SEDI_INTERFACE(KLON, KFDIA, KLEV, ZKROW,   &
-             PTP, ZQP, PRSF1, PRS1, & !eehol: temperature, specific humidity, pressure at full level, pressure at half level
-             ZM6RP, ZRHOP, & !mean mode actual radius [m], mean mode particle density [kg m-3]
-             ZXTM1, ZXTTE, ZSEDIFLUX) !eehol: tracer mixing ratios and tendency (sediflux for diagnostics)
+             PTP, ZQP, PRSF1, PRS1, & ! temperature, specific humidity, pressure at full level, pressure at half level
+             ZM6RP, ZRHOP, & ! mean mode actual radius [m], mean mode particle density [kg m-3]
+             ZXTM1, ZXTTE, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
 
         SEDOUT(KIDIA:KFDIA, 1:KLEV,:)=(ZTENCIH(KIDIA:KFDIA, 1:KLEV,:)-ZXTTE(KIDIA:KFDIA, 1:KLEV,:))
         DO JK=1,KLEV
@@ -1332,11 +1357,10 @@ SELECT CASE (TRIM(AERO_SCHEME))
         END DO
         
         !--> init values
-        ZTENCIH(:,:,:) = 0._JPRB
         ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = ZXTTE(KIDIA:KFDIA,1:KLEV,:) ! init tendency before drydep
         ZXTEMS(KIDIA:KFDIA,:)         = 0._JPRB                     ! surface emissions as zero for input
         ZXTMD1(KIDIA:KFDIA,1:KLEV,:)  = 0._JPRB
-        ZXTMD1(KIDIA:KFDIA,1:KLEV,:)  = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + (ZTENCIH(KIDIA:KFDIA,1:KLEV,:) * time_step_len) ! update mixrat with tendency
+        ZXTMD1(KIDIA:KFDIA,1:KLEV,:)  = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + (ZTENCIH(KIDIA:KFDIA,1:KLEV,:) * TIME_STEP_LEN) ! update mixrat with tendency
         ZVDEP(KIDIA:KFDIA,:)          = 0._JPRB                     ! ddep velocity as zero
 
         ! RCHG: Recommendation, those subroutines specific of m7 should have 
@@ -1360,7 +1384,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
                Zxtm1, PCFLX(:,KAERO(1):KAERO(NACTAERO)),  &
                ZDP, PGEOH, ZRHO, ZXTTE, PTSPHY,&
                PSO2DD, PGELAM, &
-               ZFAERO, Zxtp1, ZDDEPFLUX_SO2)
+               ZFAERO, ZXTP1, ZDDEPFLUX_SO2)
           ZDDEPFLUX(KIDIA:KFDIA,2)=ZDDEPFLUX_SO2(KIDIA:KFDIA)
         END IF
         
@@ -1637,7 +1661,6 @@ CASE (1)
          PAER_TAU(JL,JK,IW)=ZAER_TAU(JL,JK,IW,1)!*(PGEOH(JL,JK-1) - PGEOH(JL,JK))
          PAER_SSA(JL,JK,IW)=ZAER_SSA(JL,JK,IW)
          PAER_ASYM(JL,JK,IW)=ZAER_ASYM(JL,JK,IW)
-         !PAOD(JL,IW)=ZAER_TAU(JL,JK,IW,1)+PAOD(JL,IW)
        ENDDO
        DO IW=1,16
          PAER_TAU_LW(JL,JK,IW)=ZAER_TAU_LW(JL,JK,IW)
@@ -1647,15 +1670,15 @@ CASE (1)
 
  END SELECT
 
-
-CALL GSTATS(2506,1)
+ CALL GSTATS(2506,1)
 ENDIF  ! (MOD(NSTEP+1,NRADFR) == 0)
 
-PAOD(:,:) =0._JPRB
-PABS(:,:) =0._JPRB
-PFAOD(:,:)=0._JPRB
-PSSA(:,:) =0._JPRB
-PASY(:,:) =0._JPRB
+PAOD (KIDIA:KFDIA,:)=0._JPRB
+PABS (KIDIA:KFDIA,:)=0._JPRB
+PFAOD(KIDIA:KFDIA,:)=0._JPRB
+PSSA (KIDIA:KFDIA,:)=0._JPRB
+PASY (KIDIA:KFDIA,:)=0._JPRB
+
 DO JK = 1, KLEV
   DO JL = KIDIA,KFDIA
     DO IW=1,NASWBAND  
@@ -1766,8 +1789,10 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !end do
 
   DO JN=1,NACTAERO   !ktrac
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)=WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(4)%MP)=SEDOUT_2D(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2D   (KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(6)%MP)  = WDEPOUT_IC_2D(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(18)%MP) = WDEPOUT_BC_2D(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(4)%MP)  = ZSEDIFLUXSURF(KIDIA:KFDIA,KAERO(JN))
     ! PGFL(KIDIA:KFDIA,JN,YAEROUT(5)%MP)=PAERSRC(KIDIA:KFDIA,KAERO(JN))
   END DO
 
@@ -1783,22 +1808,27 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
       JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
       JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
       JY=YAEROUT(7)%MP
-      PGFL(KIDIA:KFDIA,JO,JY) = PGFL(KIDIA:KFDIA, JO, JY) + (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*time_step_len)) * ZDPG(KIDIA:KFDIA,JK)
+      PGFL(KIDIA:KFDIA,JO,JY) = PGFL(KIDIA:KFDIA, JO, JY) + (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)) * ZDPG(KIDIA:KFDIA,JK)
     END DO
     DO JN=1,NCLASS
       JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
       JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
       JY=YAEROUT(7)%MP
-      PGFL(KIDIA:KFDIA,JO,JY) = PGFL(KIDIA:KFDIA, JO, JY) + (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*time_step_len)) * ZDPG(KIDIA:KFDIA,JK)
+      PGFL(KIDIA:KFDIA,JO,JY) = PGFL(KIDIA:KFDIA, JO, JY) + (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)) * ZDPG(KIDIA:KFDIA,JK)
     END DO
   END DO
 
-  IF (.NOT. LAERCHEM) THEN
+  IF (.NOT. LAERCHEM) THEN ! FIXME : THIS IS PARTLY OVERWRITTEN RIGHT AFTER
     PGFL(KIDIA:KFDIA,1,YAEROUT(8)%MP)       = ZDDEPFLUX_SO2(KIDIA:KFDIA) ! aergn7 SO4 gas
     PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(9)%MP)  = PGFL(KIDIA:KFDIA,1:KLEV,YAEROCLIM(1)%MP)
     PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(10)%MP) = PGFL(KIDIA:KFDIA,1:KLEV,YAEROCLIM(2)%MP)
     PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(11)%MP) = PGFL(KIDIA:KFDIA,1:KLEV,YAEROCLIM(3)%MP)
   END IF
+  PGFL(KIDIA:KFDIA,1,YAEROUT(9)%MP) = PCCNL(KIDIA:KFDIA)
+  PGFL(KIDIA:KFDIA,2,YAEROUT(9)%MP) = PCCNO(KIDIA:KFDIA)
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(10)%MP) = PFPLSL(KIDIA:KFDIA,1:KLEV)
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(11)%MP) = PFPLSN(KIDIA:KFDIA,1:KLEV)
+
   PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(12)%MP) = PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH)
   PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(13)%MP) = PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH)
   PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(14)%MP) = PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH)

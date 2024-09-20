@@ -1,5 +1,5 @@
 SUBROUTINE TM5_WETCHEM_M7(KIDIA, KFDIA, KLON,KAERO,PDT,PTEMP,PAP,PRS,PLP,PY0,PHPLUS,PY, &
-    & PAEROP )
+    & PAEROP, PSO4_LPROD )
 !**********************************************************************
 !     
 !TM5_WETCHEM_M7 - aqueous phase chemistry of sulfur  (and other)
@@ -53,7 +53,7 @@ REAL(KIND=JPRB), INTENT(IN)        :: PAP(KLON) ! cloud cover
 REAL(KIND=JPRB), INTENT(OUT)       :: PHPLUS(KLON) ! concentration H+
 REAL(KIND=JPRB), INTENT(INOUT)     :: PY(KLON,YGFL%NCHEM+3) 
 REAL(KIND=JPRB), INTENT(INOUT)     :: PAEROP(KLON,KAERO)
-
+REAL(KIND=JPRB), INTENT(OUT)       :: PSO4_LPROD(KLON)
 
 ! * LOCAL 
 REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
@@ -91,7 +91,7 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_M7',0,ZHOOK_HANDLE )
 !-----------------------------
 ! wet phase reactions
 !-----------------------------
-
+PSO4_LPROD(KIDIA:KFDIA)=0.0_JPRB
 
 DO JL=KIDIA,KFDIA
   LLCLOUDY(JL)=.FALSE.
@@ -218,20 +218,11 @@ DO JL=KIDIA,KFDIA
       ZDSO2=PY0(JL,ISO2)*ZXCOV*(EXP(-ZX1)-1._JPRB)
       !only applied to ZXCOV part of cloud
       ZDSO2=MAX(-PY0(JL,IO3)*ZXCOV,ZDSO2)! limit to o3 availability
-
-      ZFT = PAEROP(JL,IACS_N)+PAEROP(JL,ICOS_N)
-      IF (ZFT > TINY(ZFT)) THEN
-        PAEROP(JL,ISO4ACS)=PAEROP(JL,ISO4ACS)-ZDSO2*(PAEROP(JL,IACS_N)/ZFT)
-        PAEROP(JL,ISO4COS)=PAEROP(JL,ISO4COS)-ZDSO2*(PAEROP(JL,ICOS_N)/ZFT)
-        PY(JL,ISO2)=PY0(JL,ISO2)+ZDSO2 
-        PY(JL,IO3) =PY0(JL,IO3) +ZDSO2
-      ELSE
-        ! PAEROP(JL,ISO4ACS)=PAEROP(JL,ISO4ACS)
-        ! PAEROP(JL,ISO4COS)=PAEROP(JL,ISO4COS)
-	PY(JL,ISO2)=PY0(JL,ISO2)
-	PY(JL,IO3) =PY0(JL,IO3)
-      ENDIF
-
+  
+      PSO4_LPROD(JL)=-ZDSO2
+      PY(JL,ISO2)  = PY(JL,ISO2)+ZDSO2         ! dso2 is loss of SO2 and H2O2
+      PY(JL,IO3) = PY0(JL,IO3)+ZDSO2 
+  
       !
       ! oxidation of S(IV) by H2O2
       !
@@ -249,27 +240,20 @@ DO JL=KIDIA,KFDIA
         ZSO2X=(ZX1-ZX2*ZX3)/(1.-ZX3)
         ZDSO2=(ZSO2X-PY(JL,ISO2))*ZXCOV
         ZDSO2=MAX(ZDSO2,-PY0(JL,IH2O2)*ZXCOV)
-
-
-        ZFT=PAEROP(JL,IACS_N)+PAEROP(JL,ICOS_N)
-	IF (ZFT > TINY(ZFT)) THEN
-	   PAEROP(JL,ISO4ACS)=PAEROP(JL,ISO4ACS)-ZDSO2*(PAEROP(JL,IACS_N)/ZFT)
-	   PAEROP(JL,ISO4COS)=PAEROP(JL,ISO4COS)-ZDSO2*(PAEROP(JL,ICOS_N)/ZFT)
-           PY(JL,ISO2)  = PY(JL,ISO2)+ZDSO2         ! dso2 is loss of SO2 and H2O2
-           PY(JL,IH2O2) = PY0(JL,IH2O2)+ZDSO2 
-	ELSE
-           PY(JL,IH2O2)=PY0(JL,IH2O2)
-	ENDIF
+        PSO4_LPROD(JL)=-ZDSO2
+        PY(JL,ISO2)  = PY(JL,ISO2)+ZDSO2         ! dso2 is loss of SO2 and H2O2
+        PY(JL,IH2O2) = PY0(JL,IH2O2)+ZDSO2 
       ENDIF
-
+  
       ! Finally also update PY0 concentrations
       PY0(JL,ISO2)=PY(JL,ISO2)
       PY0(JL,IO3) =PY(JL,IO3)
       PY0(JL,IH2O2)=PY(JL,IH2O2)
-
-
+    else
+      !write(3399,*)'no clouds',JL,llcloudy(JL),zdso2
+  
    ENDIF     !cloudy
-ENDDO 
+ENDDO
 
 
 IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_M7',1,ZHOOK_HANDLE )

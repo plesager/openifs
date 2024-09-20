@@ -207,7 +207,7 @@ MODULE mo_hammoz_sedimentation
                             pt,    pq,                      &
                             pap,   paph,                    &
                             pm6rp, prhop, & !mean mode actual radius [m], mean mode particle density [kg m-3]
-                            pxtm1,  pxtte ,psediflux              )
+                            pxtm1,  pxtte ,psediflux ,psedifluxsurf)
 
 
   USE mo_tracdef,              ONLY: ntrac, trlist
@@ -230,7 +230,8 @@ MODULE mo_hammoz_sedimentation
   REAL(dp), INTENT(in)    :: pm6rp(kbdim, klev, nclass), prhop(kbdim, klev, nclass)
 
   REAL(dp), INTENT(inout) :: pxtte(kbdim,klev,ntrac),  & ! tracer tendency
-                             psediflux(kbdim,klev,ntrac)
+                             psediflux(kbdim,klev,ntrac), &
+                             psedifluxsurf(kbdim,ntrac)
   !--- local variables
   INTEGER       :: jt, ierr
   REAL(dp)      :: ztempc(kbdim, klev),   &  ! temp. above melting
@@ -242,7 +243,9 @@ MODULE mo_hammoz_sedimentation
                    zxtp1(kbdim, klev),    &  ! updated tracer(jt) 
                    zxtte(kbdim, klev),    &  ! tracer(jt) tendency
                    zvsedi(kbdim, klev),   &  ! sedimentation velocity
-                   zsediflux(kbdim, klev)    ! sedimentation flux
+                   zsediflux(kbdim, klev),&  ! sedimentation flux
+                   zsedifluxsurf(kbdim)      ! sedimentation flux at surf
+
   REAL(dp), POINTER    :: fld2d(:,:)         ! pointer for diagnostics
 
   !--- calculate tracer independent physical variables
@@ -268,7 +271,7 @@ MODULE mo_hammoz_sedimentation
                            pm6rp, prhop, & 
                            zdpg, zdz,                 & 
                            zxtp1, zxtte,              &
-                           zvsedi, zsediflux)
+                           zvsedi, zsediflux, zsedifluxsurf)
 
 #ifdef HAMMOZ
     !--- store diagnostics
@@ -280,6 +283,7 @@ MODULE mo_hammoz_sedimentation
 #endif
     
     psediflux(1:kproma,:,jt)=zsediflux(1:kproma,:)  !TB diagnostic output
+    psedifluxsurf(1:kproma,jt)=zsedifluxsurf(1:kproma) !eehol: diagnostic sediflux at surf
     pxtte(1:kproma,:,jt)=zxtte(1:kproma,:)  !csld write tendency out
 
   END DO

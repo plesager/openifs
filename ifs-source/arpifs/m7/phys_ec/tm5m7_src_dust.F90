@@ -1008,13 +1008,15 @@ DO JL=KIDIA,KFDIA
     &      .AND. (ZLON >= 296._JPRB .AND. ZLON <= 300._JPRB) ) THEN
     IFF=6 
   ENDIF
-  IF ( (ZLAT <= 2._JPRB .AND. ZLAT > -11._JPRB)&
-    &     .AND. (ZLON >= ZBNDI .AND. ZLON < 330._JPRB) ) THEN
-    IFF=6
+  IF (ZLAT <= 2._JPRB .AND. ZLAT > -11._JPRB) THEN
+    IF (ZLON >= ZBNDI .AND. ZLON < 330._JPRB) THEN
+      IFF=6
+    ENDIF
   ENDIF
-  IF ( (ZLAT <= -11._JPRB .AND. ZLAT >= -34._JPRB)&
-    &     .AND. (ZLON >= ZBNDJ .AND. ZLON < 330._JPRB) ) THEN
-    IFF=6
+  IF (ZLAT <= -11._JPRB .AND. ZLAT >= -34._JPRB) THEN
+    IF (ZLON >= ZBNDJ .AND. ZLON < 330._JPRB) THEN
+      IFF=6
+    ENDIF
   ENDIF
 
 !-- Western Europe
@@ -1116,9 +1118,10 @@ DO JL=KIDIA,KFDIA
 
 ! ITYPDU=5
 !-- Asian deserts
-  IF ((ZLON > 90._JPRB .AND. ZLON <= 135._JPRB)&
-    & .AND. (ZLAT <= 51._JPRB .AND. ZLAT > ZBNDL)) THEN
+  IF (ZLON > 90._JPRB .AND. ZLON <= 135._JPRB) THEN
+    IF (ZLAT <= 51._JPRB .AND. ZLAT > ZBNDL) THEN
       IFF=17
+    ENDIF
   ENDIF
 
 !-- Saudi Arabia
@@ -1152,9 +1155,10 @@ DO JL=KIDIA,KFDIA
   ENDIF
 
 !-- South China  
-  IF ( (ZLON > 90._JPRB .AND. ZLON <= 135._JPRB) .AND.&
-    & (ZLAT <= ZBNDL .AND. ZLAT > 7._JPRB) ) THEN
+  IF (ZLON > 90._JPRB .AND. ZLON <= 135._JPRB) THEN
+    IF (ZLAT <= ZBNDL .AND. ZLAT > 7._JPRB) THEN
       IFF=24
+    ENDIF
   ENDIF
   ITYPDU=5
   IF ( IFF >= 17 .AND. IFF <= 24 ) THEN
@@ -1201,9 +1205,10 @@ DO JL=KIDIA,KFDIA
     ENDIF
   ENDIF
 !- Argentinian pampas
-  IF ( (ZLON > 285._JPRB .AND. ZLON < 297._JPRB)&
-    & .AND. ZLAT <= ZBNDM ) THEN
-    IFF=33
+  IF (ZLON > 285._JPRB .AND. ZLON < 297._JPRB) THEN
+    IF ( ZLAT <= ZBNDM ) THEN
+      IFF=33
+    ENDIF
   ENDIF
   ITYPDU=6
   IF ( IFF >= 31 .AND. IFF <= 33 ) THEN

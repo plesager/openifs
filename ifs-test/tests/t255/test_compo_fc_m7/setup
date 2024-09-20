@@ -16,15 +16,15 @@ CNMEXP="'ham7'"
 
 # NAEPHY:
 LEO3CH=".TRUE."
-NAEPHY_EXTRA="LO3CH_HLO=.FALSE.,"
+NAEPHY_EXTRA="LO3CH_HLO=.TRUE.,"
 
 # NAMDPHY:
 NVEXTR="7"
 NCEXTR="137"
 
 # NAMRIP
-CSTOP=${CSTOP:-"'t6'"}            # CSTOP: define num. timesteps
-TSTEP=${TSTEP:-"600.000000"}        # TSTEP: define time-step in seconds
+CSTOP=${CSTOP:-"'t48'"}            # CSTOP: define num. timesteps
+TSTEP=${TSTEP:-"1800.000000"}        # TSTEP: define time-step in seconds
 
 # NAMCT0:
 NFRPOS=3
@@ -69,9 +69,6 @@ EOF
 cat >> fort.4 << EOF
 LAERAOT=false,
 LAERLISI=false,
-NUVP=1,
-YUVP_NL(1)%CNAME='UVP2DRAD',
-YUVP_NL(1)%IGRBCODE=210055,
 EOF
 
 # === Include  NAMGLF for NAERO_WVL_DIAG
@@ -98,8 +95,6 @@ cat >> fort.4 << EOF
  YA_NL%LGP=true,
  YO3_NL%LGP=true,
  YQ_NL%LGPINGP=true,
- !YR_NL%NREQIN=-1,
- !YS_NL%NREQIN=-1,
 /
 &NAERAD
  CRTABLEDIR='./ifsdata/rtables/',
@@ -108,15 +103,12 @@ cat >> fort.4 << EOF
  NUVTIM=72,
  NRADUV=1,
  NUV=24,
- LUVPROC=false,       ! CHECK
+ LUVPROC=false,
  LUVAERP=true,
  KMODTS=2,
  NRPROMA=0,
- LEPO3RA=true,
  LO3_CHEM_UV=true,
- NGHGRAD=20,
  NAERMACC=0,
- LAER3D=.false.,     ! LAER3D: which aerosols climatology 2D vs 3D is used
  NAEROOPT=2,
  NCLOUDACT=0,
 /
@@ -143,22 +135,22 @@ EOF
 cat >> fort.4 << EOF
  LAERVOL=false,
  NDRYDEPVEL_DYN=2,
-  LAERDUSTSOURCE=true,
-  LAERDUSTSIZEVAR=true,
-  LAERDUST_NEWBIN=false,
-  RAERDUST_REBOUND=0.1, 
+ LAERDUSTSOURCE=true,
+ LAERDUSTSIZEVAR=true,
+ LAERDUST_NEWBIN=false,
+ RAERDUST_REBOUND=0.1,
  LAERNGAT=true,
  NAERSCAV=3,
  LAERGTOP=true,
+ LAERHYGRO=true,
  LAERSEDIM=true,
-  LAERSEDIMSS=true,
+ LAERSEDIMSS=true,
  LAERDRYDP=false,
  LAERSURF=true,
-  NSSALT=4,
-  NDDUST=2,
-  NSO4SCHEME=1,
-  LSEASALT_RH80=true,
- LAERHYGRO=true,
+ NSSALT=1,
+ NDDUST=3,
+ NSO4SCHEME=1,
+ LSEASALT_RH80=true,
  LAERRRTM=true,
 /
 &NAMCOMPO
@@ -167,7 +159,7 @@ cat >> fort.4 << EOF
   LCOMPO_DDFLX_DIR=true,
   LCHEM_TROPO=true,
   LCOMPO_DCDD=true,
-  LAERNITRATE=true,
+  LAERNITRATE=false,
   LAEREQSAM4CLIM=false,
   LAERSOA=false,
   LAERSOA_COUPLED=false,
@@ -179,7 +171,8 @@ cat >> fort.4 << EOF
   CHEM_SCHEME="tm5",
   LCHEM_DIAC=false,
   LCHEM_LIGHT=true,
-  KCHEM_DRYDEP=2,
+  KCHEM_WETDEP=2,
+  KCHEM_DRYDEP=3,
   LCHEM_0NOX=false,
   KCHEM_NOXADV=0,
   LCHEM_ANAO3=false,

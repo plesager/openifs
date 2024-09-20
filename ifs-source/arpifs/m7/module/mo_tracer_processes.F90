@@ -44,15 +44,15 @@ MODULE mo_tracer_processes
   PUBLIC :: xt_initialize       ! set initial values        ! ioinitial, iorestart   (### former xtini)
   PUBLIC :: xt_burden_init_mem  ! set up burden diagnostics
   PUBLIC :: xt_burden           ! calculate tracer burdens
-  PUBLIC :: xt_conv_massfix     ! adjust tracer mass in convection
 #endif
+  PUBLIC :: xt_conv_massfix     ! adjust tracer mass in convection
   PUBLIC :: xt_borrow           ! another mass fixer
 
-#ifdef HAMMOZ
+!#ifdef HAMMOZ
   !--- module variables
   REAL(wp), ALLOCATABLE :: zxtte_old(:,:,:)          ! for xt_convmassfix
   !$OMP THREADPRIVATE(zxtte_old)
-#endif
+!#endif
   CONTAINS
 
 #ifdef HAMMOZ
@@ -830,15 +830,12 @@ IF (lfirst) CALL message('xt_burden','burdentype 32 not properly implemented yet
 
   END SUBROUTINE xt_burden
 
+#endif
 
   SUBROUTINE xt_conv_massfix (kproma,        kbdim,             klev,         &
                               klevp1,        ktrac,             krow,         &
                               papp1,         paphp1,            pxtte,        &
-#ifdef HAMMOZ
                               loini, pxtbound)
-#else
-                              loini)
-#endif
 
     ! *xt_massfix* corrects the tendencies of each column to
     !              conserve mass
@@ -895,9 +892,7 @@ IF (lfirst) CALL message('xt_burden','burdentype 32 not properly implemented yet
                                    paphp1(kbdim,klevp1)
     REAL(wp),     INTENT(INOUT) :: pxtte(kbdim,klev,ktrac)
 !>>SF
-#ifdef HAMMOZ
     REAL(wp),     INTENT(IN)    :: pxtbound(kbdim,ktrac) ! boundary condition (wet deposition) [kg m-2 s-1]
-#endif
 !<<SF
 
 
@@ -950,9 +945,7 @@ IF (lfirst) CALL message('xt_burden','burdentype 32 not properly implemented yet
           END DO
 
 !>>SF
-#ifdef HAMMOZ
           zdxtdt(1:kproma)=zdxtdt(1:kproma)+pxtbound(1:kproma,jt) !SF restore boundary cond. calc.
-#endif
 !<<SF
 
           DO jk=1, klev
@@ -972,7 +965,6 @@ IF (lfirst) CALL message('xt_burden','burdentype 32 not properly implemented yet
 
 
   END SUBROUTINE xt_conv_massfix
-#endif
   
   SUBROUTINE xt_borrow(kproma, kbdim,  klev,  klevp1, ktrac,       &
                        papp1,  paphp1,                             &

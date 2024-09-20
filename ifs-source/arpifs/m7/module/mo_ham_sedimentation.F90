@@ -117,7 +117,7 @@ MODULE mo_ham_sedimentation
                                prwetm7, pdensaerm7,     & 
                                pdpg, pdz,                 & 
                                pxtp1, pxtte,              &
-                               pvsedi, psediflux)
+                               pvsedi, psediflux, psedifluxsurf)
 
   !USE mo_ham_m7,        ONLY: rwet_m7, densaer_m7
   USE mo_time_control,  ONLY: time_step_len
@@ -139,11 +139,12 @@ MODULE mo_ham_sedimentation
   REAL(dp), INTENT(in)   :: prwetm7(kbdim,klev,nclass), pdensaerm7(kbdim,klev,nclass)
   REAL(dp), INTENT(inout):: pxtte(kbdim, klev)            ! tracer(kt) tendency
   REAL(dp), INTENT(out)  :: pvsedi(kbdim, klev),  &       ! sedimentation velocity
-                            psediflux(kbdim, klev)        ! sedimentation flux
+                            psediflux(kbdim, klev), &     ! sedimentation flux
+                            psedifluxsurf(kbdim)              ! sedimentation flux at surf
 
 
   !--- local variables
-  INTEGER            :: imod
+  INTEGER            :: imod, jk, jl
 
   LOGICAL :: ll1(kbdim,klev) !SF #458 dummy logical
 
@@ -154,10 +155,21 @@ MODULE mo_ham_sedimentation
 
   REAL(dp) :: ztmp1(kbdim,klev), ztmp2(kbdim,klev) !SF #458 dummy temporary variables
 
+  !-->eehol: add variables for implicit sedimentation solver
+  REAL(dp) :: zsedflx(kbdim), & ! sediflux per layer xx m-2
+       zaeronwm1(kbdim), &      ! next time step mixing ratio needed for next layer
+       zsolaers, &              ! source term from above layer
+       zsolaerb, &              ! sink to next layer
+       zgdp, &                  ! 1 per layer thickness (pressure)
+       zdtgdp, &                ! time step len times 1 per layer thickness (pressure)
+       zaeronw                  ! implicit solver variable 
+  !<--eehol
+  
   !--- code
   !--- initialize output
-  pvsedi(:,:)    = 0._dp
-  psediflux(:,:) = 0._dp
+  pvsedi(:,:)        = 0._dp
+  psediflux(:,:)     = 0._dp
+  psedifluxsurf(:)   = 0._dp
 
   !--- lookup mode of the tracer and get wet radius and density
   imod=trlist%ti(kt)%mode
@@ -245,29 +257,65 @@ MODULE mo_ham_sedimentation
 
   pvsedi(1:kproma,:) = MERGE(ztmp2(1:kproma,:), 0._dp, ll1(1:kproma,:))
 
-  !--- Loss in terms of mixing ratio tendency:
-  ztmp1(1:kproma,:) = MAX(0._dp, pxtp1(1:kproma,:)*pvsedi(1:kproma,:)/pdz(1:kproma,:) )
-  !--- Limit tendency to pxtp1/dt to avoid negative tracer concentrations
-  ztmp1(1:kproma,:) = MIN(ztmp1(1:kproma,:), pxtp1(1:kproma,:)/time_step_len)
+  !!--- Loss in terms of mixing ratio tendency:
+  !ztmp1(1:kproma,:) = MAX(0._dp, pxtp1(1:kproma,:)*pvsedi(1:kproma,:)/pdz(1:kproma,:) )
+  !!--- Limit tendency to pxtp1/dt to avoid negative tracer concentrations
+  !ztmp1(1:kproma,:) = MIN(ztmp1(1:kproma,:), pxtp1(1:kproma,:)/time_step_len)
 
-  zsedtend(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:))
-  
-  !--- Apply loss throughout the column of mixing ratio tendencies:
-  !    note: pxtte in this routine is already indexed for one tracer
-  !    (normally this would be pxtte(1:kproma, :, kt) )
+  !zsedtend(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:))
+  !
+  !!--- Apply loss throughout the column of mixing ratio tendencies:
+  !!    note: pxtte in this routine is already indexed for one tracer
+  !!    (normally this would be pxtte(1:kproma, :, kt) )
 
-  pxtte(1:kproma,:)= pxtte(1:kproma,:)-zsedtend(1:kproma,:)
+  !pxtte(1:kproma,:)= pxtte(1:kproma,:)-zsedtend(1:kproma,:)
 
   !--- Transfer loss from mixing ratio tendency [kg/kg]
   !    to sedimentation flux [kg m-2 s-1]:
 
-  psediflux(1:kproma,:) = zsedtend(1:kproma,:) * pdpg(1:kproma,:)
-!<<SF #458 (replacing where statements)
+  !-->eehol: adding implicit solver for sedimentation
+  !init variables carried out from one layer to the next
+  zsedflx(1:kproma) = 0.0_dp
+  zaeronwm1(1:kproma) = 0.0_dp
+  DO jk=1,klev
+     DO jl=1,kproma
+        zsolaers = 0.0_dp
+        zsolaerb = 0.0_dp
+        zgdp = 1/(pdpg(jl,jk))
+        zdtgdp = time_step_len*zgdp
 
+        !source from above
+        IF (jk > 1) THEN
+           zsedflx(jl) = zsedflx(jl)*zaeronwm1(jl)
+           zsolaers = zsolaers+zsedflx(jl)*zdtgdp
+        END IF
+
+        !sink to next layer
+        zsedflx(jl) = pvsedi(jl,jk)*prho(jl,jk)
+        zsolaerb = zsolaerb+zdtgdp*zsedflx(jl)
+
+        !implicit solver
+        zaeronw = (pxtp1(jl,jk)+zsolaers)/(1.0_dp+zsolaerb)
+
+        !new time-step aero variable needed for next layer
+        zaeronwm1(jl) = zaeronw
+
+        !tendency in unit of xx kg-1 s-1
+        pxtte(jl,jk) = pxtte(jl,jk)+((zaeronw-pxtp1(jl,jk))/time_step_len)
+        
+     END DO
+  END DO
+
+
+!  psediflux(1:kproma,:) = zsedtend(1:kproma,:) * pdpg(1:kproma,:)
+!<<SF #458 (replacing where statements)
+  DO jl=1,kproma
+     psedifluxsurf(jl) = prho(jl,klev)*zaeronwm1(jl)*pvsedi(jl,klev)
+  END DO
   !--- Re-convert sedimentatation flux and add it to the mixing ratio tendency
   !    of the box below (conversion with zdpg of the box below):
-  pxtte(1:kproma,2:klev)=pxtte(1:kproma,2:klev)                           &
-                         + (psediflux(1:kproma,1:(klev-1))/pdpg(1:kproma,2:klev))
+  !pxtte(1:kproma,2:klev)=pxtte(1:kproma,2:klev)                           &
+  !                       + (psediflux(1:kproma,1:(klev-1))/pdpg(1:kproma,2:klev))
 
   END SUBROUTINE ham_sedimentation
 

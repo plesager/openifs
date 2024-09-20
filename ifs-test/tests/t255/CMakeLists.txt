@@ -79,7 +79,7 @@ function( add_ifs_test TARGET )
       ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/namelist.echam ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/namelist.echam)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/parnuc.15H2SO4.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/parnuc.15H2SO4.nc)
+      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/parnuc.15H2SO4.A0.total.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/parnuc.15H2SO4.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
       ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lut_kappa.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_kappa.nc)
