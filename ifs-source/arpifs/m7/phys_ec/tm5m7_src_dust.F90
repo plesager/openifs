@@ -1398,7 +1398,7 @@ DO JAER=1,KBINDD
          !----
          ! accumulation mode
          ! number
-         emis_number(mode_aci)%d3(JL,KLEV,1)   = emis_number(mode_aci)%d3(JL,KLEV,1) +ZFLX_SDUST(JL,JAER,NDDUST)* 3. / (4.*RPI*ddust*mmr_ai**3) * EXP(4.5*LOG(sigma(iacci))**2)
+         emis_number(mode_aci)%d3(JL,KLEV,1)   = emis_number(mode_aci)%d3(JL,KLEV,1) +ZFLX_SDUST(JL,JAER,NDDUST)* 3./(4.*RPI*ddust*mmr_ai**3) * EXP(4.5*LOG(sigma(iacci))**2)*1.E+3
          ! mass
          emis_mass(mode_aci)%d3(JL,KLEV,1)   = emis_mass(mode_aci)%d3(JL,KLEV,1)+ZFLX_SDUST(JL,JAER,NDDUST)!flux_ai(KIDIA:KFDIA)
       else if(JAER>=2 )then
@@ -1406,7 +1406,7 @@ DO JAER=1,KBINDD
          ! ------------------------------
          ! coarse mode
          ! number
-         emis_number(mode_coi)%d3(JL,KLEV,1)   = emis_number(mode_coi)%d3(JL,KLEV,1) +ZFLX_SDUST(JL,JAER,NDDUST)* 3. / (4.*RPI*ddust*mmr_ci**3) * EXP(4.5*LOG(sigma(icoai))**2)
+         emis_number(mode_coi)%d3(JL,KLEV,1)   = emis_number(mode_coi)%d3(JL,KLEV,1) +ZFLX_SDUST(JL,JAER,NDDUST)* 3./(4.*RPI*ddust*mmr_ci**3) * EXP(4.5*LOG(sigma(icoai))**2)*1.E+3
          ! mass
          emis_mass(mode_coi)%d3(JL,KLEV,1)   = emis_mass(mode_coi)%d3(JL,KLEV,1) +ZFLX_SDUST(JL,JAER,NDDUST)
       end if
