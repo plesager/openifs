@@ -144,6 +144,7 @@ TYPE(MODAL_EMISSIONS), DIMENSION(NMOD), TARGET :: EMIS_MASS
 TYPE(MODAL_EMISSIONS), DIMENSION(NMOD), TARGET :: EMIS_NUMBER
 
 REAL(KIND=JPRB) :: ZAEROCLIS(KLON,KLEV,2) 
+REAL(KIND=JPRB) :: ZCFLX(KLON,KTRAC)
 REAL(KIND=JPRB) :: ZFAERO(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)    
 REAL(KIND=JPRB) :: ZAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZTAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
@@ -213,6 +214,7 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 #include "surf_inq.h"
 
 #include "tm5m7_src_ss.intfb.h"
+#include "tm5m7_src_ss_lhw.intfb.h"
 #include "tm5m7_src_dust.intfb.h"
 !#include "satur.intfb.h"
 !#include "aer_volce.intfb.h"
@@ -248,7 +250,6 @@ ASSOCIATE(&
 ! All surface fluxes PCFLUX in kg m-2 s-1
 
 !-----------------------------------------------------------------------
-
 !*       0.1   TIME AND DATE OF THE MODEL
 !              --------------------------
 IY0=NCCAA(NINDAT)
@@ -349,12 +350,13 @@ ZTAEROK(KIDIA:KFDIA, 1:KLEV, 1:NACTAERO) = PTENC(KIDIA:KFDIA, 1:KLEV, KAERO(1):K
 PEMIDIAG(KIDIA:KFDIA,        1:NACTAERO) = 0.0_JPRB
 
 ! RCHG: FIXME -> there were are recurrent sematic error ARRAY(:) = 0.0_JPRB is dangerous.
-ZOMBF(KIDIA:KFDIA) = 0.0_JPRB   
+ZOMBF(KIDIA:KFDIA) = 0.0_JPRB
 ZOMFF(KIDIA:KFDIA) = 0.0_JPRB
 ZOMGF(KIDIA:KFDIA) = 0.0_JPRB
 ZBCFF(KIDIA:KFDIA) = 0.0_JPRB
 ZBCBF(KIDIA:KFDIA) = 0.0_JPRB
 ZBCGF(KIDIA:KFDIA) = 0.0_JPRB
+ZCFLX = 0.0_JPRB
 
 !-----------------------------------------------------------------------
 
@@ -400,6 +402,9 @@ CALL TM5M7_SRC_SS( KIDIA, KFDIA,  KLON, KLEV,         &
                  & emis_mass, emis_number )
 
 
+!CALL TM5M7_SRC_SS_LHW( KIDIA, KFDIA,  KLON, KLEV,         &
+!                 & PCI,   PCLAKE, PLSM, PSST, ZWNDSS, &
+!                 & emis_mass, emis_number )
 
 !-----------------------------------------------------------------------
 !*  2.0   DESERT DUST
@@ -432,7 +437,7 @@ CALL TM5M7_SRC_DUST( YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTI
 !----------------------------------------------------------------------
 !*       5.0   Convert emissions into tendencies: loop over tracers in mode
 !              ------------
-! CALL ADD_TOFLUX() ! -> only used for CY43R3
+!  CALL ADD_TOFLUX() ! -> only used for CY43R3
 !
 !
 ! RCHG -> in the case of CY48R1 the emissions non-interactive (all except SS and DUST)
@@ -444,36 +449,70 @@ CALL TM5M7_SRC_DUST( YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTI
 !         store emissions. Probably we can directly store in PAERSRC array, but 
 !         I keep current implementation. 
 
+        ! PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,JN)+sum(emit(JL,:))
+        ! DO JK=1,KLEV
+        !    !PCFLX(JL,KAERO(JN))=PCFLX(JL,KAERO(JN))+emit(JL,JK)
+        !    PTENC(JL,JK,KAERO(JN))=PTENC(JL,JK,KAERO(JN))+emit(JL,JK) * RG /PDELP(JL,JK)
+        ! ENDDO
 DO JL=KIDIA,KFDIA
-  PCFLX(JL,KAERO(iacs_n)) = PCFLX(JL,KAERO(iacs_n)) + emis_number(mode_acs)%d3(JL,KLEV,4)
-  PCFLX(JL,KAERO(icos_n)) = PCFLX(JL,KAERO(icos_n)) + emis_number(mode_cos)%d3(JL,KLEV,4)
-  PCFLX(JL,KAERO(issacs)) = PCFLX(JL,KAERO(issacs)) + emis_mass(mode_acs)%d3(JL,KLEV,4)
-  PCFLX(JL,KAERO(isscos)) = PCFLX(JL,KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4)
+  PCFLX(JL,KAERO(iacs_n)) = 0.0!PCFLX(JL,KAERO(iacs_n)) !+ emis_number(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(icos_n)) = 0.0!PCFLX(JL,KAERO(icos_n)) !+ emis_number(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(issacs)) = 0.0!PCFLX(JL,KAERO(issacs)) !+ emis_mass(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(isscos)) = 0.0!PCFLX(JL,KAERO(isscos)) !+ emis_mass(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(iaci_n)) = 0.0!PCFLX(JL,KAERO(iaci_n)) !+ emis_number(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(icoi_n)) = 0.0!PCFLX(JL,KAERO(icoi_n)) !+ emis_number(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(iduaci)) = 0.0!PCFLX(JL,KAERO(iduaci)) !+ emis_mass(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(iducoi)) = 0.0!PCFLX(JL,KAERO(iducoi)) !+ emis_mass(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
 
-  PCFLX(JL,KAERO(iaci_n)) = PCFLX(JL,KAERO(iaci_n)) + emis_number(mode_aci)%d3(JL,KLEV,1)
-  PCFLX(JL,KAERO(icoi_n)) = PCFLX(JL,KAERO(icoi_n)) + emis_number(mode_coi)%d3(JL,KLEV,1)
-  PCFLX(JL,KAERO(iduaci)) = PCFLX(JL,KAERO(iduaci)) + emis_mass(mode_aci)%d3(JL,KLEV,1)
-  PCFLX(JL,KAERO(iducoi)) = PCFLX(JL,KAERO(iducoi)) + emis_mass(mode_coi)%d3(JL,KLEV,1)
+  ZCFLX(JL,KAERO(iacs_n)) = emis_number(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  ZCFLX(JL,KAERO(icos_n)) = emis_number(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  ZCFLX(JL,KAERO(issacs)) = emis_mass(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  ZCFLX(JL,KAERO(isscos)) = emis_mass(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  ZCFLX(JL,KAERO(iaci_n)) = emis_number(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  ZCFLX(JL,KAERO(icoi_n)) = emis_number(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
+  ZCFLX(JL,KAERO(iduaci)) = emis_mass(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  ZCFLX(JL,KAERO(iducoi)) = emis_mass(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
 
   PTENC(JL,KLEV, KAERO(iacs_n)) = PTENC(JL,KLEV, KAERO(iacs_n)) + emis_number(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
   PTENC(JL,KLEV, KAERO(icos_n)) = PTENC(JL,KLEV, KAERO(icos_n)) + emis_number(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
   PTENC(JL,KLEV, KAERO(issacs)) = PTENC(JL,KLEV, KAERO(issacs)) + emis_mass(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(isscos)) = PTENC(JL,KLEV, KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-
+  PTENC(JL,KLEV, KAERO(isscos)) = PTENC(JL,KLEV, KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV)
+ 
   PTENC(JL,KLEV, KAERO(iaci_n)) = PTENC(JL,KLEV, KAERO(iaci_n)) + emis_number(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
   PTENC(JL,KLEV, KAERO(icoi_n)) = PTENC(JL,KLEV, KAERO(icoi_n)) + emis_number(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
   PTENC(JL,KLEV, KAERO(iduaci)) = PTENC(JL,KLEV, KAERO(iduaci)) + emis_mass(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
   PTENC(JL,KLEV, KAERO(iducoi)) = PTENC(JL,KLEV, KAERO(iducoi)) + emis_mass(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
 
 ENDDO
+!write(*,*)"PDELP",PDELP(:,klev)/RG
+!write(*,*)"RG",RG
 
-DO IMODE=1,NMOD                                 ! loop in each mode 
-  DO INMODE=0,MODE_NM_SED(IMODE)                ! loop in aerosols species per mode 
-     JN = MODE_TRACERS_SED(INMODE,IMODE)        ! retrieve indentifier of each specie
-     PEMIDIAG(JL,KAERO(JN))=PCFLX(JL,KAERO(JN)) ! assign PCFLX to emissions (we still not added dep. to PCFLX) 
-  ENDDO 
-ENDDO
+     !write(*,*)"aerini emission"
+     !write(*,*)"KAERO(iacs_n)",KAERO(iacs_n)
+     !write(*,*)"PTENC(JL,KLEV, KAERO(iacs_n))",PTENC(:,KLEV, KAERO(iacs_n))
+     !write(*,*)"KAERO(icos_n)",KAERO(icos_n)
+     !write(*,*)"PTENC(JL,KLEV, KAERO(icos_n))",PTENC(:,KLEV, KAERO(icos_n))
+     !write(*,*)"KAERO(issacs)",KAERO(issacs)!!!=8
+     !write(*,*)"PTENC(JL,KLEV, KAERO(issacs))",PTENC(:,KLEV, KAERO(issacs))
+     !write(*,*)"KAERO(isscos)",KAERO(isscos)!!!=31
+     !write(*,*)"PTENC(JL,KLEV, KAERO(isscos))",PTENC(:,KLEV, KAERO(isscos))
+     !write(*,*)"KAERO(iaci_n)",KAERO(iaci_n)
+     !write(*,*)"PTENC(JL,KLEV, KAERO(iaci_n))",PTENC(:,KLEV, KAERO(iaci_n))
+     !write(*,*)"KAERO(iaci_n)",KAERO(icoi_n)
+     !write(*,*)"PTENC(JL,KLEV, KAERO(icoi_n))",PTENC(:,KLEV, KAERO(icoi_n))
 
+     DO JL=KIDIA,KFDIA
+       DO IMODE=1,NMOD                                 ! loop in each mode 
+         DO INMODE=0,MODE_NM_SED(IMODE)                ! loop in aerosols species per mode 
+            JN = MODE_TRACERS_SED(INMODE,IMODE)        ! retrieve indentifier of each specie
+            !PEMIDIAG(JL,KAERO(JN))=PCFLX(JL,KAERO(JN)) ! assign PCFLX to emissions (we still not added dep. to PCFLX) 
+            PEMIDIAG(JL,KAERO(JN))= PEMIDIAG(JL,KAERO(JN)) + ZCFLX(JL,KAERO(JN))*(-1._JPRB) ! assign PCFLX to emissions (we still not added dep. to PCFLX) 
+         ENDDO 
+       ENDDO
+     ENDDO
+
+                !write(*,*)"tm5m7_src PCFLX(KIDIA:KFDIA,16)",maxval(abs(PCFLX(KIDIA:KFDIA,16)))
+                !write(*,*)"PEMIDIAG(JL,KAERO(JN))",maxval(abs(PEMIDIAG(:,16)))
 
 ! RCHG -> This is outside the previous loop so it is important to initialize PEMIDIAG(:,:) = 0. 
 !         at begining of this subroutine. Note that here we are not filling PCFLX 
@@ -880,6 +919,7 @@ SUBROUTINE BC_SRC_43R3()
 END SUBROUTINE
 
 SUBROUTINE ADD_TOFLUX()
+          emit(KIDIA:KFDIA,:) = 0.0
   DO IMODE=1,NMOD                           ! loop in each mode 
     DO INMODE=0,MODE_NM_SED(IMODE)          ! loop in aerosols species per mode 
        JN = MODE_TRACERS_SED(INMODE,IMODE)  ! retrieve indentifier of each specie
@@ -894,9 +934,6 @@ SUBROUTINE ADD_TOFLUX()
           emit(KIDIA:KFDIA,:) = emis_mass(IMODE)%d3(KIDIA:KFDIA,:,inmode)
        endif
        ! Change units from kg/m2/sec to kg/kg/sec and update tendency..
-         !write(*,*) "JN",JN
-         !write(*,*) "KAERO(JN)",KAERO(JN)
-         !write(*,*) "NACTAERO",NACTAERO
        DO JL=KIDIA,KFDIA
          ! Should limit to troposphere?! (for now sfc only)
           !JK=91
@@ -907,16 +944,39 @@ SUBROUTINE ADD_TOFLUX()
           !   write(2020,*)jk,emit(jl,jk)
           !end if
           !write(2929,*)JN,KAERO(JN)
-          PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,JN)+sum(emit(JL,:))
+          !PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,JN)+sum(emit(JL,:))
+          PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,KAERO(JN))+sum(emit(JL,:))
          DO JK=1,KLEV
             !PCFLX(JL,KAERO(JN))=PCFLX(JL,KAERO(JN))+emit(JL,JK)
-            
             PTENC(JL,JK,KAERO(JN))=PTENC(JL,JK,KAERO(JN))+emit(JL,JK) * RG /PDELP(JL,JK)
          ENDDO
          
        ENDDO
+     
     ENDDO
  ENDDO
+
+!  PTENC(JL,KLEV, KAERO(iacs_n)) = PTENC(JL,KLEV, KAERO(iacs_n)) + emis_number(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(icos_n)) = PTENC(JL,KLEV, KAERO(icos_n)) + emis_number(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(issacs)) = PTENC(JL,KLEV, KAERO(issacs)) + emis_mass(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(isscos)) = PTENC(JL,KLEV, KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(iaci_n)) = PTENC(JL,KLEV, KAERO(iaci_n)) + emis_number(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(icoi_n)) = PTENC(JL,KLEV, KAERO(icoi_n)) + emis_number(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(iduaci)) = PTENC(JL,KLEV, KAERO(iduaci)) + emis_mass(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
+!  PTENC(JL,KLEV, KAERO(iducoi)) = PTENC(JL,KLEV, KAERO(iducoi)) + emis_mass(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV)
+!     write(*,*) "old" 
+!     write(*,*)"KAERO(iacs_n)",KAERO(iacs_n)
+!     write(*,*)"PTENC(JL,KLEV, KAERO(iacs_n))",PTENC(:,KLEV, KAERO(iacs_n))
+!     write(*,*)"PTENC(JL,KLEV-1, KAERO(iacs_n))",PTENC(:,KLEV-1, KAERO(iacs_n))
+!     write(*,*)"KAERO(icos_n)",KAERO(icos_n)
+!     write(*,*)"PTENC(JL,KLEV, KAERO(icos_n))",PTENC(:,KLEV, KAERO(icos_n))
+!     write(*,*)"PTENC(JL,KLEV-1, KAERO(icos_n))",PTENC(:,KLEV-1, KAERO(icos_n))
+!     write(*,*)"KAERO(issacs)",KAERO(issacs)
+!     write(*,*)"PTENC(JL,KLEV, KAERO(issacs))",PTENC(:,KLEV, KAERO(issacs))
+!     write(*,*)"KAERO(isscos)",KAERO(isscos)
+!     write(*,*)"PTENC(JL,KLEV, KAERO(isscos))",PTENC(:,KLEV, KAERO(isscos))
+!     write(*,*)"KAERO(iaci_n)",KAERO(iaci_n)
+!     write(*,*)"PTENC(JL,KLEV, KAERO(iaci_n))",PTENC(:,KLEV, KAERO(iaci_n))
  END SUBROUTINE
 
 END SUBROUTINE TM5M7_SRC

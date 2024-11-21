@@ -166,10 +166,10 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_AOP_GET',0,ZHOOK_HANDLE)
     ! COI
     aop_in(KIDIA:KFDIA,1:KLEV)%du (7) = 1.E9_JPRB * PAERO(KIDIA:KFDIA,1:KLEV,iducoi ) 
     ! Water in (hydrophillic) modes
-    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(1) = 1.E9_JPRB * h2o_mode(1)%d2(KIDIA:KFDIA,1:KLEV) 
-    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(2) = 1.E9_JPRB * h2o_mode(2)%d2(KIDIA:KFDIA,1:KLEV) 
-    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(3) = 1.E9_JPRB * h2o_mode(3)%d2(KIDIA:KFDIA,1:KLEV) 
-    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(4) = 1.E9_JPRB * h2o_mode(4)%d2(KIDIA:KFDIA,1:KLEV) 
+    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(1) = 1.E9_JPRB * h2o_mode(1)%d2(KIDIA:KFDIA,1:KLEV)/PRHO(KIDIA:KFDIA,1:KLEV)
+    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(2) = 1.E9_JPRB * h2o_mode(2)%d2(KIDIA:KFDIA,1:KLEV)/PRHO(KIDIA:KFDIA,1:KLEV) 
+    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(3) = 1.E9_JPRB * h2o_mode(3)%d2(KIDIA:KFDIA,1:KLEV)/PRHO(KIDIA:KFDIA,1:KLEV) 
+    aop_in(KIDIA:KFDIA,1:KLEV)%h2o(4) = 1.E9_JPRB * h2o_mode(4)%d2(KIDIA:KFDIA,1:KLEV)/PRHO(KIDIA:KFDIA,1:KLEV) 
 
     aop_in(KIDIA:KFDIA,1:KLEV)%rg (1) = 1.E6_JPRB * rw_mode (1)%d2(KIDIA:KFDIA,1:KLEV)
     aop_in(KIDIA:KFDIA,1:KLEV)%rg (2) = 1.E6_JPRB * rw_mode (2)%d2(KIDIA:KFDIA,1:KLEV)
@@ -225,9 +225,9 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_AOP_GET',0,ZHOOK_HANDLE)
 
 
     ! Initialization to zero is done in tm5m7_optics_calculate_aop 
-    !Paop_out_ext=0.0_JPRB
-    !Paop_out_a=0.0_JPRB
-    !Paop_out_g=0.0_JPRB
+    Paop_out_ext=0.0_JPRB
+    Paop_out_a=0.0_JPRB
+    Paop_out_g=0.0_JPRB
     if (present(aop_out_add)) then
        call tm5m7_optics_calculate_aop(KIDIA,KFDIA, KLON,KLEV, nwav,NCONTR, wdep,  ecearth_units, &
        &                           AOP_IN, &       

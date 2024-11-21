@@ -428,9 +428,12 @@ MODULE mo_hammoz_wetdep
 
   paclc(1:kproma,:) = MERGE(paclc(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
   ztmp1(1:kproma,:) = 0._dp
-  IF (MINVAL(ABS(zilwc(1:kproma,:)))>0._dp) THEN
-        ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
-  ENDIF
+
+  WHERE(ABS(zilwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
+
+  !IF (MINVAL(ABS(zilwc(1:kproma,:)))>0._dp) THEN
+  !      ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
+  !ENDIF
   pice(1:kproma,:)  = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   !--- 1.2) Calculate autoconversion rate:
@@ -438,9 +441,12 @@ MODULE mo_hammoz_wetdep
   lo_2d(1:kproma,:) = (pmiwc(1:kproma,:) > zmin)
 
   ztmp1(1:kproma,:) = 0._dp
-  IF (MINVAL(ABS(pmiwc(1:kproma,:)))>0._dp) THEN
-      ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
-  ENDIF
+
+  WHERE(ABS(pmiwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
+
+  !IF (MINVAL(ABS(pmiwc(1:kproma,:)))>0._dp) THEN
+  !    ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
+  !ENDIF
 
   !peffice(1:kproma,:) = MERGE(pmrateps(1:kproma,:)/pmiwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
   peffice(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
@@ -450,10 +456,19 @@ MODULE mo_hammoz_wetdep
   lo_2d(1:kproma,:) = (pmlwc(1:kproma,:) > zmin)
 
   ztmp1(1:kproma,:) = 0._dp
-  IF (MINVAL(ABS(pmlwc(1:kproma,:)))>0._dp) THEN
-      ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
-  ENDIF
+  WHERE(ABS(pmlwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
+  !IF (MINVAL(ABS(pmlwc(1:kproma,:)))>0._dp) THEN
+  !    ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
+  !ENDIF
+  !write(*,*)"pmratepr(1:kproma,:)",pmratepr(1:kproma,klev)
+  !write(*,*)"pmsnowacl(1:kproma,:)",pmsnowacl(1:kproma,klev)
+  !write(*,*)"pmlwc(1:kproma,:)",pmlwc(1:kproma,klev)
+  !write(*,*)"lo_2d(1:kproma,:)",lo_2d(1:kproma,klev)
+
+  !write(*,*)"ztmp1(1:kproma,:)",ztmp1(1:kproma,klev)
   peffwat(1:kproma,:) = MERGE(ztmp1(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
+
+  !write(*,*)"peffwat(1:kproma,:)",peffwat(1:kproma,klev)
 
 
   peffwat(1:kproma,:) = MAX(0._dp,MIN(1._dp,peffwat(1:kproma,:)))
@@ -494,9 +509,11 @@ MODULE mo_hammoz_wetdep
   lo_2d(1:kproma,:) = (zfprec(1:kproma,:) > zmin)
 
   ztmp1(1:kproma,:) = 0._dp
-  IF (MINVAL(ABS(zfprec(1:kproma,:)))>0._dp) THEN
-      ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
-  ENDIF
+
+  WHERE(ABS(zfprec(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
+  !IF (MINVAL(ABS(zfprec(1:kproma,:)))>0._dp) THEN
+  !    ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
+  !ENDIF
   prevap(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   prevap(1:kproma,:) = MAX(0._dp,MIN(1._dp,prevap(1:kproma,:)))
@@ -953,7 +970,7 @@ MODULE mo_hammoz_wetdep
   REAL(dp), INTENT(in)    :: pmsnowacl(kbdim,klev)       ! accretion rate of snow with cloud droplets 
   
   REAL(dp), INTENT(in)    :: pm6rp(kbdim,klev,nclass) 
-             ! mean mode actual radius for each mode (wet for soluble and dry for insoluble modes) [cm]
+             ! mean mode actual radius for each mode (wet for soluble and dry for insoluble modes) 
   REAL(dp), INTENT(in)    :: pm6dry(kbdim,klev,nclass)                                               ! in cloudy part [kg/kg]
 
 !  REAL(dp), INTENT(in)    :: pnact(kbdim,klev,nclass)  !number of activated particles per mode [m-3]
