@@ -1214,24 +1214,24 @@ SELECT CASE (TRIM(AERO_SCHEME))
             ZFLXS=PFPLCN(JL,JK-1)
             ZFLXRB=PFPLCL(JL,JK)
             ZFLXSB=PFPLCN(JL,JK)
-            IF (PCOVPTOT(JL,JK) > 1e-40_JPRB) THEN
+            !IF (PCOVPTOT(JL,JK) > 1e-40_JPRB) THEN
               !ZMRATEPR(JL,JK) = ( ZFLXRB-ZFLXR ) / PCOVPTOT(JL,JK)
               !ZMRATEPS(JL,JK) = ( ZFLXSB-ZFLXS ) / PCOVPTOT(JL,JK)
               !!same formula negatives/positives for evap or formation
               !ZFEVAPR(JL,JK) = ( ZFLXRB-ZFLXR ) / PCOVPTOT(JL,JK)
               !ZFSUBLS(JL,JK) = ( ZFLXSB-ZFLXS ) / PCOVPTOT(JL,JK)
-              ZMRATEPR_cov(JL,JK) = ( ZFLXRB-ZFLXR ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-              ZMRATEPS_cov(JL,JK) = ( ZFLXSB-ZFLXS ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZMRATEPR_cov(JL,JK) =  ZFLXRB-ZFLXR! ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZMRATEPS_cov(JL,JK) =  ZFLXSB-ZFLXS! ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
               !same formula negatives/positives for evap or formation
-              ZFEVAPR_cov(JL,JK) = 0.0!( ZFLXRB-ZFLXR ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-              ZFSUBLS_cov(JL,JK) = 0.0!( ZFLXSB-ZFLXS ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-            ELSE
-              ZMRATEPR_cov(JL,JK) = 0.0_JPRB
-              ZMRATEPS_cov(JL,JK) = 0.0_JPRB
-              !same formula negatives/positives for evap or formation
-              ZFEVAPR_cov(JL,JK) = 0.0_JPRB
-              ZFSUBLS_cov(JL,JK) = 0.0_JPRB
-            END IF
+              ZFEVAPR_cov(JL,JK) =  ZFLXRB-ZFLXR !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZFSUBLS_cov(JL,JK) =  ZFLXSB-ZFLXS !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+           ! ELSE
+           !   ZMRATEPR_cov(JL,JK) = 0.0_JPRB
+           !   ZMRATEPS_cov(JL,JK) = 0.0_JPRB
+           !   !same formula negatives/positives for evap or formation
+           !   ZFEVAPR_cov(JL,JK) = 0.0_JPRB
+           !   ZFSUBLS_cov(JL,JK) = 0.0_JPRB
+           ! END IF
 
 
           END DO
@@ -1243,24 +1243,24 @@ SELECT CASE (TRIM(AERO_SCHEME))
             ZFLXS=PFPLSN(JL,JK-1)
             ZFLXRB=PFPLSL(JL,JK)
             ZFLXSB=PFPLSN(JL,JK)
-            IF (PCOVPTOT(JL,JK) > 1e-40_JPRB) THEN
+            !IF (PCOVPTOT(JL,JK) > 1e-40_JPRB) THEN
               !ZMRATEPR(JL,JK) = ( ZFLXRB-ZFLXR ) / PCOVPTOT(JL,JK)
               !ZMRATEPS(JL,JK) = ( ZFLXSB-ZFLXS ) / PCOVPTOT(JL,JK)
               !!same formula negatives/positives for evap or formation
               !ZFEVAPR(JL,JK) = ( ZFLXRB-ZFLXR ) / PCOVPTOT(JL,JK)
               !ZFSUBLS(JL,JK) = ( ZFLXSB-ZFLXS ) / PCOVPTOT(JL,JK)
-              ZMRATEPR_str(JL,JK) = ( ZFLXRB-ZFLXR ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-              ZMRATEPS_str(JL,JK) = ( ZFLXSB-ZFLXS ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZMRATEPR_str(JL,JK) =  ZFLXRB-ZFLXR !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZMRATEPS_str(JL,JK) =  ZFLXSB-ZFLXS !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
               !same formula negatives/positives for evap or formation
-              ZFEVAPR_str(JL,JK) = 0.0!( ZFLXRB-ZFLXR ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-              ZFSUBLS_str(JL,JK) = 0.0!( ZFLXSB-ZFLXS ) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
-            ELSE
-              ZMRATEPR_str(JL,JK) = 0.0_JPRB
-              ZMRATEPS_str(JL,JK) = 0.0_JPRB
-              !same formula negatives/positives for evap or formation
-              ZFEVAPR_str(JL,JK) = 0.0_JPRB
-              ZFSUBLS_str(JL,JK) = 0.0_JPRB
-            END IF
+              ZFEVAPR_str(JL,JK) =  ZFLXRB-ZFLXR !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+              ZFSUBLS_str(JL,JK) =  ZFLXSB-ZFLXS !) / MAX(PCOVPTOT(JL,JK),1.E-10_JPRB)
+            !ELSE
+            !  ZMRATEPR_str(JL,JK) = 0.0_JPRB
+            !  ZMRATEPS_str(JL,JK) = 0.0_JPRB
+            !  !same formula negatives/positives for evap or formation
+            !  ZFEVAPR_str(JL,JK) = 0.0_JPRB
+            !  ZFSUBLS_str(JL,JK) = 0.0_JPRB
+            !END IF
 
 
           END DO
