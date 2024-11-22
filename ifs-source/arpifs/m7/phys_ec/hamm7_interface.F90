@@ -448,8 +448,8 @@ REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: SEDOUT_2D(KLON,KTRAC)
 
 REAL(KIND=JPRB) :: DDEPOUT_2D(KLON,KTRAC)
-REAL(KIND=JPRB) :: WDEPOUT_2DC(KLON,KTRAC)
-REAL(KIND=JPRB) :: WDEPOUT_2DS(KLON,KTRAC)
+REAL(KIND=JPRB) :: WDEPOUT_2D(KLON,KTRAC)
+!REAL(KIND=JPRB) :: WDEPOUT_2DS(KLON,KTRAC)
 
 REAL(KIND=JPRB) :: WDEPOUT_IC_2D(KLON,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT_BC_2D(KLON,KTRAC)
@@ -621,8 +621,7 @@ ZDDEPFLUX_SO2(KIDIA:KFDIA)   = 0._JPRB
 ZVDA(KIDIA:KFDIA,:)          = 0._JPRB ! unused 2024-07-11
 SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
 DDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB ! unused 2024-07-11
-WDEPOUT_2DC(KIDIA:KFDIA,:)    = 0._JPRB
-WDEPOUT_2DS(KIDIA:KFDIA,:)    = 0._JPRB
+WDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB
 WDEPOUT_IC_2D(KIDIA:KFDIA,:) = 0._JPRB
 WDEPOUT_BC_2D(KIDIA:KFDIA,:) = 0._JPRB
 
@@ -938,7 +937,6 @@ DO JL=KIDIA,KFDIA
   ENDDO
 ENDDO
  
-        ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)
 ! --> calling the correct microphysics scheme
  
 SELECT CASE (TRIM(AERO_SCHEME))
@@ -1319,7 +1317,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
                 !write(*,*)"PCOVPTOT",PCOVPTOT(:,KLEV)
                 !write(*,*)"ZAP",ZAP(:,KLEV)
                 !write(*,*)"PMFU",PMFU(:,KLEV)
-                ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
           CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = FALSE for conv. case
                   !ZDPG,  ZMRATEPR_cov, ZMRATEPS_cov,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                   ZDPG,  PRP, PSP,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
@@ -1328,13 +1325,11 @@ SELECT CASE (TRIM(AERO_SCHEME))
                   REFFI,  REFFL,                                     & ! effective radii
                   ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
                   PTP, ZXTM1, ZLFRAC_SO2,                           & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
-                  !ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
-                  ZTENCTMP, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
+                  ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
                   PFPLCL, PFPLCN, ZFEVAPR_cov, ZFSUBLS_cov,                  & ! rain flux, snow flux, 
                   PMFU, ZFUXT3D,                                     & ! conv flux, updraft mass flux (updated in wetdep)
                   ZAP, ZDUM2D, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
 
-                ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)+ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC)-ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
                 !write(*,*)"2 ZXTTE ac",ZXTTE(:,klev,16)
                 !write(*,*)"2 ZXTTE ac 4",ZXTTE(:,klev,24)
                 !write(*,*)"2 ZXTTE cs",ZXTTE(:,klev,17)
@@ -1353,14 +1348,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
         !Add convective case wet removal fluxes to diagnostics
         DO JMASS=1,NAEROCOMP
           JY=KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))
-          WDEPOUT_2DC   (KIDIA:KFDIA,JY) = WDEPOUT_2DC   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
           WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
           WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
         END DO
 
         DO JCLASS=1,NCLASS
           JY=KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))
-          WDEPOUT_2DC   (KIDIA:KFDIA,JY) = WDEPOUT_2DC   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
           WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
           WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
         END DO
@@ -1371,7 +1366,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
         !   set both equal to tracer mixing ratio as starting point
         !   ham_wet_chemistry will re-compute these values if lham=true
         DO JT = 1,NTRAC
-          !ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
+          ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
           ZXTP1C(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
           ZXTP10(KIDIA:KFDIA,1:KLEV,JT) = ZXTP1(KIDIA:KFDIA,1:KLEV,JT)
         END DO
@@ -1389,7 +1384,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
                 !write(*,*)"4 ZXTTE cs",ZXTTE(:,klev,17)
                 !write(*,*)"4 ZXTTE cs",ZXTTE(:,klev,25)
                 !write(*,*)"PCOVPTOT",PCOVPTOT(:,klev)
-                ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
         CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = TRUE for strat. case
                 !ZDPG,  ZMRATEPR_str, ZMRATEPS_str,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                 ZDPG,  PRP, PSP,   ZMSNOWACL,            & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
@@ -1398,13 +1392,11 @@ SELECT CASE (TRIM(AERO_SCHEME))
                 REFFI,  REFFL,                                     & ! effective radii
                 ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
                 PTP, ZXTM1, ZLFRAC_SO2,                            & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
-                !ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
-                ZTENCTMP, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
+                ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
                 PFPLSL, PFPLSN, ZFEVAPR_str, ZFSUBLS_str,                  & ! rain flux, snow flux, 
                 ZDUM2D, ZDUM3D,                                    & ! zeroes as these are not needed in strat. case
                 ZAP,  PCOVPTOT, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
 
-                ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)+ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC)-ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
                 !write(*,*)"5 ZXTTE ac",ZXTTE(:,klev,16)
                 !write(*,*)"5 ZXTTE ac 4",ZXTTE(:,klev,24)
                 !write(*,*)"5 ZXTTE cs",ZXTTE(:,klev,17)
@@ -1416,14 +1408,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
         ! Add stratiform case wet removal fluxes to diagnostics
         DO JMASS=1,NAEROCOMP
           JY=KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))
-          WDEPOUT_2DS   (KIDIA:KFDIA,JY) = WDEPOUT_2DS   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
           WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
           WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_mass_ham(JMASS))
         END DO
 
         DO JCLASS=1,NCLASS
           JY=KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))
-          WDEPOUT_2DS   (KIDIA:KFDIA,JY) = WDEPOUT_2DS   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
+          WDEPOUT_2D   (KIDIA:KFDIA,JY) = WDEPOUT_2D   (KIDIA:KFDIA,JY) + ZDUMMY       (KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
           WDEPOUT_IC_2D(KIDIA:KFDIA,JY) = WDEPOUT_IC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_IC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
           WDEPOUT_BC_2D(KIDIA:KFDIA,JY) = WDEPOUT_BC_2D(KIDIA:KFDIA,JY) + ZWDEP_SCAV_BC(KIDIA:KFDIA, ind_oifs_ham%ind_class_ham(JCLASS))
         END DO
@@ -1451,16 +1443,13 @@ SELECT CASE (TRIM(AERO_SCHEME))
     IF (LAERSEDIM) THEN
       IF ( lsedimentation .AND. ANY(trlist%ti(:)%nsedi > 0) ) THEN
 
-        !ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
-                ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
+        ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
 
         CALL SEDI_INTERFACE(KLON, KFDIA, KLEV, ZKROW,   &
              PTP, ZQP, PRSF1, PRS1, & ! temperature, specific humidity, pressure at full level, pressure at half level
              ZM6RP, ZRHOP, & ! mean mode actual radius [m], mean mode particle density [kg m-3]
-             !ZXTM1, ZXTTE, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
-             ZXTM1, ZTENCTMP, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
+             ZXTM1, ZXTTE, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
 
-                ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC) = ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)+ZTENCTMP(KIDIA:KFDIA,1:KLEV,1:NTRAC)-ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)
 
         SEDOUT(KIDIA:KFDIA, 1:KLEV,:)=(ZTENCIH(KIDIA:KFDIA, 1:KLEV,:)-ZXTTE(KIDIA:KFDIA, 1:KLEV,:))
         DO JK=1,KLEV
@@ -1540,7 +1529,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
         END DO
         
         !--> init values
-        !ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = ZXTTE(KIDIA:KFDIA,1:KLEV,:) ! init tendency before drydep
+        ZTENCIH(KIDIA:KFDIA,1:KLEV,:) = ZXTTE(KIDIA:KFDIA,1:KLEV,:) ! init tendency before drydep
         ZXTEMS(KIDIA:KFDIA,:)         = 0._JPRB                     ! surface emissions as zero for input
         ZXTMD1(KIDIA:KFDIA,1:KLEV,:)  = 0._JPRB
         ZXTMD1(KIDIA:KFDIA,1:KLEV,:)  = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + (ZTENCIH(KIDIA:KFDIA,1:KLEV,:) * TIME_STEP_LEN) ! update mixrat with tendency
@@ -1979,8 +1968,8 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !end do
 
   DO JN=1,NACTAERO   !ktrac
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2DC(KIDIA:KFDIA,KAERO(JN))
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(6)%MP)  = WDEPOUT_2DS(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
+    !PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(6)%MP)  = WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(17)%MP)  = WDEPOUT_IC_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(18)%MP)  = WDEPOUT_BC_2D(KIDIA:KFDIA,KAERO(JN))
     !PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(4)%MP)  = ZSEDIFLUXSURF(KIDIA:KFDIA,KAERO(JN))

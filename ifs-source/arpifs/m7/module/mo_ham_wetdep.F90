@@ -232,7 +232,6 @@ MODULE mo_ham_wetdep
   !--- 0/ Initializations:
 
   !CALL prep_ham_mode_init(kproma, kbdim, klev)
-  write(*,*)"kt",kt
   ztmst = time_step_len
 
   imod    = trlist%ti(kt)%mode
