@@ -1325,7 +1325,7 @@ IF(LECMWF) THEN
   !TM5/M7 ancillary data
   IF (TRIM(AERO_SCHEME) == "tm5m7" .or. TRIM(AERO_SCHEME) == "hamm7" ) THEN
     YSD_VF%YSOILTYPE => YSD_VF%YVF(YSD_VFD%IPTR)
-    IREQIN=1
+    IREQIN=-1 ! This is relevant for dust emission in Tegen scheme (nddust=4), Lianghai Wu
     CALL SETUP_SFLP2(YSD_VFD,YSD_VF%YSOILTYPE, &
      & KGRIB=NGRBSOILTYPE, CDNAME='TM5M7 soil type ',KTRAJ=2,KREQIN=IREQIN)
   END IF
