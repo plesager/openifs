@@ -159,6 +159,10 @@ ELSE
 
         CALL ARPCLIM_CHEM_INI(YDGEOMETRY,YGFL,YDCHEM)
 
+      CASE ("SimChem")
+
+        WRITE(*,*)"SimChem:what need to be initialize here? Lianghai"
+
       CASE DEFAULT
 
        CALL ABOR1(" NO KNOWN CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )

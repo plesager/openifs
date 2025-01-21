@@ -491,36 +491,36 @@ ENDDO
 !         at begining of this subroutine. Note that here we are not filling PCFLX 
 !         Is this ok?
 !
-IF (.not. LAERCHEM) THEN
-    DO JL=KIDIA,KFDIA
-       DO JK=1,KLEV
-          DO JGAS=1,2
-             IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
-                ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
-                PTENC(JL,JK,KAERO(ISSO2))=PTENC(JL,JK,KAERO(ISSO2))+ PSO2SRC(JL,JK)
-                !PCFLX(JL,KAERO(ISSO2))=PCFLX(JL,KAERO(ISSO2)) + PSO2SRC(JL,JK)
-                PEMIDIAG(JL,KAERO(ISSO2))=PEMIDIAG(JL,KAERO(ISSO2))+ PSO2SRC(JL,JK)
-             ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas') THEN
-                ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
-                PTENC(JL,JK,KAERO(ISSO4))=PTENC(JL,JK,KAERO(ISSO4))+ PSO4SRC(JL,JK)
-                !PCFLX(JL,KAERO(ISSO4))=PCFLX(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
-                PEMIDIAG(JL,KAERO(ISSO4))=PEMIDIAG(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
-             END IF
-          END DO
-       END DO
-
-
-! For add SOA from CO into ISVOC tracer
-!!$       DO JGAS=1,NACTAERO
-!!$          IF (TRIM(YAERO(JGAS)%CNAME)=='ISVOC') THEN
-!!$             
-!!$             PTENC(JL,JK,KAERO(JGAS))=PTENC(JL,JK,KAERO(JGAS))+ PSOACO(JL)
-!!$             PEMIDIAG(JL,KAERO(JGAS))=PEMIDIAG(JL,KAERO(JGAS)) + PSOACO(JL)
-!!$          END IF
-!!$       END DO
-
-    END DO
- END IF
+!IF (.not. LAERCHEM) THEN
+!    DO JL=KIDIA,KFDIA
+!       DO JK=1,KLEV
+!          DO JGAS=1,2
+!             IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
+!                ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                PTENC(JL,JK,KAERO(ISSO2))=PTENC(JL,JK,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO2))=PCFLX(JL,KAERO(ISSO2)) + PSO2SRC(JL,JK)
+!                PEMIDIAG(JL,KAERO(ISSO2))=PEMIDIAG(JL,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!             ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas') THEN
+!                ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                PTENC(JL,JK,KAERO(ISSO4))=PTENC(JL,JK,KAERO(ISSO4))+ PSO4SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO4))=PCFLX(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!                PEMIDIAG(JL,KAERO(ISSO4))=PEMIDIAG(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!             END IF
+!          END DO
+!       END DO
+!
+!
+!! For add SOA from CO into ISVOC tracer
+!!!$       DO JGAS=1,NACTAERO
+!!!$          IF (TRIM(YAERO(JGAS)%CNAME)=='ISVOC') THEN
+!!!$             
+!!!$             PTENC(JL,JK,KAERO(JGAS))=PTENC(JL,JK,KAERO(JGAS))+ PSOACO(JL)
+!!!$             PEMIDIAG(JL,KAERO(JGAS))=PEMIDIAG(JL,KAERO(JGAS)) + PSOACO(JL)
+!!!$          END IF
+!!!$       END DO
+!
+!    END DO
+! END IF
 
 
 !-----------------------------------------------------------------------

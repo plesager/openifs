@@ -1,4 +1,4 @@
-SUBROUTINE hamm7_init(YGFL, YRRIP)
+SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 14-MAY-2024) │
@@ -118,6 +118,7 @@ USE MO_PARAM_SWITCHES, &
 IMPLICIT NONE
 TYPE(TYPE_GFLD), INTENT(IN)    :: YGFL
 TYPE(TRIP),      INTENT(IN)    :: YRRIP
+CHARACTER(len=20), INTENT(IN)  :: CHEM_SCHEME
 
 !----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
@@ -336,7 +337,7 @@ END DO LABEL_IFS_AERO
 ! chemistry tracers in HAM do not have separate metadata, because there is only one 
 ! tracer per species. Therefore we have to check the HAM species metadata and
 ! make sure that the metadata actually describes a gas.
-IF (LAERCHEM)THEN
+IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
    LABEL_IFS_CHEM: DO j_ychem = 1,NCHEM
 
    ! looping over the gas phase tracers in HAM
@@ -405,7 +406,7 @@ IF (LAERCHEM)THEN
       WRITE(2000+MYPROC,'(a)') 'not a gas in HAM: '//TRIM(YCHEM(j_ychem)%CNAME)
    END IF
    END DO LABEL_IFS_CHEM
-ELSE
+ELSE IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="SimChem") THEN
    Write(9191,*)'simple SO4 in development'
 
    LABEL_IFS_CHEM_SO4: DO j_ychem = 1,NAERO
@@ -442,7 +443,13 @@ ELSE
 
          ! sulfuric acid is special, because in HAM it is tagges as H2SO4, while in IFS it
          ! is called SO4 -- hard-coding for now
-         IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+         !WRITE(*,*)"j_spec:",j_spec
+         !WRITE(*,*)"j_ychem:",j_ychem
+         !WRITE(*,*)"YAERO(j_ychem)%CNAME:",YAERO(j_ychem)%CNAME
+         !WRITE(*,*)"speclist(j_spec)%shortname:",speclist(j_spec)%shortname
+         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+         IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
             ! In case of a match, we set the tracer index in the HAM meta data to the
             ! according IFS-index and write a note into the logfile
             kt = speclist(j_spec)%idt
@@ -471,6 +478,11 @@ ELSE
    IF (MYPROC == 1) THEN
       WRITE(2000+MYPROC,'(a)') 'not a gas in HAM: '//TRIM(YCHEM(j_ychem)%CNAME)
    END IF
+
+ ELSE
+   ! Note that We are also checking that LAERCHEM should always be true with M7 (and could probably be ignored: it was used to indicate that chem_scheme='tm5'). Redundant...
+   
+   CALL ABOR1(" hamm7_init: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
 END IF
 
 IF (MYPROC == 1) THEN

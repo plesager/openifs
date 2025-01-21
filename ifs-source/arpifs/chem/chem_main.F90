@@ -223,8 +223,10 @@ INTEGER(KIND=JPIM),INTENT(OUT)   :: IKLEVTROP(KLON)
 INTEGER(KIND=JPIM) :: JK, JL, JT, INO, IN2O, IJOUT, IPOS, ILI, IICH4, IIHNO3
 INTEGER(KIND=JPIM) :: ICO,IGHGCH4,FCO2,FCO2NOBIO,FCO2NOFLX
 INTEGER(KIND=JPIM) :: IPCH4, ISAD
+INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS ! SimChem
+
 REAL(KIND=JPRB)    :: ZDELP(KLON,KLEV)
-REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 REAL(KIND=JPRB)    :: ZCON(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)
 REAL(KIND=JPRB)    :: ZTENC0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)
 REAL(KIND=JPRB)    :: ZTENC1(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)
@@ -256,6 +258,8 @@ REAL(KIND=JPRB)    :: ZCOTRA(KLON,KLEV,3) ! 3 traceurs contrails, parametrisatio
 REAL(KIND=JPRB)    :: ZEMIS(KLON,KLEV,3) ! 3 especes emises par l'aviation, parametrisation à implementer
 REAL(KIND=JPRB)    :: ZAREAD_NAT(KLON,KLEV),ZAREAD_ICE(KLON,KLEV),ZAREAD_SUL(KLON,KLEV)
 REAL(KIND=JPRB)    :: ZSO4_LPROD(KLON,KLEV)
+REAL(KIND=JPRB)    :: ZTSO2(KLON,KLEV), ZTSO4(KLON,KLEV), ZTSO4_AQ(KLON,KLEV), ZITSO2(KLON,KLEV)
+REAL(KIND=JPRB)    :: ZSO2(KLON,KLEV), ZFSO2(KLON,KLEV), ZFSO4_AQ(KLON,KLEV), ZFSO4(KLON,KLEV)
 LOGICAL :: LLCHECK_METEO, LLTENDUPDT
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
@@ -274,15 +278,11 @@ LOGICAL :: LLCHECK_METEO, LLTENDUPDT
 #include "troplev.intfb.h"
 #include "chem_rnpb.intfb.h"
 #include "chem_nwpo3.intfb.h"
-
-
-
-
-
+#include "aer_so2so4_v2.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('CHEM_MAIN',0,ZHOOK_HANDLE)
 
-ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL,YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM,YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO)
+ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL,YDRIP=>YDMODEL%YRML_GCONF%YRRIP,YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM,YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO)
 ASSOCIATE(NACTAERO=>YGFL%NACTAERO, NCHEM=>YGFL%NCHEM, NCHEM_DV=>YGFL%NCHEM_DV, &
  & NCHEM_SCV=>YGFL%NCHEM_SCV, NDIM=>YGFL%NDIM, NDIM1=>YGFL%NDIM1, NGFL_EXT=>YGFL%NGFL_EXT, &
  & YCHEM=>YGFL%YCHEM, YGHG=>YGFL%YGHG, NGHG=>YGFL%NGHG, YEXT=>YGFL%YEXT, YLRCH4=>YGFL%YLRCH4,&
@@ -650,7 +650,7 @@ SELECT CASE (TRIM(CHEM_SCHEME))
       PCHEM2AER(KIDIA:KFDIA,1:KLEV,6) = ZSOGTOSOA(KIDIA:KFDIA,1:KLEV,2)
     ENDIF
 
-      IICH4=ICH4_TM5
+    IICH4=ICH4_TM5
     ! Diagnostics in 3d extra fields
     IF (LCHEM_DIA) THEN
       ! chemistry tendencies
@@ -816,6 +816,67 @@ SELECT CASE (TRIM(CHEM_SCHEME))
       CALL CHEM_INEXT( KIDIA , KFDIA  , KLON , KLEV , NCHEM, &
  &     KLEVX,ZDELP,PTSTEP,ZTENC1,ZTENC0,PEXTRA(:,:, IEXTR_CH))
     ENDIF
+
+  ! Simplified sulfur scheme, implemented for coupling with M7 aerosol scheme
+  CASE ("SimChem")
+
+        ISSO2=ISO2_TM5! need to be checked, Lianghai
+        ISSO4=ISO4_TM5
+        ISSO4_ACS=5! index in YAERO OIFS
+        ! for test only, not checked yet
+
+        DO JK=1,KLEV
+          DO JL=KIDIA,KFDIA
+            !ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
+            !ZTSO4(JL,JK)    = PTENC(JL,JK,ISSO4)
+            !ZTSO4_AQ(JL,JK) = PTENC(JL,JK,ISSO4_ACS)! liquid phase
+            !ZSO2(JL,JK)     = PAEROP(JL,JK,ISSO2)
+            ZSO2(JL,JK)     = ZCON(JL,JK,ISSO2)! SO2 concentration
+
+            ZITSO2(JL,JK)   = ZTENC0(JL,JK,ISSO2)! SO2 tendecny at previous time step
+          END DO
+        END DO
+
+        CALL AER_SO2SO4_V2( YDRIP,                                                &
+                          & KIDIA , KFDIA , KLON  , KLEV  ,                       &
+                          & PTSTEP, PTP   , PRSF1 , PAP  , PLP  , PGELAT, PGELAM, &
+                          & ZSO2  , ZITSO2,                                       &
+                          & PGFL(:,:, YGFL%YAEROCLIM(1)%MP),                      &
+                          & PGFL(:,:,YGFL%YAEROCLIM(2)%MP),                       &
+                          & PGFL(:,:,YGFL%YAEROCLIM(3)%MP) ,                      &
+                          & ZTSO2 , ZTSO4(:,:), ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDELP)
+
+        DO JK=1,KLEV
+          DO JL=KIDIA,KFDIA
+            ! ZTSO2
+            !PTENC(JL,JK,ISSO2) = PTENC(JL,JK,ISSO2)+ZTSO2(JL,JK)
+            ZTENC1(JL,JK,ISSO2) = ZTENC1(JL,JK,ISSO2)+ZTSO2(JL,JK)
+            !! ZTSO4 
+            !PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,Jk)
+            !! SO4 formed in clouds is applied to Accumulati 
+            !PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
+            PCHEM2AER(JL,JK,1) =  ZTSO4(JL,Jk)
+            PCHEM2AER(JL,JK,2) =  ZTSO4_AQ(JL,JK)
+            
+          END DO
+        END DO
+
+     ! output for aerosol scheme
+    !IF (NACTAERO > 0 .AND. LAERCHEM) THEN
+
+    !  PCHEM2AER(KIDIA:KFDIA,1:KLEV,1) =  ZTENC1(KIDIA:KFDIA,1:KLEV,ISO4_TM5) -ZTENC0(KIDIA:KFDIA,1:KLEV,ISO4_TM5)
+    !  ZTENC1(KIDIA:KFDIA,1:KLEV,ISO4_TM5) = ZTENC0(KIDIA:KFDIA,1:KLEV,ISO4_TM5)
+    !  
+    !  SELECT CASE (TRIM(AERO_SCHEME))
+    !  CASE ("aer")
+    !    PCHEM2AER(KIDIA:KFDIA,1:KLEV,2) = -1.0_JPRB*ZBUDR(KIDIA:KFDIA,1:KLEV,ISO2_TM5)
+    !    PCHEM2AER(KIDIA:KFDIA,1:KLEV,3) =  ZTENC1(KIDIA:KFDIA,1:KLEV,ISO2_TM5) - ZTENC0(KIDIA:KFDIA,1:KLEV,ISO2_TM5)
+
+    !  CASE ("hamm7")
+    !    PCHEM2AER(KIDIA:KFDIA,1:KLEV,2) = ZSO4_LPROD(KIDIA:KFDIA,1:KLEV)
+    !  END SELECT
+    !ENDIF
+
   CASE DEFAULT
 
     CALL ABOR1(" NO CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
@@ -824,7 +885,7 @@ END SELECT
 
 IF (LLTENDUPDT ) THEN
   DO JT=1,NCHEM
-     ! WRITE(NULOUT,*) ' Species ', JT , YCHEM(JT)%CNAME,
+    ! WRITE(NULOUT,*) ' Species ', JT , YCHEM(JT)%CNAME,
     ! loop over levels
      DO JK=1,KLEV
       ! loop over points

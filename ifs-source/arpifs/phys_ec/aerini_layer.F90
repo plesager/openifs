@@ -178,7 +178,7 @@ CALL AER_WIND( &
 ZSNM = SUM(PSURF%PSP_SG(:,:,YSP_SG%YF%MP9),DIM=2) ! pre-compute total snow mass
 
 
-IF(.not. LAERCHEM .and. LAEROSFC)THEN
+   !IF(.not. LAERCHEM .and. LAEROSFC)THEN
    !IF(LAEROSFC)
     !call simple_sulfur_src(YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV,& 
     !     &  KDIM%KSTGLO, GEMSL%ITRAC, GEMSL%IAERO, &
@@ -193,11 +193,41 @@ IF(.not. LAERCHEM .and. LAEROSFC)THEN
     !     &  GEMSL%ZAERWS,&
     !     &  GEMSL%ZDMSO, GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
     !     &  GEMSL%ZODMS, PSO4SRC,PSO2SRC)
-ELSE
-   ! Set to zero 
-   PSO4SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
-   PSO2SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
-END IF
+!IF (trim(CHEM_SCHEME)=="Sim_Chem".and.LAERCHEM)
+!    DO JL=KIDIA,KFDIA
+!       DO JK=1,KLEV
+!          DO JGAS=1,2
+!             IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
+!                ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                GEMSL%ZTENC(JL,JK,KAERO(ISSO2))=GEMSL%ZTENC(JL,JK,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO2))=PCFLX(JL,KAERO(ISSO2)) + PSO2SRC(JL,JK)
+!                !PEMIDIAG(JL,KAERO(ISSO2))=PEMIDIAG(JL,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!             ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas') THEN
+!                ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                GEMSL%ZTENC(JL,JK,KAERO(ISSO4))=GEMSL%ZTENC(JL,JK,KAERO(ISSO4))+ PSO4SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO4))=PCFLX(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!                !PEMIDIAG(JL,KAERO(ISSO4))=PEMIDIAG(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!             END IF
+!          END DO
+!       END DO
+!
+!! For add SOA from CO into ISVOC tracer
+!!!$       DO JGAS=1,NACTAERO
+!!!$          IF (TRIM(YAERO(JGAS)%CNAME)=='ISVOC') THEN
+!!!$             
+!!!$             PTENC(JL,JK,KAERO(JGAS))=PTENC(JL,JK,KAERO(JGAS))+ PSOACO(JL)
+!!!$             PEMIDIAG(JL,KAERO(JGAS))=PEMIDIAG(JL,KAERO(JGAS)) + PSOACO(JL)
+!!!$          END IF
+!!!$       END DO
+!
+!    END DO
+! END IF
+!
+!ELSE
+!   ! Set to zero 
+!   PSO4SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
+!   PSO2SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
+!END IF
 
 SELECT CASE (TRIM(AERO_SCHEME))
 

@@ -266,8 +266,6 @@ REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
 !REAL(KIND=JPRB), INTENT(INOUT) :: PFSO2(KLON)  , PFSO4(KLON), PFSO4_AQ(KLON)
 !REAL(KIND=JPRB), INTENT(INOUT) :: PTSO2(KLON, KLEV)  , PTSO4(KLON, KLEV), PTSO4_AQ(KLON, KLEV)
 
-!REAL(KIND=JPRB), INTENT(INOUT) :: ZFSO2(KLON), ZFSO4(KLON), ZFSO4_AQ(KLON)
-!REAL(KIND=JPRB), INTENT(INOUT) :: ZTSO2(KLON, KLEV), ZTSO4(KLON, KLEV), ZTSO4_AQ(KLON, KLEV)
 
 !*   0.5    LOCAL VARIABLES
 !           ---------------
@@ -301,7 +299,7 @@ REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZRHOP(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
-REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
+!THIS-IS-NEVER-USED   REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,16)
@@ -556,7 +554,8 @@ ASSOCIATE( &
          & LAERCHEM       => YGFL%LAERCHEM,                        &
          ! --- YRCOMPO ---------------------------------------------
          & LCHEM_DIA      => YRCOMPO%LCHEM_DIA,                    &
-         & AERO_SCHEME    => YRCOMPO%AERO_SCHEME,                  & !CHEM_SCHEME=>YDCHEM%CHEM_SCHEME,&
+         & AERO_SCHEME    => YRCOMPO%AERO_SCHEME,                  &
+         & CHEM_SCHEME    => YDCHEM%CHEM_SCHEME,                   &
          & LAERNITRATE    => YRCOMPO%LAERNITRATE,                  &
          & NSO4SCHEME     => YREAERSRC%NSO4SCHEME,                 &
          ! --- YREAERATM -------------------------------------------
@@ -701,8 +700,8 @@ DO JEXT=1,NAERO
   ENDDO
 ENDDO
 
-IF(LAERCHEM) then 
-  DO JEXT=1,NCHEM
+!NOT-AN-OPTION-WITH-M7  IF(LAERCHEM) then 
+DO JEXT=1,NCHEM
     ITRC=ITRC+1
     DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
@@ -710,8 +709,8 @@ IF(LAERCHEM) then
       ENDDO
     ENDDO
   ENDDO
-ENDIF
-
+!NOT-AN-OPTION-WITH-M7  ENDIF
+  
 !DO JAER=1,NACTAERO
 !  DO JK=1,KLEV
 !    DO JL=KIDIA,KFDIA
@@ -753,81 +752,28 @@ IF (LCHEM_DIA) THEN
   ZTENC0(KIDIA:KFDIA,1:KLEV, :) = 0._JPRB
 ENDIF 
 
-! RCHG -> I would move this block to a subroutine (here after a "contains") 
-!*         0.2    Preliminary computation
-!*         GAS-TO-PARTICLE CONVERSION (SO2 -> SO4)
-!*         (SO2 -> SO4)
+!*         0.2    GAS-TO-PARTICLE CONVERSION (SO2 -> SO4)
+!                 ---------------------------------------
 
-IF(.NOT. LAERCHEM) THEN
+! IF(TRIM(CHEM_SCHEME)=="SimChem") THEN
+!   DO JGAS=1,2
+!     IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
+!       ISSO2 = ind_oifs_ham%ind_gas_OIFS(JGAS)
+!     ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas')THEN
+!       ISSO4 = ind_oifs_ham%ind_gas_OIFS(JGAS)
+!     ELSE
+!       CALL ABOR1('HAMM7_INTERFACE: SO2 not defined. Wrong table in use')
+!     END IF
+!   END DO
 
-  DO JGAS=1,2
-    IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
-      ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
-    ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas')THEN
-      ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
-    ELSE
-      CALL ABOR1('HAMM7_INTERFACE: SO2 not defined. Wrong table in use')
-    END IF
-  END DO
-  
-  DO JAER=1,NACTAERO
-    IF (TRIM(YAERO(JAER)%CNAME)=='SO4_AS') THEN
-      ISSO4_ACS=JAER
-    END IF
-  END DO
+!   DO JAER=1,NACTAERO
+!     IF (TRIM(YAERO(JAER)%CNAME)=='SO4_AS') THEN
+!       ISSO4_ACS=JAER
+!       EXIT
+!     END IF
+!   END DO
+! ENDIF
 
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-      ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
-      ZTSO4(JL,JK, 1) = PTENC(JL,JK,ISSO4)
-      ZTSO4_AQ(JL,JK) = 0.0_JPRB
-      ZSO2(JL,JK)     = PAEROP(JL,JK,ISSO2)
-      ZITSO2(JL,JK)   = PTENC(JL,JK,ISSO2)
-    END DO
-  END DO
-
-  ! FIXME - check on NSO4SCHEME (should be 2)?
-  
-  !CALL AER_SO2SO4_V2 ( &
-  !     KIDIA, KFDIA, KLON, KLEV, &
-  !     ! TSPHY, STATE%T, PAUX%PRSF1 , PRAD%PNEB, PRAD%PQLI, PAUX%PGELAM,&
-  !     ! take the liquidwater and cloud fraction from state variables i
-  !     ! instead of radiation data structures, in 43r3 PRAD% are zero
-  !     ! between radiation time steps
-  !     TSPHY, STATE%T, PAUX%PRSF1 , STATE%A, STATE%CLD(:,:,NCLDQL), PAUX%PGELAM,&
-  !     ZSO2, ZITSO2, PGFL(:,:,YAERCLIM(1)%MP),&
-  !     PGFL(:,:,YAERCLIM(2)%MP), PGFL(:,:,YAERCLIM(3)%MP) ,&
-  !     ZTSO2 , ZTSO4, ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDP )
-  
-  CALL AER_SO2SO4_V2( YDRIP,                                                &
-                    & KIDIA , KFDIA , KLON  , KLEV  ,                       &
-                    & PTSPHY, PTP   , PRSF1 , PAP  , PLP  , PGELAT, PGELAM, &
-                    & ZSO2  , ZITSO2,                                       &
-                    & PGFL(:,:, YGFL%YAEROCLIM(1)%MP),                      &
-                    & PGFL(:,:,YGFL%YAEROCLIM(2)%MP),                       &
-                    & PGFL(:,:,YGFL%YAEROCLIM(3)%MP) ,                      &
-                    & ZTSO2 , ZTSO4(:,:,1), ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDP)
-
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-      ! ZTSO2
-      PTENC(JL,JK,ISSO2)=PTENC(JL,JK,ISSO2)+ZTSO2(JL,JK)
-      ! ZTSO4 
-      PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,JK,1)
-      ! SO4 formed in clouds is applied to Accumulati 
-      PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
-
-      ZCHEM2AER(JL,JK,1)=ZTSO4(JL,JK,1)
-      ZCHEM2AER(JL,JK,2)=ZTSO4_AQ(JL,JK)  
-
-    END DO
-  END DO
-
-ENDIF
-!end of *         (SO2 -> SO4)
-
-
-!RCHG -> I would move this to a second subroutine (again after "CONTAINS") 
 !
 !*         1.1    COMPUTE RELATIVE HUMIDITY WITHOUT VERTICAL SMOOTING
 !                 ---------------------------------------------------
@@ -863,30 +809,36 @@ DO JK=1,KLEV
   ENDDO 
 ENDDO
 
-! TB apparently unnecessary in current implementation, but ISSO4_C still needed for chem_inext in the code.
-! needs to be reviewed if it can be removed. 
-IF(LAERCHEM .AND. NCHEM>0) THEN
-  DO JT=1,NCHEM
-    IF(TRIM(YCHEM(JT)%CNAME)== 'SO4' ) THEN
-      ISSO4_C=KCHEM(JT)
-      ISO4_C=JT
-    ENDIF
-  ENDDO
-  ZSO4G(KIDIA:KFDIA,1:KLEV)=ZCEN(KIDIA:KFDIA,1:KLEV,ISSO4_C)
-ELSE
-  ZSO4G(KIDIA:KFDIA,1:KLEV)=0._JPRB
-ENDIF
+!THIS-IS-NEVER-USED   ! TB apparently unnecessary in current implementation, but ISSO4_C still needed for chem_inext in the code.
+!THIS-IS-NEVER-USED   ! needs to be reviewed if it can be removed. 
+!THIS-IS-NEVER-USED   IF(LAERCHEM .AND. NCHEM>0 .AND. TRIM(CHEM_SCHEME)=="tm5") THEN
+!THIS-IS-NEVER-USED     DO JT=1,NCHEM
+!THIS-IS-NEVER-USED       IF(TRIM(YCHEM(JT)%CNAME)== 'SO4' ) THEN
+!THIS-IS-NEVER-USED         ISSO4_C=KCHEM(JT)
+!THIS-IS-NEVER-USED         ISO4_C=JT
+!THIS-IS-NEVER-USED       ENDIF
+!THIS-IS-NEVER-USED     ENDDO
+!THIS-IS-NEVER-USED     ZSO4G(KIDIA:KFDIA,1:KLEV)=ZCEN(KIDIA:KFDIA,1:KLEV,ISSO4_C)
+!THIS-IS-NEVER-USED   ELSE IF(LAERCHEM .AND. NCHEM>0 .AND. TRIM(CHEM_SCHEME)=="SimChem") THEN
+!THIS-IS-NEVER-USED     ZSO4G(KIDIA:KFDIA,1:KLEV)=0._JPRB
+!THIS-IS-NEVER-USED   ELSE
+!THIS-IS-NEVER-USED     CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) ) 
+!THIS-IS-NEVER-USED   ENDIF
 
 
 ! Convert from kg kg-1 to molec cm-3
 
-IF (LAERCHEM) THEN
-   ZELVOC(KIDIA:KFDIA,1:KLEV)=ZCEN(KIDIA:KFDIA,1:KLEV,KAERO(ielvoc))
-   ZSVOC(KIDIA:KFDIA,1:KLEV)=ZCEN(KIDIA:KFDIA,1:KLEV,KAERO(iisvoc))
-ELSE
-   ZELVOC(KIDIA:KFDIA,1:KLEV)=0.0_JPRB
-   ZSVOC(KIDIA:KFDIA,1:KLEV)=0.0_JPRB
-END IF
+SELECT CASE (TRIM(CHEM_SCHEME))
+CASE("tm5")
+  ZELVOC(KIDIA:KFDIA,1:KLEV)= ZCEN(KIDIA:KFDIA,1:KLEV,KAERO(ielvoc))
+  ZSVOC(KIDIA:KFDIA,1:KLEV) = ZCEN(KIDIA:KFDIA,1:KLEV,KAERO(iisvoc))
+CASE("SimChem")
+  ZELVOC(KIDIA:KFDIA,1:KLEV)= 0.0_JPRB
+  ZSVOC(KIDIA:KFDIA,1:KLEV) = 0.0_JPRB
+CASE DEFAULT
+  ! This should be caught earlier at setup
+  CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
+END SELECT
 
 !calculate ICNC
 ZICNC(KIDIA:KFDIA,1:KLEV) = 0._JPRB
@@ -922,23 +874,34 @@ DO JMASS=1,naerocomp
         ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,2)
       end if
 
+      !if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4') then!!! add SO4 into tendency, ugly loop for now,Lianghai
+      !  ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,1)
+      !end if
+
     END DO
   END DO
+
+
 END DO
 !gas
+
+         !WRITE(*,*)"subm_ngasspec", subm_ngasspec
 DO JGAS=1,subm_ngasspec
   JO=ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
   JH=ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
+          !WRITE(*,*)"JO",JO
+          !WRITE(*,*)"JH",JH
+          !WRITE(*,*)"YCHEM(JO)%CNAME",YCHEM(JO)%CNAME
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
-      IF (LAERCHEM) THEN
+      IF (TRIM(CHEM_SCHEME)=="tm5") THEN
         ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
         IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
           ZXTTE(JL,JK,JH) = ZCHEM2AER(JL,JK,1)
         ELSE
           ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
         END IF
-      ELSE
+      ELSE IF (TRIM(CHEM_SCHEME)=="SimChem") THEN
         ! Simple sulfur scheme
         IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
           ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
@@ -947,10 +910,11 @@ DO JGAS=1,subm_ngasspec
           
         ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
           ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
-          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1) + PTENC(JL,JK,KAERO(JO)) 
-          ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
+          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
+          !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
         END IF
-
+      ELSE
+          CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
       END IF
     END DO
   END DO
@@ -986,9 +950,9 @@ ENDDO
  
 ! --> calling the correct microphysics scheme
  
-SELECT CASE (TRIM(AERO_SCHEME))
-
-  CASE("hamm7")
+!THIS-IS-NOT-NEEDED   SELECT CASE (TRIM(AERO_SCHEME))
+!THIS-IS-NOT-NEEDED   
+!THIS-IS-NOT-NEEDED     CASE("hamm7")
     ! Initializations for submodel interface
     ZGRVOL(KIDIA:KFDIA,1:KLEV) = 1.79e12_JPRB ! ZGRVOL is only used for diagnostics (only when HAMMOZ is on)
     ZPBL = 1 ! boundary layer top = 1 (ITOP=1)
@@ -1410,7 +1374,8 @@ SELECT CASE (TRIM(AERO_SCHEME))
         ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB  ! temporary variable for cloud ice water content (modified in wetdep)
 
         ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
-        IF (.NOT.LAERCHEM)THEN
+
+        IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
           CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,ZXTM1,ZRHO,ZLP,ZLFRAC_SO2)
         END IF
 
@@ -1639,7 +1604,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
             & ZXTEMS, ZXTMD1, ZRHO(:,KLEV), PRS1, ZFOREST, ZTSI,            & !air dens lowest, air press at int.
             & ZAZ0L, ZAZ0W, ZAZ0I, ZCDNL, ZCDNW, ZCDNI, ZDDEPFLUX, ZVDEP)     !ZCDNL and ZCDNW used for ustar and aerodyn. resist.
            
-        IF (.NOT. LAERCHEM) THEN
+        IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
           CALL M7_SIMPLE_SULFUR_DRYDEP(YDMODEL, KIDIA,KFDIA, KLON, KLEV, &
                Zxtm1, PCFLX(:,KAERO(1):KAERO(NACTAERO)),  &
                ZDP, PGEOH, ZRHO, ZXTTE, PTSPHY,&
@@ -1680,13 +1645,13 @@ SELECT CASE (TRIM(AERO_SCHEME))
     END DO
     !gas
     IF(LAERCHEM) THEN
-      DO JGAS=1,SUBM_NGASSPEC
-        PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
-      END DO
-    ELSE
-      DO JGAS=1,SUBM_NGASSPEC
-        PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
-      END DO
+      !DO JGAS=1,SUBM_NGASSPEC
+      !  PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
+      !END DO
+    !ELSE
+    !  DO JGAS=1,SUBM_NGASSPEC
+    !    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
+    !  END DO
     END IF
 
     ! RCHG -> not sure best way to solve here. I commented to avoid segmentation fault 
@@ -1705,17 +1670,19 @@ SELECT CASE (TRIM(AERO_SCHEME))
     !<-- End adding HAM modified tendency back to PTENC
     !-----------------------------------------------------------------
     
-  CASE DEFAULT
-    ! this case should never occur, as it is handled in the calling subroutine
-    CALL ABOR1(" AEROSOL SCHEME "//TRIM(AERO_SCHEME)//" IS NOT HANDLED IN HAMM7" )
+!THIS-IS-NOT-NEEDED     CASE DEFAULT
+!THIS-IS-NOT-NEEDED       ! this case should never occur, as it is handled in the calling subroutine
+!THIS-IS-NOT-NEEDED       CALL ABOR1(" AEROSOL SCHEME "//TRIM(AERO_SCHEME)//" IS NOT HANDLED IN HAMM7" )
+!THIS-IS-NOT-NEEDED   
+!THIS-IS-NOT-NEEDED   END SELECT
 
-END SELECT
-
-! write flux to extra fields for diagnostic of aerosol 'chemical' conversion  
-IF (.NOT. LAERCHEM .AND. LCHEM_DIA) THEN ! As of 2025-01-24, ZTSO4 is filled only if LAERCHEM=F
-  CALL CHEM_INEXT( KIDIA , KFDIA  , KLON , KLEV , 1, 1,  &
-     &    ZDP, PTSPHY, ZTSO4, ZTENC0,PEXTRA(:,ISO4_C,IEXTR_CH))
-END IF
+! ZTSO4 is filled only if LAERCHEM=F, which is not possible with M7 - Commented out
+!THIS-IS-NEVER-USED   
+!THIS-IS-NEVER-USED   ! write flux to extra fields for diagnostic of aerosol 'chemical' conversion  
+!THIS-IS-NEVER-USED   IF (.NOT. LAERCHEM .AND. LCHEM_DIA) THEN
+!THIS-IS-NEVER-USED     CALL CHEM_INEXT( KIDIA , KFDIA  , KLON , KLEV , 1, 1,  &
+!THIS-IS-NEVER-USED        &    ZDP, PTSPHY, ZTSO4, ZTENC0,PEXTRA(:,ISO4_C,IEXTR_CH))
+!THIS-IS-NEVER-USED   END IF
 
 
 !*         4.    ELIMINATION OF NEGATIVE PROGNOSTIC AEROSOL CONCENTRATIONS
@@ -2213,30 +2180,31 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
 
   !PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(26)%MP)=ZSEDIFLUX(KIDIA:KFDIA,1:KLEV,25)
 
-  IF (LAERCHEM)THEN
-    DO JGAS=1,SUBM_NGASSPEC
+  !IF (LAERCHEM)THEN
+    !DO JGAS=1,SUBM_NGASSPEC
       !ZXTM1(JL,JK,ind_gas_HAM(JGAS)) = MAX(0._JPRB,ZCEN(JL,JK,KCHEM(ind_gas_OIFS(JGAS)))) !eehol: remove negative values
       !PGFL(KIDIA:KFDIA,JN,YAEROUT(28+JGAS)%MP)=ZCEN(JL,JK,KCHEM(ind_gas_OIFS(JGAS)))
-      PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(28+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-    END DO
+      !PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(28+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
+    !END DO
     !ELSE
     !   DO JGAS=1,subm_ngasspec
     !       PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(28+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
     !   ENDDO  
-  ENDIF
+  !ENDIF
 
   DO IMODE=1,NMOD
     PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(30+IMODE)%MP)=RW_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV) ! m
   ENDDO
 
-  IF (.NOT.LAERCHEM) THEN
-    PGFL(KIDIA:KFDIA,KLEV,YAEROUT(40)%MP)   = ZFSO2(KIDIA:KFDIA)           ! tendency SS CS ham after update surface
-    PGFL(KIDIA:KFDIA,KLEV,YAEROUT(41)%MP)   = ZFSO4(KIDIA:KFDIA)           ! tendency SS CS ham after update surfac
-    PGFL(KIDIA:KFDIA,KLEV,YAEROUT(42)%MP)   = ZFSO4_AQ(KIDIA:KFDIA)        ! tendency SS CS ham after update surface
-    PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(43)%MP) = ZTSO4(KIDIA:KFDIA,1:KLEV,1)  ! tendency SS CS ham after update surface
-    PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(44)%MP) = ZTSO4_AQ(KIDIA:KFDIA,1:KLEV) ! tendency SS CS ham after update surface
-    PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(45)%MP) = ZTSO2(KIDIA:KFDIA,1:KLEV)    ! tendency SS CS ham after update surface
-  END IF
+  !IF (.NOT.LAERCHEM) THEN
+  !IF (LAERCHEM .AND. TRIM(CHEM_SCHEME)=="SimChem")THEN
+  !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(40)%MP)   = ZFSO2(KIDIA:KFDIA)           ! tendency SS CS ham after update surface
+  !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(41)%MP)   = ZFSO4(KIDIA:KFDIA)           ! tendency SS CS ham after update surfac
+  !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(42)%MP)   = ZFSO4_AQ(KIDIA:KFDIA)        ! tendency SS CS ham after update surface
+  !  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(43)%MP) = ZTSO4(KIDIA:KFDIA,1:KLEV,1)  ! tendency SS CS ham after update surface
+  !  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(44)%MP) = ZTSO4_AQ(KIDIA:KFDIA,1:KLEV) ! tendency SS CS ham after update surface
+  !  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(45)%MP) = ZTSO2(KIDIA:KFDIA,1:KLEV)    ! tendency SS CS ham after update surface
+  !END IF
 
 ENDIF
 
