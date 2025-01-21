@@ -232,6 +232,7 @@ MODULE mo_ham_wetdep
   !--- 0/ Initializations:
 
   !CALL prep_ham_mode_init(kproma, kbdim, klev)
+
   ztmst = time_step_len
 
   imod    = trlist%ti(kt)%mode
@@ -605,14 +606,6 @@ MODULE mo_ham_wetdep
     pdxt_imp(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:))
 
     ztmp1(1:kproma,:) = pxt(1:kproma,:)*zxtfrac(1:kproma,:)*peff(1:kproma,:)
-    !if (kt==24) then
-    !write(*,*)"kt",kt
-    !write(*,*)"pxt(1:kproma,:)",pxt(1:kproma,klev)
-    !write(*,*)"zxtfrac(1:kproma,:)",zxtfrac(1:kproma,klev)
-    !write(*,*)"peff(1:kproma,:)",peff(1:kproma,klev)
-    !write(*,*)"ll1(1:kproma,:)",ll1(1:kproma,klev)
-    !write(*,*)"ztmp1(1:kproma,:)",ztmp1(1:kproma,klev)
-    !endif
     pdxt(1:kproma,:)  = MERGE(ztmp1(1:kproma,:), 0._dp, ll1(1:kproma,:))
     !<<SF #458 (replacing where statements)
 

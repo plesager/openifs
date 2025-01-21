@@ -178,7 +178,7 @@ END IF
 
 !eehol: activation initialization 
 nactivpdf = 1 !eehol: using PDF to calculate updraft. Hardcoded for now.. need to check this later (add setphys to oifs?)
-ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)!
+ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)
 CALL activ_initialize
 
 !eehol: set cdnc and icnc indices for HAM

@@ -301,10 +301,8 @@ CONTAINS
             ENDIF
      
             ! This is the surface / total column flux after scaling and diurnal cycle application
-            !write(*,*)"ITRAC",ITRAC
-            !write(*,*)"YDEMIS_DESC%PARAM_INDEX",YDEMIS_DESC%PARAM_INDEX
             ZFLUX(KIDIA:KFDIA) = - PEMIS2D(KIDIA:KFDIA,YDEMIS_DESC%PARAM_INDEX) * ZDIURN(KIDIA:KFDIA) * YDEMIS_DESC%SCALING
-            !write(*,*)"ZFLUX",maxval(ZFLUX)
+
 
             ! HERE we have the ZFLUX and where is there we need to call a new function that digest the input of PSD_* 
             ! and change the ZFLUX of the tracer with number of particles
@@ -443,19 +441,10 @@ CONTAINS
             IF (YDEMIS_DESC%PSD_N0_TRACER /= 'NONE') THEN 
                 CALL GET_2D_EMISSION_M7_NUMPAR( JSPECIES, KSPECIES, YDSPECIES, YDEMIS_DESC, ZPROFILE, KINDEX, &
                                                & ZFLUX, ZFLUX_NUM, ZSFCFLUX_NUM, ITRAC_NUM)
-                !write(*,*)"PTENC(KIDIA:KFDIA,JK,ITRAC_NUM)",maxval(abs(PTENC(KIDIA:KFDIA,KLEV,ITRAC_NUM)))
                 DO JK=1,KLEV
                    PTENC(KIDIA:KFDIA,JK,ITRAC_NUM) = PTENC(KIDIA:KFDIA,JK,ITRAC_NUM) - ZPROFILE(KIDIA:KFDIA,JK) * ZFLUX_NUM(KIDIA:KFDIA)
                 ENDDO
-                !write(*,*)"ITRAC",ITRAC
-                !write(*,*)"ITRAC_NUM",ITRAC_NUM
-                !write(*,*)"ZFLUX",ZFLUX
-                !write(*,*)"ZFLUX_NUM",ZFLUX_NUM
-                !write(*,*)"YDSPECIES(JSPECIES)%CNAME",YDSPECIES(JSPECIES)%CNAME
-                !write(*,*)"PTENC(KIDIA:KFDIA,JK,ITRAC_NUM)",maxval(abs(PTENC(KIDIA:KFDIA,KLEV,ITRAC_NUM)))
                 PCFLX(KIDIA:KFDIA,ITRAC_NUM) = PCFLX(KIDIA:KFDIA,ITRAC_NUM) + ZFLUX_NUM(KIDIA:KFDIA)
-                !write(*,*)"PCFLX(KIDIA:KFDIA,ITRAC_NUM)",maxval(abs(PCFLX(KIDIA:KFDIA,ITRAC_NUM)))
-                !write(*,*)"PCFLX(KIDIA:KFDIA,16)",maxval(abs(PCFLX(KIDIA:KFDIA,16)))
             ENDIF
 
             KFOUND = KFOUND + 1
@@ -632,8 +621,6 @@ CONTAINS
     ! words: DENSITY(1:NACTAERO) with DENSITY = DENSITY(KAERO(ITRAC_NUM))
     !
     !-----------------------------------------------------------------------------------------------
-    !NUM_SCALE       = EXP(1.5*(LOG(YDEMIS_DESC%PSD_SIGMA))**2)
-    !MASS_TO_NUM_PSD = 3./(4.*RPI*(NUM_SCALE**3)*YDEMIS_DESC%MASS_DENSITY)                     ! RPI -> real pi inherited from main sub.
     NUM_SCALE       = EXP(4.5*(LOG(YDEMIS_DESC%PSD_SIGMA))**2)
     MASS_TO_NUM_PSD = 3./(4.*RPI*NUM_SCALE*YDEMIS_DESC%MASS_DENSITY)                     ! RPI -> real pi inherited from main sub.
     MASS_TO_NUM_EMI = MASS_TO_NUM_PSD/(YDEMIS_DESC%PSD_RADIUS**3)

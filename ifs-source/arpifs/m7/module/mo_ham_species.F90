@@ -307,8 +307,6 @@ MODULE mo_ham_species
                       kappa        = 0.60_dp,            &
                       lburden      = .TRUE.,             &
                       idx          = id_so4              )
-                       
-                      !write(*,*)"id_so4",id_so4
 !<<DT
      !eehol: leave gas phase out for OC
      ! IF(nham_subm == HAM_SALSA) THEN
@@ -374,7 +372,6 @@ MODULE mo_ham_species
                          lwetdep      = .TRUE.,              &   
                          idx          = id_oc                   )
         
-                      !write(*,*)"id_oc",id_oc
      !END IF
 
      !--------- 11. Sea salt
@@ -399,7 +396,6 @@ MODULE mo_ham_species
                       idx          = id_ss                   )
 
 
-                      !write(*,*)"id_ss",id_ss
      !--------- 12. Mineral Dust
      !
 

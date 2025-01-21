@@ -431,9 +431,6 @@ MODULE mo_hammoz_wetdep
 
   WHERE(ABS(zilwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
 
-  !IF (MINVAL(ABS(zilwc(1:kproma,:)))>0._dp) THEN
-  !      ztmp1(1:kproma,:) = pmiwc(1:kproma,:)/zilwc(1:kproma,:)
-  !ENDIF
   pice(1:kproma,:)  = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   !--- 1.2) Calculate autoconversion rate:
@@ -444,10 +441,6 @@ MODULE mo_hammoz_wetdep
 
   WHERE(ABS(pmiwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
 
-  !IF (MINVAL(ABS(pmiwc(1:kproma,:)))>0._dp) THEN
-  !    ztmp1(1:kproma,:) = pmrateps(1:kproma,:)/pmiwc(1:kproma,:)
-  !ENDIF
-
   !peffice(1:kproma,:) = MERGE(pmrateps(1:kproma,:)/pmiwc(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
   peffice(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
@@ -457,18 +450,8 @@ MODULE mo_hammoz_wetdep
 
   ztmp1(1:kproma,:) = 0._dp
   WHERE(ABS(pmlwc(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
-  !IF (MINVAL(ABS(pmlwc(1:kproma,:)))>0._dp) THEN
-  !    ztmp1(1:kproma,:) = (pmratepr(1:kproma,:)+pmsnowacl(1:kproma,:))/pmlwc(1:kproma,:)
-  !ENDIF
-  !write(*,*)"pmratepr(1:kproma,:)",pmratepr(1:kproma,klev)
-  !write(*,*)"pmsnowacl(1:kproma,:)",pmsnowacl(1:kproma,klev)
-  !write(*,*)"pmlwc(1:kproma,:)",pmlwc(1:kproma,klev)
-  !write(*,*)"lo_2d(1:kproma,:)",lo_2d(1:kproma,klev)
 
-  !write(*,*)"ztmp1(1:kproma,:)",ztmp1(1:kproma,klev)
   peffwat(1:kproma,:) = MERGE(ztmp1(1:kproma,:) , 0._dp, lo_2d(1:kproma,:))
-
-  !write(*,*)"peffwat(1:kproma,:)",peffwat(1:kproma,klev)
 
 
   peffwat(1:kproma,:) = MAX(0._dp,MIN(1._dp,peffwat(1:kproma,:)))
@@ -511,9 +494,7 @@ MODULE mo_hammoz_wetdep
   ztmp1(1:kproma,:) = 0._dp
 
   WHERE(ABS(zfprec(1:kproma,:))>0._dp)  ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
-  !IF (MINVAL(ABS(zfprec(1:kproma,:)))>0._dp) THEN
-  !    ztmp1(1:kproma,:) = (pfevapr(1:kproma,:)+pfsubls(1:kproma,:))/zfprec(1:kproma,:)
-  !ENDIF
+
   prevap(1:kproma,:) = MERGE(ztmp1(1:kproma,:), 0._dp, lo_2d(1:kproma,:))
 
   prevap(1:kproma,:) = MAX(0._dp,MIN(1._dp,prevap(1:kproma,:)))
