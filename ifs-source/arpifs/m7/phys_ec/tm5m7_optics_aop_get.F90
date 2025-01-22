@@ -223,11 +223,6 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_AOP_GET',0,ZHOOK_HANDLE)
     where( aop_in(KIDIA:KFDIA,1:KLEV)%rg (7) .lt. 1.E-15_JPRB ) aop_in(KIDIA:KFDIA,1:KLEV)%rg (7) = 1.E-15_JPRB
     where( aop_in(KIDIA:KFDIA,1:KLEV)%rgd(7) .lt. 1.E-15_JPRB ) aop_in(KIDIA:KFDIA,1:KLEV)%rgd(7) = 1.E-15_JPRB
 
-
-    ! Initialization to zero is done in tm5m7_optics_calculate_aop 
-    Paop_out_ext=0.0_JPRB
-    Paop_out_a=0.0_JPRB
-    Paop_out_g=0.0_JPRB
     if (present(aop_out_add)) then
        call tm5m7_optics_calculate_aop(KIDIA,KFDIA, KLON,KLEV, nwav,NCONTR, wdep,  ecearth_units, &
        &                           AOP_IN, &       
@@ -240,11 +235,6 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_AOP_GET',0,ZHOOK_HANDLE)
 
     ! OK
     Deallocate( aop_in )
-
-
-
-
-
 
 IF(LHOOK) CALL DR_HOOK('TM5M7_OPTICS_AOP_GET',1,ZHOOK_HANDLE)
 end associate
