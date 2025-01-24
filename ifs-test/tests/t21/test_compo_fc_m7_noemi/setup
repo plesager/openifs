@@ -97,7 +97,7 @@ cat >> fort.4 << EOF
  LO3_CHEM_UV=true,
  NGHGRAD=20,
  NAERMACC=1,
- !LAER3D=.false., ! CHECK
+ LAER3D=.false.,
 /
 &NAMFPC
  CFPFMT="MODEL",
@@ -116,7 +116,7 @@ cat >> fort.4 << EOF
 &NAEAER
 EOF
 
-#      Include  NAEAER description (YAERO_DESC) => possible not for m7
+#      Include  NAEAER description (YAERO_DESC)
 . ../common/namelist_m7_yaerodesc 
 
 cat >> fort.4 << EOF
@@ -133,8 +133,8 @@ cat >> fort.4 << EOF
   LAERSEDIMSS=true,
  LAERDRYDP=true,
  LAERSURF=true,
-  NSSALT=4,
-  NDDUST=2,
+  NSSALT=1,
+  NDDUST=3,
   NSO4SCHEME=1,
   LSEASALT_RH80=true,
  LAERHYGRO=true,
@@ -180,10 +180,8 @@ cat >> fort.4 << EOF
   LMCC_COMPO=false,
 /
 EOF
-#       Include compo emissions namelist (moved to end of file)
+#       Do NOT include compo emissions namelist since LMCC_COMPO=F
 #. ../common/namelist_m7_compoemis
-
-. ../common/namelist_aer_compoemis
 
 cat >> fort.4 << EOF
 &NAMM7CTL

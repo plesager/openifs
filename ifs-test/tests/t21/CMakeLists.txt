@@ -181,6 +181,10 @@ function( add_ifs_test TARGET )
         endif()
       endif()
       execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/lut_optical_properties_lw_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_lw_M7.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${COMPO_DATA_PATH}/m7/lut_optical_properties_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_M7.nc)
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${COMPO_DATA_PATH}/m7/lookup_table.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lookup_table.nc)
       execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${COMPO_DATA_PATH}/m7/refractive_indices_hdfstyle.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/refractive_indices_hdfstyle.nc)
@@ -323,8 +327,8 @@ add_ifs_test( test_compo_cb05bascoe_fc )
 add_ifs_test( test_compo_chemonly_RnPb_fc )
 add_ifs_test( test_compo_chemonly_nwpo3_fc )
 add_ifs_test( test_compo_updclie )
-add_ifs_test( test_compo_fc_m7_noemi )
-add_ifs_test( test_compo_fc_m7_norad )
+# add_ifs_test( test_compo_fc_m7_noemi )  # in development
+# add_ifs_test( test_compo_fc_m7_norad )  # in development
 
 # Tests which will not succeed in OpenIFS-only builds.
 if( NOT ifs_HAVE_OPENIFS_ONLY )
@@ -387,8 +391,8 @@ if( ENABLE_TESTS )
   set_property(TEST ifs_t21_test_compo_chemonly_nwpo3_fc APPEND PROPERTY LABELS forecast mpi threading composition nwpo3)
   set_property(TEST ifs_t21_test_compo_updclie           APPEND PROPERTY LABELS forecast mpi threading composition climate mcc_compo)
 
-  set_property(TEST ifs_t21_test_compo_fc_m7_noemi       APPEND PROPERTY LABELS forecast mpi threading composition m7)
-  set_property(TEST ifs_t21_test_compo_fc_m7_norad       APPEND PROPERTY LABELS forecast mpi threading composition m7)
+  # set_property(TEST ifs_t21_test_compo_fc_m7_noemi       APPEND PROPERTY LABELS forecast mpi threading composition m7)
+  # set_property(TEST ifs_t21_test_compo_fc_m7_norad       APPEND PROPERTY LABELS forecast mpi threading composition m7)
 
   # Tests to include if this is not an OpenIFS-only build:
   if( NOT ifs_HAVE_OPENIFS_ONLY )

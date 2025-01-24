@@ -97,7 +97,7 @@ cat >> fort.4 << EOF
  LO3_CHEM_UV=true,
  NGHGRAD=20,
  NAERMACC=1,
- !LAER3D=.false., ! CHECK
+ LAER3D=.false.,
 /
 &NAMFPC
  CFPFMT="MODEL",
@@ -133,8 +133,8 @@ cat >> fort.4 << EOF
   LAERSEDIMSS=true,
  LAERDRYDP=true,
  LAERSURF=true,
-  NSSALT=4,
-  NDDUST=2,
+  NSSALT=1,
+  NDDUST=3,
   NSO4SCHEME=1,
   LSEASALT_RH80=true,
  LAERHYGRO=true,

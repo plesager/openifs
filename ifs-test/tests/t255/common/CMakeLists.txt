@@ -10,6 +10,7 @@ configure_file(m7/m7_aero.nml         namelist_m7_aero         COPYONLY)
 configure_file(m7/m7_aerowvldiag.nml  namelist_m7_aerowvldiag  COPYONLY)
 configure_file(m7/m7_chem.nml         namelist_m7_chem         COPYONLY)
 configure_file(m7/m7_compoemis.nml    namelist_m7_compoemis    COPYONLY)
+configure_file(m7/fort.4-oac-adapted  fort.4-oac-adapted       COPYONLY)
 
 # === Parts that are replicated from test_compo_fc  ====================
 
