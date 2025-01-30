@@ -874,7 +874,9 @@ CONTAINS
 
   SUBROUTINE ham_rad(kproma, kbdim, klev, krow, kpband, kb_sw,                 &
        pxtm1,         ppd_hl,                                    &
-       aer_tau_sw_vr, aer_piz_sw_vr, aer_cg_sw_vr, aer_tau_lw_vr, rwet_m7) 
+       aer_tau_sw_vr, aer_piz_sw_vr, aer_cg_sw_vr, aer_tau_lw_vr, rwet_m7, &
+       & ldiag_aeropt, kb_diag, ntype_diaf, &
+       & lambda_diag, zaer_tau_diag, zaer_ssa_diag, zaer_asym_diag)
     ! *ham_rad* calculates optical properties for
     !            aerosol distributions from look-up
     !            tables.
@@ -931,7 +933,7 @@ CONTAINS
 
     !--- Arguments:
 
-    INTEGER,INTENT(IN)      :: kproma , kbdim, klev, krow, kpband, kb_sw
+    INTEGER,INTENT(IN)      :: kproma , kbdim, klev, krow, kpband, kb_sw,kb_diag,ntype_diaf
 
     REAL(dp), INTENT(in)    :: ppd_hl(kbdim,klev)                 ! pressure diff between half levels [Pa]
 
@@ -942,6 +944,18 @@ CONTAINS
                                aer_cg_sw_vr(kbdim,klev,kb_sw),  & !< aerosol asymmetry factor
                                aer_piz_sw_vr(kbdim,klev,kb_sw)    !< aerosol single scattering albedo
 
+    ! diagnostic aerosol optical properties
+    logical,intent(in)            :: ldiag_aeropt ! logical for aerosol optics
+    real(dp),intent(in)    :: lambda_diag(kb_diag)
+    real(dp),intent(inout) :: zaer_tau_diag(kbdim,klev,kb_diag)
+    real(dp),intent(inout) :: zaer_ssa_diag(kbdim,klev,kb_diag)
+    real(dp),intent(inout) :: zaer_asym_diag(kbdim,klev,kb_diag)
+
+    REAL(dp) :: sigma_diag(kbdim,klev,kb_diag,nclass),    &
+                omega_diag(kbdim,klev,kb_diag,nclass), &
+                asym_diag (kbdim,klev,kb_diag,nclass), &
+                nr_diag(kbdim,klev,kb_diag,nclass),       &
+                ni_diag(kbdim,klev,kb_diag,nclass)
     !--- Local Variables:
 #ifdef HAMMOZ       
 
@@ -956,7 +970,8 @@ CONTAINS
                 zdpg(kbdim,klev)                             ! auxiliary parameter dp/grav
 
     REAL(dp) :: zaer_tau_sw_vr(kbdim,klev,Nwv_sw_tot,nclass),& ! SW optical depth for each band and mode
-                zaer_tau_lw_vr(kbdim,klev,Nwv_lw,nclass)       ! LW optical depth for each band and mode
+                zaer_tau_lw_vr(kbdim,klev,Nwv_lw,nclass),&      ! LW optical depth for each band and mode
+                zaer_tau_diag_vr(kbdim,klev,kb_diag,nclass)    ! diag optical depth for each band and mode
 
 !>>gf: needed to avoid architecture-dependent problems (Cray XT5)
     REAL(dp) :: znr2d(kbdim,klev),                         & ! 2D subset of 4D array nr
@@ -989,6 +1004,10 @@ CONTAINS
     sigma(1:kproma,:,:,:)=0._dp
     omega(1:kproma,:,:,:)=0._dp
     asym(1:kproma,:,:,:) =0._dp
+
+    sigma_diag(1:kproma,:,:,:)=0._dp
+    omega_diag(1:kproma,:,:,:)=0._dp
+    asym_diag (1:kproma,:,:,:)=0._dp
     !nr(1:kproma,:,:,:) =0._dp
     !ni(1:kproma,:,:,:) =0._dp
     !znum(1:kproma,:,:) =0._dp
@@ -1305,7 +1324,193 @@ CONTAINS
 
     END IF
 
-    !--- 3) Set echam fields to zero for diagnostic aerosol radiative properties only:
+
+
+
+
+ !--- 3) Calculate optical properties for diagnostic bands:
+
+      IF (ldiag_aeropt) THEN
+       IF (ANY(nrad(:)==1) .OR. ANY(nrad(:)==3)) THEN
+
+       DO jclass=1, nclass
+          IF (nrad(jclass)==1 .OR. nrad(jclass)==3) THEN
+
+#ifdef HAMMOZ
+             rwet_p => rwet(jclass)%ptr
+#endif
+
+             DO jwv=1,kb_diag
+
+                !--- 1.1) Calculate volume averaged refractive index nr and ni:
+#ifdef HAMMOZ
+                IF (ltimer) CALL timer_start(timer_ham_rad_refrac)
+#endif  
+                !gf: the former usage of nr(1:kproma,:,jwv,jclass) and ni(1:kproma,:,jwv,jclass)
+                !    directly in the call to ham_rad_refrac is causing architecture-dependent problems (Cray XT5)
+                !    Therefore intermediate variables znr2d and zni2d are introduced
+
+                znr2d(1:kproma,:) = nr_diag(1:kproma,:,jwv,jclass)
+                zni2d(1:kproma,:) = ni_diag(1:kproma,:,jwv,jclass)
+
+                CALL ham_rad_refrac(kproma, kbdim, klev, krow, &
+                                     ntrac,  jclass,  jwv,     &
+                                     pxtm1,  znr2d, zni2d )
+
+#ifdef HAMMOZ
+                IF (ltimer) CALL timer_stop(timer_ham_rad_refrac)
+#endif  
+                !--- 1.1) Calculate size parameter:
+#ifdef HAMMOZ          
+                zxx(1:kproma,:) = 2._dp*pi*rwet_p(1:kproma,:,krow)/lambda_diag(jwv)
+#else
+                zxx(1:kproma,:) = 2._dp*pi*rwet_m7(1:kproma,:,jclass)/lambda_diag(jwv) 
+#endif  
+
+                !--- 1.2) Table-lookup for optical properties:
+#ifdef HAMMOZ 
+                IF (ltimer) CALL timer_start(timer_ham_rad_fitplus)
+#endif 
+                !gf: same as in the call to ham_rad_refrac, for the call to ham_rad_fitplus
+
+                zsigma2d(1:kproma,:) = sigma_diag(1:kproma,:,jwv,jclass)
+                zomega2d(1:kproma,:) = omega_diag(1:kproma,:,jwv,jclass)
+                zasym2d(1:kproma,:)  = asym_diag(1:kproma,:,jwv,jclass)
+
+                SELECT CASE(nham_subm)
+
+                CASE(HAM_M7)
+
+                   IF (ABS(modesigma(jclass)-sigma_fine)<zeps) THEN
+                      itable=1
+                   ELSE IF  ((ABS(modesigma(jclass)-sigma_coarse)<zeps)) THEN
+                      itable=2
+                   ELSE 
+                      CALL finish('ham_rad','incompatible standard deviation in modal setup')
+                   END IF
+
+                CASE(HAM_SALSA)
+
+#ifdef SALSA
+                   zxx(1:kproma,:) = 2._dp*pi*rwet_salsa(1:kproma,:,jclass)/lambda(jwv)
+
+                   IF(jclass < 6 .OR. (jclass > fn2a .AND. jclass < fn2b-(nbin3-1))) THEN
+                      itable=1                      
+                   ELSE                     
+                      itable=2                      
+                   END IF
+#endif
+                END SELECT
+
+                IF (itable == 1) THEN
+                   CALL ham_rad_fitplus(kproma, kbdim,      klev,                &
+                                         zxx,   znr2d,     zni2d,                &
+                                         itable, lut1_sigma, zsigma2d,           & 
+                                                 lut1_omega, zomega2d,           &
+                                                 lut1_g,     zasym2d             )
+
+                ELSE 
+
+                   CALL ham_rad_fitplus(kproma, kbdim,      klev,                & 
+                                         zxx,   znr2d,     zni2d,                &
+                                         itable, lut2_sigma, zsigma2d,           &
+                                                 lut2_omega, zomega2d,           &
+                                                 lut2_g,     zasym2d             )
+
+                END IF
+#ifdef HAMMOZ
+                IF (ltimer) CALL timer_stop(timer_ham_rad_fitplus)
+#endif
+                !>>gf: update the original 4d arrays
+                sigma_diag(1:kproma,:,jwv,jclass) = zsigma2d(1:kproma,:)*lambda_diag(jwv)*lambda_diag(jwv)
+                omega_diag(1:kproma,:,jwv,jclass) = zomega2d(1:kproma,:)
+                asym_diag(1:kproma,:,jwv,jclass)  = zasym2d(1:kproma,:)
+                nr_diag(1:kproma,:,jwv,jclass)    = znr2d(1:kproma,:)
+                ni_diag(1:kproma,:,jwv,jclass)    = zni2d(1:kproma,:)
+                !<<gf
+
+          !ALLOCATE(sigma(kbdim,klev,Nwv_tot,nclass))
+          !ALLOCATE(omega(kbdim,klev,Nwv_sw_tot,nclass))
+          !ALLOCATE(asym (kbdim,klev,Nwv_sw_tot,nclass))
+          !ALLOCATE(nr(kbdim,klev,Nwv_tot,nclass))
+          !ALLOCATE(ni(kbdim,klev,Nwv_tot,nclass))
+                !sigma(1:kproma,:,jwv,jclass) = sigma(1:kproma,:,jwv,jclass)*lambda(jwv)*lambda(jwv)
+         
+             END DO ! jwv
+
+          END IF ! nrad
+       END DO ! jclass
+
+       !--- Summation over modes, conversion into total extinction and calculation 
+       !    of weighted single scattering albedo and assymetry factor. 
+
+       zaer_tau_diag_vr(1:kproma,:,:,:)=0.0_dp
+ 
+       DO jclass=1, nclass
+          IF(nrad(jclass)>0) THEN
+             DO jwv=1, kb_diag
+                zaer_tau_diag_vr(1:kproma,:,jwv,jclass)=znum(1:kproma,:,jclass)*sigma_diag(1:kproma,:,jwv,jclass)
+             END DO
+          END IF
+       END DO
+
+       !--- Diagnose AOD for requested each mode (nrad) and wavelength (nraddiagwv):
+!#ifdef HAMMOZ
+!       DO jclass=1, nclass
+!          IF(nrad(jclass)>0) THEN
+!             DO jwv=1, kb_diag
+!                IF (nraddiagwv(jwv)>0) THEN
+!                   tau_mode(jclass,jwv)%ptr(1:kproma,:,krow)=zaer_tau_sw_vr(1:kproma,:,jwv,jclass)
+!                END IF
+!             END DO
+!          END IF
+!       END DO
+!#endif
+       !--- Calculation of weighted properties and vertical reordering to RRTM structure:
+
+       DO jwv=1, kb_diag !ham_ps +Nwv_sw_opt
+
+          DO jclass=1, nclass
+             DO jk=1, klev
+#ifdef HAMMOZ       
+               ikl=klev+1-jk
+#else       
+               !No vertical reordering here
+               ikl=jk
+#endif               
+                DO jl=1, kproma
+
+
+    !real(kind=jprb),intent(inout) :: zaer_tau_diag(kbdim,klev,kb_diag,ntype_diaf)
+    !real(kind=jprb),intent(inout) :: zaer_ssa_diag(kbdim,klev,kb_diag,ntype_diaf)
+    !real(kind=jprb),intent(inout) :: zaer_asym_diag(kbdim,klev,kb_diag,ntype_diaf)
+
+                   zaer_tau_diag(jl,jk,jwv)  =zaer_tau_diag(jl,jk,jwv) + &
+                                            zaer_tau_diag_vr(jl,ikl,jwv,jclass)
+                   zaer_ssa_diag(jl,jk,jwv)  =zaer_ssa_diag(jl,jk,jwv) + &
+                                            zaer_tau_diag_vr(jl,ikl,jwv,jclass)*omega_diag(jl,ikl,jwv,jclass)
+                   zaer_asym_diag(jl,jk,jwv) =zaer_asym_diag(jl,jk,jwv) + &
+                                            zaer_tau_diag_vr(jl,ikl,jwv,jclass)*omega_diag(jl,ikl,jwv,jclass)*asym_diag(jl,ikl,jwv,jclass)
+                END DO
+             END DO
+          END DO
+
+          DO jk=1, klev
+             DO jl=1, kproma
+                IF(zaer_tau_diag(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
+                   zaer_ssa_diag(jl,jk,jwv) = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
+                  zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_tau_diag(jl,jk,jwv)
+                END IF
+             END DO
+          END DO
+
+       END DO
+
+    END IF
+    END IF ! ldiag_aeropt
+
+
+    !--- 4) Set echam fields to zero for diagnostic aerosol radiative properties only:
 
     IF (naerorad==2) THEN 
        aer_tau_lw_vr(1:kproma,:,:) = 0.0_dp

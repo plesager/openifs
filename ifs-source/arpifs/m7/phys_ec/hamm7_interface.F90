@@ -327,6 +327,7 @@ REAL(KIND=JPRB) :: ZTMPA!, ZTEMP, ZDPOG, ZQIWP, ZPODT
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
+
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14
 REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=1.0_JPRB      !eehol: minimum CDNC (can be changed but for now 1 cm-3)
 REAL(KIND=JPRB), PARAMETER :: ZTUNPAR=0.8164965_JPRB  !eehol: tuning parameter for sigma_w derived from TKE (square root of 2/3 (isotropy assumption))
@@ -498,6 +499,15 @@ REAL(KIND=JPRB) :: ZBLHIDX(KLON)   ! index
 LOGICAL         :: LBLHFOUND(KLON) ! logical if boundary layer height is found  
 REAL(KIND=JPRB) :: ZRG             ! 1/RG
 
+!!! parameters needed for diagnostic aerosol optical properties
+LOGICAL         :: LDIAG_AEROPT ! logical for aerosol optics
+REAL(KIND=JPRB) :: ZAER_TAU_DIAG(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+REAL(KIND=JPRB) :: ZAER_SSA_DIAG(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+REAL(KIND=JPRB) :: ZAER_ASYM_DIAG(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+REAL(KIND=JPRB) :: LAMBDA_DIAG(YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+
+REAL(KIND=JPRB) :: ZAOD_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZSSA_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
 !-----------------------------------------------------------------------
 
 #include "abor1.intfb.h"
@@ -1262,6 +1272,77 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
     CALL GSTATS(2502,1)
     
+    !<-- End activation for HAM-M7
+    !-----------------------------------------------------------------
+    
+    !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
+    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
+    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
+    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), 1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
+    PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), 0.027_JPRB) ! no conversion needed: already in #/cm3, just max of default value (RNICE in sucldp.F90) and icnc
+    !--> End store CDNC and ICNC
+
+    !-----------------------------------------------------------------
+    !--> Calculation for effective radii and put to PGFL fields
+
+    ! put default values for effective radii
+    reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
+    reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
+
+    ! liquid effective radius
+
+    DO JK=1,KLEV
+    DO JL=KIDIA,KFDIA
+      IF ( PAP(JL,JK) >=0.001_JPRB ) THEN
+        ZTEMP=1.0_JPRB/PAP(JL,JK)
+        ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))
+
+!-- cloud and ice water path in kg m-2
+        ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)
+        ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
+!-- cloud and ice water content in g m-3
+        ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
+        ZIP(JL,JK)=PIP(JL,JK)*ZPODT*ZTEMP
+        ZLP(JL,JK)=PLP(JL,JK)*ZPODT*ZTEMP
+      ELSE
+        ZQIWP = 0._JPRB
+        ZQLWP(JL,JK) = 0._JPRB
+        ZLP(JL,JK) = 0._JPRB
+        ZIP(JL,JK) = 0._JPRB
+      ENDIF
+    END DO
+   END DO
+
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
+        LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
+        LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
+        ! ZQLWP2(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
+        ! ZQLWP2(JL,JK) = MIN(MAX(ZQLWP2(JL,JK),0.0_JPRB),10*RCLDMAX) ! treshold lwp, lianghai changed
+
+        ! effective radius calculated similarly as in radlswr.F90
+        ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
+        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),10._JPRB)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
+
+    END DO
+   END DO
+    ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
+    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV)*1.E+6_JPRB,4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+    CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
+         &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
+         &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
+
+    ! only if there is ice cloud else minimum value
+    REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
+
+    ! add effective radii to PGFL fields
+    PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+    PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+
+    !<-- End calculation for effective radii
+    !-----------------------------------------------------------------
+
     !--- Mass conserving correction of negative tracer values:
     CALL XT_BORROW(KFDIA, KLON,  KLEV, KLEV+1, NTRAC, &
          PRSF1, PRS1, &
@@ -1743,6 +1824,10 @@ DO JK=1,KLEV
   ENDDO
 ENDDO
 
+ZAER_TAU_DIAG(KIDIA:KFDIA,:,:)  = 0.0_JPRB
+ZAER_SSA_DIAG(KIDIA:KFDIA,:,:)  = 0.0_JPRB
+ZAER_ASYM_DIAG(KIDIA:KFDIA,:,:) = 0.0_JPRB
+
 IF(MOD(NSTEP+1,NRADFR) == 0) THEN
 CALL GSTATS(2506,0)
 ZAER_TAU(KIDIA:KFDIA,:,:,:)  = 0.0_JPRB
@@ -1823,10 +1908,20 @@ CASE (1)
    ! Use HAM codes to calculate optical properties
    LWBANDS=16
    PRS1D(KIDIA:KFDIA,:) = PRS1(KIDIA:KFDIA,1:KLEV)-PRS1(KIDIA:KFDIA,0:KLEV-1)
+
+   LDIAG_AEROPT = (NAERO_WVL_DIAG >0) .AND. (YGFL%NAERO_WVL_DIAG_TYPES>0)
+
+   DO IW = 1, NAERO_WVL_DIAG
+      LAMBDA_DIAG(IW) = YGFL%YAERO_WVL_DIAG_NL(IW)%IWVL *1.0E-9_JPRB ! nm to m
+   ENDDO
    !CALL ham_rad_cache(KLON,KLEV)
    ZXTM0(KIDIA:KFDIA,1:KLEV,:) = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + ZXTTE(KIDIA:KFDIA,1:KLEV,:)*time_step_len
+
    CALL HAM_RAD(KFDIA, KLON, KLEV, ZKROW, LWBANDS, NASWBAND, ZXTM0, PRS1D, &
-        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, ZM6RP)
+        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, ZM6RP, &
+        & LDIAG_AEROPT,NAERO_WVL_DIAG,YGFL%NAERO_WVL_DIAG_TYPES, &
+        & LAMBDA_DIAG, ZAER_TAU_DIAG, ZAER_SSA_DIAG, ZAER_ASYM_DIAG)
+
    !CALL ham_rad_cache_cleanup
 
    DO JK = 1, KLEV
@@ -1854,6 +1949,10 @@ PSSA (KIDIA:KFDIA,:)=0._JPRB
 PASY (KIDIA:KFDIA,:)=0._JPRB
 PAOD_LW(KIDIA:KFDIA,:)=0._JPRB
 
+ZAOD_DIAG(KIDIA:KFDIA,:)= 0._JPRB
+ZSSA_DIAG(KIDIA:KFDIA,:)= 0._JPRB
+ZASY_DIAG(KIDIA:KFDIA,:)= 0._JPRB
+
 DO JK = 1, KLEV
   DO JL = KIDIA,KFDIA
     DO IW=1,NASWBAND  
@@ -1863,20 +1962,32 @@ DO JK = 1, KLEV
     END DO
 
     DO IW=1,16
-         PAOD_LW(JL,IW)=PAOD_LW(JL,IW)+PAER_TAU_LW(JL,JK,IW)
+      PAOD_LW(JL,IW)=PAOD_LW(JL,IW)+PAER_TAU_LW(JL,JK,IW)
+    END DO
+
+    DO IW=1,NAERO_WVL_DIAG
+      ZAOD_DIAG(JL,IW)= ZAER_TAU_DIAG(JL,JK,IW)+ZAOD_DIAG(JL,IW)
+      ZSSA_DIAG(JL,IW)= ZAER_SSA_DIAG(JL,JK,IW)*ZAER_TAU_DIAG(JL,JK,IW)+ZSSA_DIAG(JL,IW)
+      ZASY_DIAG(JL,IW)= ZAER_ASYM_DIAG(JL,JK,IW)*ZAER_TAU_DIAG(JL,JK,IW)+ZASY_DIAG(JL,IW)
     END DO
     !IF(PAOD(JL,IW)>0._JPRB) THEN
-    !    PSSA(JL,:) =PSSA(JL,:)/PAOD(JL,IW)! AOD AVERAGE     
+    !    PSSA(JL,:) =PSSA(JL,:)/PAOD(JL,IW)! AOD AVERAGE
     !    PASY(JL,:) =PASY(JL,:)/PAOD(JL,IW)! AOD AVERAGE
-    !ENDIF                     
+    !ENDIF
   END DO
 END DO
 
 DO JL = KIDIA,KFDIA
   DO IW=1,NASWBAND
     IF(PAOD(JL,IW)>0._JPRB) THEN
-      PSSA(JL,IW) =PSSA(JL,IW)/PAOD(JL,IW)! AOD AVERAGE     
-      PASY(JL,IW) =PASY(JL,IW)/PAOD(JL,IW)! AOD AVERAGE
+      PSSA(JL,IW) = PSSA(JL,IW)/PAOD(JL,IW)! AOD AVERAGE
+      PASY(JL,IW) = PASY(JL,IW)/PAOD(JL,IW)! AOD AVERAGE
+    ENDIF
+  END DO
+  DO IW=1,NAERO_WVL_DIAG
+    IF(ZAOD_DIAG(JL,IW)>0._JPRB) THEN
+      ZSSA_DIAG(JL,IW) = ZSSA_DIAG(JL,IW)/ZAOD_DIAG(JL,IW)! AOD AVERAGE
+      ZASY_DIAG(JL,IW) = ZASY_DIAG(JL,IW)/ZAOD_DIAG(JL,IW)! AOD AVERAGE
     ENDIF
   END DO
 END DO
@@ -1887,19 +1998,20 @@ END DO
 DO JWAVL=1,MIN(INWAVL,NAERO_WVL_DIAG)
   DO JL=KIDIA,KFDIA
     IF (YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_AOD) THEN
-      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AOD) = PAOD(JL,JWAVL)
+      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AOD)    = ZAOD_DIAG(JL,JWAVL)
     ENDIF
     IF (YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_AODABS) THEN
-      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AODABS) = PABS(JL,JWAVL)! 0.0
+      !PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AODABS) = ZABS_DIAG(JL,JWAVL)! 0.0
+      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AODABS) = ZAOD_DIAG(JL,JWAVL)*(1._JPRB-ZSSA_DIAG(JL,JWAVL))! absorption
     ENDIF
     IF (YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_AODFM) THEN
-      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AODFM) = PFAOD(JL,JWAVL)! 0.0
+      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_AODFM)  = 0._JPRB!PFAOD(JL,JWAVL)! 0.0
     ENDIF
     IF (YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_SSA) THEN
-      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_SSA) = PSSA(JL,JWAVL)
+      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_SSA)    = ZSSA_DIAG(JL,JWAVL)
     ENDIF
     IF (YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_ASSIMETRY) THEN
-      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_ASSIMETRY) = PASY(JL,JWAVL)
+      PAERO_WVL_DIAG(JL,JWAVL,JPAERO_WVL_ASSIMETRY) = ZASY_DIAG(JL,JWAVL)
     ENDIF
   ENDDO
 ENDDO
@@ -1944,49 +2056,39 @@ ENDDO
 ! RCHG -> TODO explain here LIFSMIN and LIFSTRAJ ---
 IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! input for HAM-M7
-  PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10) !PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
-  PGFL(KIDIA:KFDIA,2,YAEROUT(1)%MP)=PSSA(KIDIA:KFDIA,10)   !PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
-  PGFL(KIDIA:KFDIA,3,YAEROUT(1)%MP)=PASY(KIDIA:KFDIA,10)  !PAER_TAU(KIDIA:KFDIA,1:KLEV,10) !533nm
+  PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10) ! 533nm??
+  PGFL(KIDIA:KFDIA,2,YAEROUT(1)%MP)=PSSA(KIDIA:KFDIA,10) ! 533nm
+  PGFL(KIDIA:KFDIA,3,YAEROUT(1)%MP)=PASY(KIDIA:KFDIA,10) ! 533nm
 
-  PGFL(KIDIA:KFDIA,10:25,YAEROUT(1)%MP)= PAOD_LW(KIDIA:KFDIA,1:16)
+  ! ASSUMPTION : YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG .LE. 7
+  PGFL(KIDIA:KFDIA,4:YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG+3,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+  PGFL(KIDIA:KFDIA,11:26,YAEROUT(1)%MP)= PAOD_LW(KIDIA:KFDIA,1:16)
 
-  ! RCHG: It seems that here 1:14 refers to 14 species. PLS: AOD of 14 short wavelengths stored in YAEROUT(12)%MP of first 14 tracers (juggling!!) 
+  ! AOD of 14 short wavelengths stored in first 14 "levels/tracers" of YAEROUT(27)%MP
   PGFL(KIDIA:KFDIA,1:14,YAEROUT(27)%MP)=PAOD(KIDIA:KFDIA,1:14)
 
-  DO JN=1,NAEROCOMP !ntrac!NACTAERO
+  DO JN=1,NAEROCOMP
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_mass_OIFS(JN),YAEROUT(2)%MP)=ZDDEPFLUX(KIDIA:KFDIA,ind_oifs_ham%IND_mass_HAM(JN))
   END DO
   DO JN=1,NCLASS
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_class_OIFS(JN),YAEROUT(2)%MP)=ZDDEPFLUX(KIDIA:KFDIA,ind_oifs_ham%IND_class_HAM(JN))
   END DO
 
-  DO JN=1,NAEROCOMP !ntrac!NACTAERO
+  DO JN=1,NAEROCOMP
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_mass_OIFS(JN),YAEROUT(4)%MP)  = ZSEDIFLUXSURF(KIDIA:KFDIA,ind_oifs_ham%IND_mass_HAM(JN))
   END DO
   DO JN=1,NCLASS
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_class_OIFS(JN),YAEROUT(4)%MP)  = ZSEDIFLUXSURF(KIDIA:KFDIA,ind_oifs_ham%IND_class_HAM(JN))
   END DO
 
-  !do JN=1,NACTAERO   !ktrac
-  ! if (NSTEP==10)then
-  !    do JL=KIDIA,KFDIA
-  !       write(3345,*)JN,WDEPOUT_2D(JL,KAERO(JN))
-  !    end do
-  ! end if
-  !end do
-
-  DO JN=1,NACTAERO   !ktrac
+  DO JN=1,NACTAERO
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(17)%MP) = WDEPOUT_IC_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(18)%MP) = WDEPOUT_BC_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(5)%MP)  = PAERSRC(KIDIA:KFDIA,KAERO(JN)) - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
   END DO
-  PGFL(KIDIA:KFDIA,NACTAERO+2,YAEROUT(5)%MP)  = ZBLHIDX(KIDIA:KFDIA)
-  PGFL(KIDIA:KFDIA,NACTAERO+3,YAEROUT(5)%MP)  = PBLH(KIDIA:KFDIA)
-  PGFL(KIDIA:KFDIA,NACTAERO+4,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,137)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
-  PGFL(KIDIA:KFDIA,NACTAERO+5,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,136)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
-  PGFL(KIDIA:KFDIA,NACTAERO+6,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,135)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
-  DO JN=1,NACTAERO   !ktrac
+
+  DO JN=1,NACTAERO
     ZTMP=0.0_JPRB
     DO JK=1,KLEV
       ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PCEN(KIDIA:KFDIA,JK,KAERO(JN))
@@ -1995,7 +2097,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,KAERO(JN),YGFL%YAEROUT(9)%MP)= - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
   END DO
 
-  DO JN=1,NACTAERO   !ktrac
+  DO JN=1,NACTAERO
     ZTMP=0.0_JPRB
     DO JK=1,KLEV
       ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+ZCEN(KIDIA:KFDIA,JK,KAERO(JN))
@@ -2003,7 +2105,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(10)%MP)  = ZTMP(KIDIA:KFDIA)
   END DO
 
-  DO JN=1,NACTAERO   !ktrac
+  DO JN=1,NACTAERO
     ZTMP=0.0_JPRB
     DO JK=1,KLEV
       ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PTENC(KIDIA:KFDIA,JK,KAERO(JN))
@@ -2011,7 +2113,8 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(11)%MP)  = ZTMP(KIDIA:KFDIA)
   END DO
 
-  DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
+  ! mass and number concentration
+  DO JN=1,NAEROCOMP
     JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
     JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
     JY=YAEROUT(7)%MP
@@ -2032,48 +2135,49 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     END DO
     PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
   END DO
-
-    ! save load for each N/M as one level
-    ! kg/kg -> kg/m2 N/kg-> N/m2
-    DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
-      JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
-      JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
-      JY=YAEROUT(8)%MP
-      ZTMP=0.0_JPRB
-      DO JK=1,KLEV
-        ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
-      END DO
-      PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  
+  ! mass and number tendency
+  ! kg/kg -> kg/m2 N/kg-> N/m2
+  DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
+    JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
+    JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
+    JY=YAEROUT(8)%MP
+    ZTMP=0.0_JPRB
+    DO JK=1,KLEV
+      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
     END DO
+    PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  END DO
 
-    DO JN=1,NCLASS
-      JO=ind_oifs_ham%ind_class_OIFS(JN)  ! JO -> index context OIFS 
-      JH=ind_oifs_ham%IND_class_HAM(JN)   ! JH -> index context HAM 
-      JY=YAEROUT(8)%MP
-      ZTMP=0.0_JPRB
-      DO JK=1,KLEV
-        ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
-      END DO
-      PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  DO JN=1,NCLASS
+    JO=ind_oifs_ham%ind_class_OIFS(JN)  ! JO -> index context OIFS 
+    JH=ind_oifs_ham%IND_class_HAM(JN)   ! JH -> index context HAM 
+    JY=YAEROUT(8)%MP
+    ZTMP=0.0_JPRB
+    DO JK=1,KLEV
+      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
     END DO
+    PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  END DO
 
-    DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
-      JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
-      JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
-      JY=YAEROUT(12)%MP
-      ZTMP=0.0_JPRB
-      ZTMP(KIDIA:KFDIA)= ZXTM1(KIDIA:KFDIA,KLEV,JH)+(ZXTTE(KIDIA:KFDIA,KLEV,JH)*TIME_STEP_LEN)!*ZDPG(KIDIA:KFDIA,KLEV)
-      PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
-    END DO
+  ! mass and number mixing ratio at surface
+  DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
+    JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
+    JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
+    JY=YAEROUT(12)%MP
+    ZTMP=0.0_JPRB
+    ZTMP(KIDIA:KFDIA)= ZXTM1(KIDIA:KFDIA,KLEV,JH)+(ZXTTE(KIDIA:KFDIA,KLEV,JH)*TIME_STEP_LEN)!*ZDPG(KIDIA:KFDIA,KLEV)
+    PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  END DO
 
-    DO JN=1,NCLASS
-      JO=ind_oifs_ham%ind_class_OIFS(JN)  ! JO -> index context OIFS 
-      JH=ind_oifs_ham%IND_class_HAM(JN)   ! JH -> index context HAM 
-      JY=YAEROUT(12)%MP
-      ZTMP=0.0_JPRB
-      ZTMP(KIDIA:KFDIA) =  ZXTM1(KIDIA:KFDIA,KLEV,JH)+(ZXTTE(KIDIA:KFDIA,KLEV,JH)*TIME_STEP_LEN)!*PRHO(KIDIA:KFDIA,KLEV)
-      PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
-    END DO
+  DO JN=1,NCLASS
+    JO=ind_oifs_ham%ind_class_OIFS(JN)  ! JO -> index context OIFS 
+    JH=ind_oifs_ham%IND_class_HAM(JN)   ! JH -> index context HAM 
+    JY=YAEROUT(12)%MP
+    ZTMP=0.0_JPRB
+    ZTMP(KIDIA:KFDIA) =  ZXTM1(KIDIA:KFDIA,KLEV,JH)+(ZXTTE(KIDIA:KFDIA,KLEV,JH)*TIME_STEP_LEN)!*PRHO(KIDIA:KFDIA,KLEV)
+    PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
+  END DO
 
   PGFL(KIDIA:KFDIA,KLEV,YAEROUT(19)%MP)   = ZXTTE(KIDIA:KFDIA,KLEV,3)      ! tendency SS CS ham after update surface
   PGFL(KIDIA:KFDIA,KLEV-1,YAEROUT(20)%MP) = ZTENCIH(KIDIA:KFDIA,KLEV,17)   ! tendency SS CS ham before update surface
