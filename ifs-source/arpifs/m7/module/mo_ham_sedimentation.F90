@@ -207,7 +207,7 @@ MODULE mo_ham_sedimentation
          !--- Slinn correction for sedimentation velocity of a
          !    size distribution with a given sigma:
          slinnfac=sigma(imod)**(2._dp*sigmaln(imod))     
-    
+#ifdef SALSA
       CASE(HAM_SALSA)
 #ifdef HAMMOZ
          zmd(1:kproma,:)=MIN( rwet_p(1:kproma,:,krow)*2._dp ,  50.E-6_dp)
@@ -216,7 +216,8 @@ MODULE mo_ham_sedimentation
 #endif        
          !TB
          !slinnfac not needed
-         slinnfac=1.0_dp
+          slinnfac=1.0_dp
+#endif
   END SELECT
 
 !>>SF #458 (replacing where statements)
@@ -240,12 +241,14 @@ MODULE mo_ham_sedimentation
                              * (slinnfac +                                         &
                                 1.246_dp*2._dp*plair(1:kproma,:)                   &
                                 /ztmp1(1:kproma,:)*exp((0.5_dp*sigmaln(imod)**2._dp)))
-!<<DN #328
+          !<<DN #328
+#ifdef SALSA
       CASE(HAM_SALSA) !SF #328 (keep previous formulation for SALSA)
           ztmp2(1:kproma,:) = ztmp2(1:kproma,:)                                           &
                             * (1._dp+ 1.257_dp*plair(1:kproma,:)/ztmp1(1:kproma,:)*2._dp  &
                               + 0.4_dp*plair(1:kproma,:)/ztmp1(1:kproma,:)*2._dp          &
-                                *EXP(-1.1_dp/(plair(1:kproma,:)/ztmp1(1:kproma,:)*2._dp)) )
+                              *EXP(-1.1_dp/(plair(1:kproma,:)/ztmp1(1:kproma,:)*2._dp)) )
+#endif
   END SELECT
 
   !--- Calculate sedimentation in terms of mixing ratio tendencies:
@@ -306,9 +309,6 @@ MODULE mo_ham_sedimentation
      END DO
   END DO
 
-
-!  psediflux(1:kproma,:) = zsedtend(1:kproma,:) * pdpg(1:kproma,:)
-!<<SF #458 (replacing where statements)
   DO jl=1,kproma
      psedifluxsurf(jl) = prho(jl,klev)*zaeronwm1(jl)*pvsedi(jl,klev)
   END DO

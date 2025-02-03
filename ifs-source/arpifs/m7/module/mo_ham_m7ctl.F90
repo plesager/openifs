@@ -55,7 +55,10 @@ MODULE mo_ham_m7ctl
   PRIVATE
 
   ! -- subroutines
-  PUBLIC :: sethamM7, m7_initialize
+#ifdef HAMMOZ
+  PUBLIC :: sethamM7
+#endif
+  PUBLIC :: m7_initialize
 
   ! -- variables
   PUBLIC :: nwater, nsnucl, nonucl
@@ -528,7 +531,7 @@ CONTAINS
 
   END SUBROUTINE m7_initialize
 
-
+#ifdef HAMMOZ
   SUBROUTINE sethamM7
     
     ! *sethamM7* modifies pre-set switches of the aeroM7ctl
@@ -543,9 +546,7 @@ CONTAINS
     ! *sethamM7* is called from *init_subm* in mo_submodel_interface
     !
 
-#ifdef HAMMOZ
     USE mo_mpi,         ONLY: p_parallel_io, p_bcast, p_io
-#endif
     USE mo_namelist,    ONLY: open_nml, position_nml, POSITIONED
     USE mo_exception,   ONLY: message, em_warn, em_info
     USE mo_util_string, ONLY: separator
@@ -553,60 +554,9 @@ CONTAINS
     
     IMPLICIT NONE
     
-    !INCLUDE 'ham_m7ctl.inc'
+    INCLUDE 'ham_m7ctl.inc'
     
     ! Local variables:
-!!
-!! \brief
-!! namelist for the M7 aerosol model
-!!
-!! \author Philip Stier (MPI-Met)
-!!
-!! \responsible_coder
-!! Philip Stier, philip.stier@physics.ox.ac.uk
-!!
-!! \revision_history
-!!   -# Philip Stier (MPI-Met) - original code (2003-01)
-!!   -# Jan Kazil (MPI-M) (2008-05)
-!!
-!! \limitations
-!! None
-!!
-!! \details
-!! None
-!!
-!! \bibliographic_references
-!! None
-!!
-!! \belongs_to
-!!  HAMMOZ
-!!
-!! \copyright
-!! Copyright and licencing conditions are defined in the ECHAM-HAMMOZ
-!! licencing agreement to be found at:
-!! https://redmine.hammoz.ethz.ch/projects/hammoz/wiki/1_Licencing_conditions
-!! The ECHAM-HAMMOZ software is provided "as is" and without warranty of any kind.
-!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-NAMELIST /ham_m7ctl/  nwater,     & !< Aerosol water uptake scheme:
-                                    !!
-                                    !! nwater = 0 Jacobson et al., JGR 1996
-                                    !!        = 1 Kappa-Koehler theory based approach (Petters and Kreidenweis, ACP 2007)
-                      nsnucl,     & !< Choice of the sulfate aerosol nucleation scheme:
-                                    !! 
-                                    !!  nsnucl = 0 off
-                                    !!         = 1 Vehkamaeki et al., JGR 2002
-                                    !!         = 2 Kazil and Lovejoy, ACP 2007
-                                    !!
-                      nonucl,     & !< Choice of the organic aerosol nucleation scheme:
-                                    !! 
-                                    !!  nonucl = 0 off
-                                    !!         = 1 Activation nucleation, Kulmala et al., ACP 2006
-                                    !!         = 2 Kinetic nucleation, Laakso et al., ACP 2004
-                                    !!
-                      lnucl_stat    !< Sample the cloud-free volume as function of T, RH, [H2SO4(g)],
-                                    !! H2SO4 condensation sink, and ionization rate (memory intensive)
     
     INTEGER :: ierr, inml, iunit
 
@@ -614,9 +564,9 @@ NAMELIST /ham_m7ctl/  nwater,     & !< Aerosol water uptake scheme:
     
     CALL message('',separator)
     CALL message('sethamM7', 'Reading namelist ham_m7ctl...', level=em_info)
-#ifdef HAMMOZ
+
+
     IF (p_parallel_io) THEN
-#endif
        
       inml = open_nml('namelist.echam') 
       iunit = position_nml ('HAM_M7CTL', inml, status=ierr)
@@ -625,17 +575,13 @@ NAMELIST /ham_m7ctl/  nwater,     & !< Aerosol water uptake scheme:
       READ (iunit, ham_m7ctl)
       END SELECT
 
-#ifdef HAMMOZ
    ENDIF
-#endif 
     ! Broadcast the switches over the processors:
 
-#ifdef HAMMOZ
     CALL p_bcast (nwater,     p_io)
     CALL p_bcast (nsnucl,     p_io)
     CALL p_bcast (nonucl,     p_io)
     CALL p_bcast (lnucl_stat, p_io)
-#endif
     
     !--- error checking
     IF (nsnucl > 1 .AND. .NOT. lgcr) THEN
@@ -645,13 +591,10 @@ NAMELIST /ham_m7ctl/  nwater,     & !< Aerosol water uptake scheme:
     END IF
     
     !--- write the values of the switches:
-#ifdef HAMMOZ
     CALL sethamM7_log(nwater,nsnucl,nonucl,lnucl_stat)
-#endif
         
   END SUBROUTINE sethamM7
 
-#ifdef HAMMOZ
   SUBROUTINE sethamM7_log(nwater,nsnucl,nonucl,lnucl_stat)
     
     ! *sethamM7_log* writes the values of the given switches in a given output

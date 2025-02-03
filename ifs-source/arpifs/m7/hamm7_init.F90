@@ -97,8 +97,9 @@ USE MO_HAM_INIT, ONLY:     &
 USE MO_ADVECTION, ONLY:    & !eehol: added for advection initialization
      iadvec, tpcore
 
-USE MO_SUBMODEL, ONLY:     & !eehol: added mo_submodel routines
-     setsubmodel, lham, id_ham, starttracdef, endtracdef
+USE MO_SUBMODEL, &
+     ONLY:     & !eehol: added mo_submodel routines 
+     lham, id_ham
 
 USE MO_SPECIES, &
      ONLY: speclist, init_splist !eehol: added initialization for species list
@@ -144,34 +145,14 @@ CALL init_mo_time_control(YRRIP)
 iadvec = tpcore !comes from ECHAM mo_control.f90
 
 !eehol: set submodel parameters and flags
-CALL setsubmodel
-! start_ham calls:
-! sethamm7, 
-! m7_initialize, 
-! ham_species, 
-! map_m7_species, 
-! ham_define_modes
 CALL init_splist !eehol: added init for splist
 
 CALL start_ham
 
-!eehol: define tracer numbers, idt, etc. with ham_define_tracer
-! RCHG: For the implementation in IFS code it would be worth to consider to 
-!       rename starttracdef and similar subroutines to m7_starttracdef
-IF (lham) THEN
-   CALL starttracdef(id_ham)
-   CALL ham_define_tracer
-   CALL endtracdef(id_ham)
-END IF
+id_ham=1
+CALL ham_define_tracer
 
-! ham_initialize calls:
-! start_kappa, if nwater == 1
-!eehol: added testing for lham
-!calls also:
-! ham_m7_set_idt
-IF (lham) THEN
-   CALL ham_initialize
-END IF
+CALL ham_initialize
 ! ham_init_memory calls:
 ! ham_nucl_initialize, if nsnucl+nonucl > 0
 !CALL ham_init_memory !eehol: this is not needed now

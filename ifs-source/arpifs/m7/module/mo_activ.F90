@@ -364,17 +364,17 @@ CONTAINS
 
  SUBROUTINE activ_initialize
 
-    USE mo_control,            ONLY: nlev, nn, &
-                                     lcouple !SF
+    USE mo_control,            ONLY: nlev, nn
 #ifdef HAMMOZ
+    USE mo_control,            ONLY: lcouple
     USE mo_exception,          ONLY: message, em_param
     USE mo_submodel,           ONLY: print_value, lham, lhammoz, lccnclim
     USE mo_echam_cloud_params, ONLY: ccsaut, ccraut
     USE mo_tracer,             ONLY: get_tracer
+    USE mo_param_switches,     ONLY: icover, nauto, nic_cirrus
 #endif
-    USE mo_param_switches,     ONLY : icover, nauto, &          !++mgs
-                                      ncd_activ, nactivpdf, nic_cirrus, lcdnc_progn, &
-                                      cdnc_min_fixed
+    USE mo_param_switches,     ONLY: ncd_activ, nactivpdf, lcdnc_progn, &
+                                     cdnc_min_fixed
     USE mo_ham,             ONLY: nham_subm, HAM_SALSA, HAM_M7
 
     CHARACTER(len=24)      :: csubmname

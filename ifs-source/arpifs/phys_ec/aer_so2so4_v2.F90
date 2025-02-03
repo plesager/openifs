@@ -307,10 +307,12 @@ JPTS = INT(PTSPHY/ZPTSCHEM)
 ! Split PCHEMSULF1 array
 
 !! Initialise tendencies (necessary when using sub-timesteps for chemistry,
-!!  since the total tendency will be the sum of "sub-tendencies"
-PTSO2(:,:) = 0._JPRB
-PTSO4(:,:) = 0._JPRB
-PTSO4_AQ(:,:) = 0._JPRB
+!!  since the total tendency will be the sum of "sub-tendencies".
+!! PLS: This was commented in 43r3, which seems logical since these
+!! arrays are filled before calling the AER_SO2SO4_V2 in both hamm7_interface.F90 and aer_phy3.F90
+PTSO2(KIDIA:KFDIA,:) = 0._JPRB
+PTSO4(KIDIA:KFDIA,:) = 0._JPRB
+PTSO4_AQ(KIDIA:KFDIA,:) = 0._JPRB
 
 CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEOH, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
 CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEO3, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
@@ -431,7 +433,7 @@ DO JK=1,KLEV
          !    using PTSPHY=sum(ZPTSCHEM)
          PTSO2(JL,JK) = PTSO2(JL,JK) - ZTend_OH_Sum * ZRMSO2 / ZAIR_DENS / PTSPHY
          PTSO4(JL,JK) =  PTSO4(JL,JK)+ ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
-
+         PTSO4_AQ(JL,JK) =  0._JPRB ! PLS: No accumulation here?
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
@@ -661,8 +663,10 @@ DO JK=1,KLEV
 
          ZTend_Sum = ZTend_Aq_Sum + ZTend_OH_Sum
 
+         ! Separate wet and dry production of SO4 to allow wet SO4 distribution to M7 modes
+         ! For "aer" case, dry and wet production are summed in AER_PHY3 (FIXME TODO IF POSSIBLE)
          PTSO2(JL,JK)    =  PTSO2(JL,JK)    - ZTend_Sum    * ZRMSO2 / ZAIR_DENS / PTSPHY
-         PTSO4(JL,JK)    =  PTSO4(JL,JK)    + ZTend_Sum    * ZRMSO4 / ZAIR_DENS / PTSPHY
+         PTSO4(JL,JK)    =  PTSO4(JL,JK)    + ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
          PTSO4_AQ(JL,JK) =  PTSO4_AQ(JL,JK) + ZTend_Aq_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --

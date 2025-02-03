@@ -229,9 +229,9 @@ MODULE mo_hammoz_sedimentation
 
   REAL(dp), INTENT(in)    :: pm6rp(kbdim, klev, nclass), prhop(kbdim, klev, nclass)
 
-  REAL(dp), INTENT(inout) :: pxtte(kbdim,klev,ntrac),  & ! tracer tendency
-                             psediflux(kbdim,klev,ntrac), &
-                             psedifluxsurf(kbdim,ntrac)
+  REAL(dp), INTENT(inout) :: pxtte(kbdim,klev,ntrac),  &    ! tracer tendency
+                             psediflux(kbdim,klev,ntrac), & !sediflux diagnostic
+                             psedifluxsurf(kbdim,ntrac)     !sediflux surf diagnostic
   !--- local variables
   INTEGER       :: jt, ierr
   REAL(dp)      :: ztempc(kbdim, klev),   &  ! temp. above melting

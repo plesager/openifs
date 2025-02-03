@@ -401,11 +401,15 @@ CONTAINS
 #ifdef HAMMOZ
     USE mo_submodel,            ONLY: print_value
     USE mo_submodel_diag,       ONLY: OFF, ON, BYTRACER, BYSPECIES
+    USE mo_param_switches,      ONLY: nic_cirrus
 #endif
-    USE mo_param_switches,      ONLY: nic_cirrus, ncd_activ
+    USE mo_param_switches,      ONLY:  ncd_activ
     
     ! other available options: EF_CONSTANT, EF_TIMERESOLVED, EF_LATLEV, EF_LONLAT, EF_UNDEFINED
-    USE mo_submodel,            ONLY: lham, lhammoz
+    USE mo_submodel,            ONLY: lham
+#ifdef HAMMOZ
+    USE mo_submodel,            ONLY: lhammoz
+#endif
     USE mo_physical_constants,  ONLY: amd
 
     IMPLICIT NONE
@@ -669,8 +673,9 @@ CONTAINS
   
     csubmname = 'UNKNOWN' 
     IF (lham) csubmname = 'HAM'
+#ifdef HAMMOZ
     IF (lhammoz) csubmname = 'HAMMOZ' 
-
+#endif
     CALL message('','')
     CALL message('', separator)
     CALL message('setham','Parameter settings for the ECHAM-'//TRIM(csubmname)//' aerosol model', &

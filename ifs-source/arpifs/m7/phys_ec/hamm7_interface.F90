@@ -181,7 +181,6 @@ USE MO_HAM_ACTIV,            ONLY: ham_activ_abdulrazzak_ghan, ham_activ_koehler
 USE MO_PARAM_SWITCHES,       ONLY: ncd_activ        ! for activation
 USE MO_TRACDEF,              ONLY: ntrac, trlist    ! number of tracer for mass/number mixing ratio conversion, trlist for wet deposition flags
 USE MO_TRACER_PROCESSES,     ONLY: xt_borrow, xt_conv_massfix ! conserving the negative tracer values from tendency, and convective case
-USE MO_SUBMODEL,             ONLY: lwetdep,lsedimentation     ! logical for wetdeposition, sedimentation
 USE MO_TIME_CONTROL,         ONLY: time_step_len    ! time step length for tendency
 USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface call
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
@@ -226,9 +225,9 @@ REAL(KIND=JPRB),INTENT(IN)    :: PCHEM2AER(KLON,KLEV,6)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERFLX(KLON,12,9), PAERLIF(KLON,9), PCLAERS(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PLSM(KLON)  , PSNS(KLON)    , PWND(KLON)   , PWS1(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PTSPHY
-REAL(KIND=JPRB),INTENT(IN)    :: PVERVEL(KLON,KLEV) ! added vertical velocity as an input to TM5M7 (needed in HAM-M7 activation)
-REAL(KIND=JPRB),INTENT(IN)    :: PCCNL(KLON) ! added CCN over land as an input to TM5M7 (needed in liquid effective radius calc.)
-REAL(KIND=JPRB),INTENT(IN)    :: PCCNO(KLON) ! added CCN over ocean as an input to TM5M7 (needed in liquid effective radius calc.)
+REAL(KIND=JPRB),INTENT(IN)    :: PVERVEL(KLON,KLEV) ! vertical velocity (needed in HAM-M7 activation)
+REAL(KIND=JPRB),INTENT(IN)    :: PCCNL(KLON) ! CCN over land (needed in liquid effective radius calc.)
+REAL(KIND=JPRB),INTENT(IN)    :: PCCNO(KLON) ! CCN over ocean (needed in liquid effective radius calc.)
 REAL(KIND=JPRB),INTENT(IN)    :: PAHFSTI(KLON,KTILES) ! added surface sensible heat flux for dry deposition
 REAL(KIND=JPRB),INTENT(IN)    :: PCI(KLON) ! added fraction of sea-ice for dry deposition
 REAL(KIND=JPRB),INTENT(IN)    :: PZ0M(KLON) ! added roughness length for momentum for dry deposition
@@ -497,7 +496,6 @@ REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
 #include "m7_simple_sulfur_drydep.intfb.h"
 #include "ice_effective_radius.intfb.h"
 !#include "m7.intfb.h"
-! include calculations for ice effective radius
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('HAMM7_INTERFACE',0,ZHOOK_HANDLE)
@@ -1058,7 +1056,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
                                    & ZCDNCACT, ZESW, ZRHO,             & ! number of activated particles, saturation vapor pressure, air density
                                    & ZXTP1, PTP, PRSF1, ZQP,           & ! tracer mix rat, temperature, air pressure, spec. humid.
                                    & ZW, ZWPDF, ZA, ZB, ZRDRY,         & ! mean udr veloc, pdf of udr. veloc, Koehler A, Koehler B, dry radius
-                                   & ZNACT, ZFRACN, ZSC, ZRC, ZSMAX)     ! num. act. part., frac ", crit. ssat., crit. radius, max ssat
+                                   & ZNACT, ZFRACN, ZSC, ZRC, ZSMAX)     ! num. act. part. per mode, frac ", crit. ssat., crit. radius, max ssat
     CALL GSTATS(2502,1)
     
     !<-- End activation for HAM-M7
@@ -1147,14 +1145,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
     IF ( LAERSCAV ) THEN
 
       !--> initialize mixing ratios for wet deposition
-      !    Only ZXTP1, in case LWETDEP=false or no tracers subject to wet dep, since it may be used in drydep!
+      !    Only ZXTP1, in case no tracers subject to wet dep, since it may be used in drydep!
       DO JT = 1,NTRAC
         ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
       END DO
 
       !<-- call wetdep interface for wet deposition
       !-- interface to wet deposition routine (also from cuflx_subm)
-      IF ( LWETDEP .AND. ANY(trlist%ti(:)%nwetdep > 0) ) THEN
+      IF ( ANY(trlist%ti(:)%nwetdep > 0) ) THEN
 
         ! for calculating the rain and snow evaporation/formation variables used in wet deposition
         DO JK=1,KLEV
@@ -1313,7 +1311,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
     CALL GSTATS(2504,0)
 
     IF (LAERSEDIM) THEN
-      IF ( lsedimentation .AND. ANY(trlist%ti(:)%nsedi > 0) ) THEN
+      IF ( ANY(trlist%ti(:)%nsedi > 0) ) THEN
 
         ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
 

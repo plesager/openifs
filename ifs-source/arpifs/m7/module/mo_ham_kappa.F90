@@ -174,9 +174,9 @@ CONTAINS
 
 #ifdef HAMMOZ
     USE mo_mpi,           ONLY: p_parallel, p_parallel_io, p_bcast, p_io
+    USE mo_submodel,      ONLY: print_value
 #endif
     USE mo_exception,     ONLY: finish, message, em_info, em_param, em_warn
-    USE mo_submodel,      ONLY: print_value
     USE mo_read_netcdf77, ONLY: read_var_nf77_1d, read_var_nf77_4d
     USE mo_netcdf,        ONLY: nf_check, nf__open, nf_close, nf_nowrite, nf_global, chunksize, &
                                 IO_GET_ATT_TEXT, IO_INQ_DIMID, IO_INQ_DIMLEN
@@ -353,7 +353,6 @@ CONTAINS
 
        CALL p_bcast(gf,      p_io) 
     END IF
-#endif
     
     !--- report lookup table data
     CALL message('','',level=em_param)
@@ -374,7 +373,6 @@ CONTAINS
     CALL print_value(' Max. kappa: ', kappa_max)
     CALL message('','',level=em_param)
 
-#ifdef HAMMOZ
     !---Release memory holding the coordinate variables
     IF (p_parallel_io) THEN
        DEALLOCATE(Rd)

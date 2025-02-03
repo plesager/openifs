@@ -2008,20 +2008,20 @@ DO JK=NCLDTOP,KLEV
 
       IF (LLPERT_RCLCRIT) THEN  !Apply SPP perturbations
         IF (PLSM(JL) > 0.5_JPRB) THEN
-          ZCONST = RCL_KK_CLOUD_NUM_LAND
+          ZCONST = RCL_KK_CLOUD_NUM_LAND  ! FPE triggered below when using PCCN(JL,JK) here
           ! perturbed land value of RCLCRIT
           ZLCRIT = RCLCRIT_LAND*EXP(PN1RCLCRIT%MU(1)+PN1RCLCRIT%XMAG(1)*PGP2DSPP(JL, IPRCLCRIT))
         ELSE
-          ZCONST = RCL_KK_CLOUD_NUM_SEA
+          ZCONST = RCL_KK_CLOUD_NUM_SEA  ! FPE triggered below when using PCCN(JL,JK) here
           ! perturbed ocean value of RCLCRIT
           ZLCRIT = RCLCRIT_SEA *EXP(PN1RCLCRIT%MU(2)+PN1RCLCRIT%XMAG(2)*PGP2DSPP(JL, IPRCLCRIT))
         ENDIF
       ELSE
         IF (PLSM(JL) > 0.5_JPRB) THEN ! land  (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_LAND
+          ZCONST = RCL_KK_CLOUD_NUM_LAND  ! FPE triggered below when using PCCN(JL,JK) here
           ZLCRIT = RCLCRIT_LAND
         ELSE                          ! ocean (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_SEA
+          ZCONST = RCL_KK_CLOUD_NUM_SEA  ! FPE triggered below when using PCCN(JL,JK) here
           ZLCRIT = RCLCRIT_SEA
         ENDIF
       ENDIF

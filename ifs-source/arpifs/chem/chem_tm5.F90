@@ -436,7 +436,7 @@ ENDDO
 
 ! 1.2  Calculate integrated cloud cover above level - adapted from cldpp.f90
 
-ZCC=0.0_JPRB
+ZCC(KIDIA:KFDIA,1:KLEV)=0.0_JPRB
 
 DO JL=KIDIA,KFDIA
   ZCC(JL,1)=1.0_JPRB-MIN(MAX(PAP(JL,1),REPCLC),1.0_JPRB-REPCLC)

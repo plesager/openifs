@@ -640,7 +640,9 @@ IF ( (NCHEM > 0 .OR. NGEMS > 0 .OR. NACTAERO > 0) .AND. LL_HRES ) THEN
     ALLOCATE( ZCHEM2AER(KDIM%KLON,KDIM%KLEV,NCHEM2AER) )
     ZCHEM2AER(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,1:NCHEM2AER)=0._JPRB
   ELSE
-    ALLOCATE( ZCHEM2AER(1,1,1) )
+    ! TB needed also in case of simple sulfur scheme
+    ALLOCATE( ZCHEM2AER(KDIM%KLON,KDIM%KLEV,NCHEM2AER) )
+    ZCHEM2AER(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,1:NCHEM2AER)=0._JPRB
   ENDIF
 ENDIF
 
@@ -1119,7 +1121,8 @@ IF (LUSEKF_REF) CALL UPDATE_FIELDS(YDPHY2, 2,KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, 
 
 IF (NAERCLD > 0) THEN
     SELECT CASE (TRIM(AERO_SCHEME))
-           CASE ("tm5m7", "hamm7")!!! introduce this to avoid modification within cloud_layer.F90
+           CASE ("hamm7")!!! introduce this to avoid modification within cloud_layer.F90
+             ! Note that in 43r3, ccn=max(.,1) and nice=max(.,0.027)
                AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH)!!! liquid cloud condensation nuclei
                AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH)!!! ice number concentration (cf. CCN) 
            CASE ("aer3")

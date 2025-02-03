@@ -97,7 +97,10 @@ MODULE mo_ham_init
                                    HAM_M7,          &
                                    HAM_SALSA,       &
                                    subm_naerospec
-    USE mo_ham_m7ctl,       ONLY : sethamM7, m7_initialize
+#ifdef HAMMOZ
+    USE mo_ham_m7ctl,       ONLY : sethamM7
+#endif
+    USE mo_ham_m7ctl,       ONLY : m7_initialize
 #ifdef SALSA
     USE mo_ham_salsactl,    ONLY : setham_salsa  
     USE mo_ham_salsa_init,  ONLY : salsa_initialize
@@ -139,7 +142,9 @@ MODULE mo_ham_init
        
        
        ! -- initialize M7 scheme
+#ifdef HAMMOZ
        CALL sethamM7
+#endif
        CALL m7_initialize
 #ifdef SALSA
     CASE(HAM_SALSA)

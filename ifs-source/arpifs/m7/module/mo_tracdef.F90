@@ -1,75 +1,14 @@
-!>
-!! @par Copyright
-!! This code is subject to the MPI-M-Software - License - Agreement in it's most recent form.
-!! Please see URL http://www.mpimet.mpg.de/en/science/models/model-distribution.html and the
-!! file COPYING in the root of the source tree for this code.
-!! Where software is supplied by third parties, it is indicated in the headers of the routines.
-!!
-!! --------------------------------------------------------------------------------------------------
-!!mgs : henry and dryreac removed from trlist (see speclist!)
-!!mgs : Cleanups ToDo:
-!!      -- ndrydep, nwetdep, n... :  consistent scheme with -1 = interactive (choice in submodelctl)
-!!                                                           0 = OFF
-!!                                                           1 = prescribed (boundary condition)
-!! --------------------------------------------------------------------------------------------------
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!>
-!! Definition of tracer information data type and variable
-!!
-!!
-!! @author 
-!! <ol>
-!! <li>ECHAM5 developers
-!! <li>M. Schultz (FZ-Juelich)
-!! <li>S. Rast (MPI-Met)
-!! <li>K. Zhang(MPI-Met)
-!! </ol>
-!!
-!! $Id: 1423$
-!!
-!! @par Revision History
-!! <ol>
-!! <li>ECHAM5 developers - (before 2009)
-!! <li>M. Schultz   (FZ-Juelich), S. Rast (MPI-Met) -  new tracer defination - (2009-05-xx) 
-!! <li>K. Zhang     (MPI-Met)    -  implementation in ECHAM6 and doxygen support  - (2009-07-20)
-!! </ol>
-!!
-!! @par This module is used by
-!! to_be_added
-!!  
-!! @par Notes
-!! 
-!!
-!! @par Current responsible coder
-!! kai.zhang@zmaw.de
-!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 MODULE mo_tracdef
 
 
   USE mo_kind,           ONLY: dp
-#ifdef HAMMOZ
-  USE mo_advection,      ONLY: NO_ADVECTION,   &! choice of advection scheme
-                               SEMI_LAGRANGIAN,&! (copied for convenience)
-                               TPCORE           !
-  USE mo_memory_base,    ONLY: AUTO               ! flag to chose unique GRIB code
-  USE mo_linked_list,    ONLY: memory_info ! I/O meta information data type
-  USE mo_time_conversion,ONLY: time_days   ! date (days,seconds) data type
-#endif
-  
+
   IMPLICIT NONE
 
   PRIVATE
 
   PUBLIC :: trlist                         ! tracer info list variable                       
   PUBLIC :: t_trlist, t_trinfo, t_flag     ! "" type definitions
-#ifdef HAMMOZ  
-  PUBLIC :: t_p_mi 
-  PUBLIC :: time_days                      !    type definition
-  PUBLIC :: memory_info                    !    type definition
-#endif
   PUBLIC :: ln, ll, lf, nf                 ! length of names in trlist
 
   PUBLIC :: jptrac                         ! max. number of tracers
@@ -78,7 +17,6 @@ MODULE mo_tracdef
                                            ! It's just more convenient.
 
   !-- flag values
-!!mgs!!  PUBLIC :: OK, NAME_USED, NAME_MISS, TABLE_FULL     ! error values
   !   general flag values
   PUBLIC :: OK                             
   PUBLIC :: ON                             
@@ -99,30 +37,14 @@ MODULE mo_tracdef
   PUBLIC :: AEROSOLNUMBER
   PUBLIC :: UNDEFINED
   !   choice of advection scheme 'ntran'
-#ifdef HAMMOZ
-  PUBLIC :: NO_ADVECTION
-  PUBLIC :: SEMI_LAGRANGIAN
-  PUBLIC :: TPCORE
-#endif
   !   tracer type 'itrtype'
   PUBLIC :: ITRNONE
   PUBLIC :: ITRPRESC
   PUBLIC :: ITRDIAG
   PUBLIC :: ITRPROG
-  !   choose GRIB code automatically
-#ifdef HAMMOZ
-  PUBLIC :: AUTO
-#endif
-  !
-  ! Type declarations
-  !
- 
-
-  !
   ! Limits
-  ! 
-  INTEGER, PARAMETER :: jptrac = 500  ! maximum number of tracers allowed 
-  
+  !
+  INTEGER, PARAMETER :: jptrac = 500  ! maximum number of tracers allowed
   !
   ! Individual settings for each tracer
   !
@@ -187,8 +109,7 @@ MODULE mo_tracdef
   !
   ! Individual settings for each tracer
   ! Default values are marked with * *
-  ! 
-  
+  !
  !=============!
   TYPE t_trinfo
  !=============!
@@ -258,10 +179,6 @@ MODULE mo_tracdef
     INTEGER           :: nsoluble   ! soluble flag          (default 0) 
     
     TYPE(t_flag)      :: myflag (nf)! user defined flag
-#ifdef HAMMOZ
-    TYPE(time_days)   :: tupdatel   ! last update time
-    TYPE(time_days)   :: tupdaten   ! next update time
-#endif
     !
     ! Indicate actions actually performed by ECHAM
     ! 
@@ -274,19 +191,9 @@ MODULE mo_tracdef
   ! used to access the 'restart' flags
   !
 
-#ifdef HAMMOZ
- !===========!
-  TYPE t_p_mi                           ! pointers to memory info type
- !===========!
-    TYPE (memory_info), POINTER :: xt   ! tracers         ,meta information
-    TYPE (memory_info), POINTER :: xtm1 ! tracers at t-dt ,meta information
-  END TYPE t_p_mi
-#endif
-
   !
   ! Basic data type definition for tracer info list
   !
-  
  !=============!
   TYPE t_trlist
  !=============!
@@ -311,14 +218,7 @@ MODULE mo_tracdef
     !
     ! reference to memory buffer info
     !
-#ifdef HAMMOZ
-    TYPE (t_p_mi)   :: mi  (jptrac) ! memory buffer information for each tracer
-
-    TYPE (memory_info), POINTER :: mixt   ! memory buffer information for XT
-    TYPE (memory_info), POINTER :: mixtm1 ! memory buffer information for XTM1
-#endif 
   END TYPE t_trlist
- 
   !
   ! module variables
   !
