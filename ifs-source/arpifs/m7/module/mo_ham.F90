@@ -157,8 +157,14 @@ MODULE mo_ham
   !--- 1.1) Physical:
 
   !--- Define control variables and pre-set with default values: 
-
+#ifdef HAMMOZ
   INTEGER :: nseasalt    = 2           ! Sea Salt emission scheme:
+#else
+  ! SST scheme. OIFS supports only the "Gong + SST" scheme from either TM5
+  ! implementation (nseasalt=0) or HAMM7 one (nseasalt=8), hardcoded
+  ! here.
+  INTEGER :: nseasalt    = 8           ! Sea Salt emission scheme: 
+#endif
                                        ! 
                                        !    nseasalt = 1  Monahan (1986)
                                        !             = 2  Schulz et al. (2002)

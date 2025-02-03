@@ -1069,9 +1069,9 @@ MODULE mo_ham_init
 #endif
     USE mo_activ,           ONLY: nfrzmod
     !>>dod (redmine #44) import of seasalt emission schemes from HAM2
-#ifdef HAMMOZ
+!#ifdef HAMMOZ
     USE mo_ham_m7_emi_seasalt, ONLY: start_emi_seasalt
-#endif
+!#endif
     !<<dod
 
 !>>SF #390 (for security)
@@ -1101,11 +1101,12 @@ MODULE mo_ham_init
 !#endif
     IF (nwater == 1 .AND. nham_subm == HAM_M7) CALL start_kappa
     !>>dod (redmine #44) import of seasalt emission schemes from HAM2
-#ifdef HAMMOZ
+!#ifdef HAMMOZ
+    ! This is needed only if nseasalt=8 in OIFS
     CALL start_emi_seasalt
  
     !<<dod
-#endif
+!#endif
     
     !--- Set the number of freezing modes:
     nfrzmod = 1  !SF WARNING: no other value is possible for now (see mo_ham_freezing.f90)

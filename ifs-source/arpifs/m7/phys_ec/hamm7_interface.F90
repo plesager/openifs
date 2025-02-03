@@ -486,6 +486,7 @@ REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
 
 !-----------------------------------------------------------------------
 
+#include "abor1.intfb.h"
 #include "surf_inq.h"
 #include "aer_so2so4_v2.intfb.h"
 #include "satur.intfb.h"

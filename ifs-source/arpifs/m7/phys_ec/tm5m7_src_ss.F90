@@ -53,6 +53,9 @@ USE YOMCST, ONLY : RPI
 USE TM5M7_DATA, ONLY: NMOD, MODE_ACS, MODE_COS, sigma_lognormal, SS_DENSITY 
 USE TM5M7_EMIS_DATA, ONLY : MODAL_EMISSIONS, radius_ssa, radius_ssc
 
+USE MO_HAM_M7_EMI_SEASALT, ONLY: seasalt_emissions_gong_SST
+USE MO_HAM,          ONLY: nseasalt
+
 IMPLICIT NONE
 
 !-----------------------------------------------------------------------
@@ -77,14 +80,16 @@ REAL(KIND=JPRB)    :: NORM, XSEA, AREA_FRAC, TT, T_SCALE, DENS, RG1, RG2
 REAL(KIND=JPRB)    :: EMIS_FAC(KLON)
 REAL(KIND=JPRB)    :: NUMBER(KLON), MASS(KLON)
 
-
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+#include "abor1.intfb.h"
+
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
 
 !ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
 
-
+IF (NSEASALT==0) THEN
     !>>> TvN
     ! The parameterization of Gong (2003)
     ! gives the particle number flux as a function 
@@ -359,10 +364,20 @@ IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
     !For now introduce emissions in surface layer. Should be fixed.
     emis_mass(mode_cos)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)    !kg/m2/sec
 
+  ELSEIF (NSEASALT==8) THEN  !HAM gong_SST
+     
+    CALL SEASALT_EMISSIONS_GONG_SST(KFDIA, KLON, 1,&
+         & PSST,PWIND, ss_density, PLSM, PCLAKE, PCI, &
+         & emis_mass(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)  , emis_mass(mode_cos)%d3(KIDIA:KFDIA,KLEV,4),&
+         & emis_number(mode_acs)%d3(KIDIA:KFDIA,KLEV,4), emis_number(mode_cos)%d3(KIDIA:KFDIA,KLEV,4))
+  ELSE
 
-    ! RCHG -> In AER scheme there is a flag named LVDFTRAC that might be related with not vertical diffusion. In that case,
-    !        the tendencies seems to be re-scaled in vertical layers "manually". The flux themselves are not changed.
+    CALL ABOR1('ABORT: IN TM5_SRC_SS, NSEASALT is NOT 0 or 8!')
 
+  END IF
+
+  ! RCHG -> In AER scheme there is a flag named LVDFTRAC that might be related with not vertical diffusion. In that case,
+  !        the tendencies seems to be re-scaled in vertical layers "manually". The flux themselves are not changed.
 
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_SRC_SS
