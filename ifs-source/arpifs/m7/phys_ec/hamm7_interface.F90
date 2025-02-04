@@ -273,7 +273,7 @@ INTEGER(KIND=JPIM) :: JAER, JK, JL, JWAVL, JT, JB, JN
 INTEGER(KIND=JPIM) :: JEXT, ITRC, IKLEVTROP(KLON), IW
 INTEGER(KIND=JPIM) :: JO, JH, JY                         ! inside loop index for OIFS contex, HAM context and YAEROUT 
 INTEGER(KIND=JPIM) :: JCLASS, JTILE, JMASS, JGAS, JCLOUD ! local loop indice for activation and dry deposition and tracer indexing
-INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS
+INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS, INUM_ACS, INUM_COS
 INTEGER(KIND=JPIM) :: IMODE 
 INTEGER(KIND=JPIM) :: IFLAG
 
@@ -482,6 +482,7 @@ INTEGER(KIND=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 
 REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND), PASY(KLON,NASWBAND),PFAOD(KLON,NASWBAND)
 REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
 
+REAL(KIND=JPRB) :: ZCHEM2AER(KLON,KLEV,6) ! to overwrite PCHEM2AER (or we could set the latter to inout intent)
 
 !-----------------------------------------------------------------------
 
@@ -632,6 +633,8 @@ ZCEN(KIDIA:KFDIA,:,:) = 0._JPRB
 
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
+ZCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)=PCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)
+
 ! computation of tropopause level 
 CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
 
@@ -730,20 +733,24 @@ IF(.NOT. LAERCHEM) THEN
     ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas')THEN
       ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
     ELSE
-      CALL ABOR1('ABORT: IN AER_PHY3_layer, SO2 not defined. Wrong table in use')
+      CALL ABOR1('HAMM7_INTERFACE: SO2 not defined. Wrong table in use')
     END IF
   END DO
   
   DO JAER=1,NACTAERO
     IF (TRIM(YAERO(JAER)%CNAME)=='SO4_AS') THEN
       ISSO4_ACS=JAER
-      EXIT
+      !EXIT !if looking three exit cannot be here FIXME: PLS DO NOT UNDERSTAND
+    ELSE IF (TRIM(YAERO(JAER)%CNAME)=='AS_N') THEN
+      INUM_ACS=JAER
+    ELSE IF (TRIM(YAERO(JAER)%CNAME)=='CS_N') THEN
+      INUM_COS=JAER
+      !write(2222,*)INUM_COS
     END IF
   END DO
 
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
- !!!ZDP(JL,JK)= PAUX%PRS1(JL,JK) - PAUX%PRS1(JL,JK-1)
       ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
       ZTSO4(JL,JK, 1) = PTENC(JL,JK,ISSO4)
       ZTSO4_AQ(JL,JK) = 0.0_JPRB
@@ -752,6 +759,8 @@ IF(.NOT. LAERCHEM) THEN
     END DO
   END DO
 
+  ! FIXME - check on NSO4SCHEME (should be 2)?
+  
   !CALL AER_SO2SO4_V2 ( &
   !     KIDIA, KFDIA, KLON, KLEV, &
   !     ! TSPHY, STATE%T, PAUX%PRSF1 , PRAD%PNEB, PRAD%PQLI, PAUX%PGELAM,&
@@ -779,12 +788,11 @@ IF(.NOT. LAERCHEM) THEN
       ! ZTSO4 
       PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,JK,1)
       ! SO4 formed in clouds is applied to Accumulati 
-      !write(7700,*)ISSO4_ACS,shape(GEMSL%ZTENC(JL,JK,:))
       PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
-      !This is done insed aer_phy3.F90:
-      !       ELSE IF(AERO_SCHEME == "aer") THEN
-      !          GEMSL%ZTENC(JL,JK,ISSO4)=GEMSL%ZTENC(JL,JK,ISSO4)+ZTSO4(JL,JK)
-      
+
+      ZCHEM2AER(JL,JK,1)=ZTSO4(JL,JK,1)
+      ZCHEM2AER(JL,JK,2)=ZTSO4_AQ(JL,JK)  
+
     END DO
   END DO
 
@@ -856,16 +864,18 @@ DO JCLASS=1,nclass
 END DO
 !mass
 DO JMASS=1,naerocomp
+  JO=ind_oifs_ham%ind_mass_OIFS(JMASS) ! JO -> index context OIFS
+  JH=ind_oifs_ham%ind_mass_HAM(JMASS)  ! JH -> index context HAM
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
-      ZXTM1(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))
-      ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))
+      ZXTM1(JL,JK,JH) =  ZCEN(JL,JK,KAERO(JO))
+      ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
       ! in case of simple sulfur scheme add SO4_AQ part into SO4_ACS
       ! both original tendency and m7tendency [FIXME: what??]
       
       !ADD SO4 from wet chemistry to tendencies
-      if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4_AS') then   
-        ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,2)
+      if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
+        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,2)
       end if
 
     END DO
@@ -880,7 +890,7 @@ DO JGAS=1,subm_ngasspec
       IF (LAERCHEM) THEN
         ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
         IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
-          ZXTTE(JL,JK,JH) = PCHEM2AER(JL,JK,1)
+          ZXTTE(JL,JK,JH) = ZCHEM2AER(JL,JK,1)
         ELSE
           ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
         END IF
@@ -893,7 +903,7 @@ DO JGAS=1,subm_ngasspec
           
         ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
           ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
-          ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO)) 
+          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1) + PTENC(JL,JK,KAERO(JO)) 
           ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
         END IF
 
@@ -933,37 +943,6 @@ ENDDO
 ! --> calling the correct microphysics scheme
  
 SELECT CASE (TRIM(AERO_SCHEME))
-  CASE ("tm5m7")
-  ! ** OBSOLETE ** (PLS)
-  
-  !alaak: commented out because model crashes
-  !kg(air)-1 to cm-3
-!!$
-  !do JK =1,KLEV
-  !   do JL =KIDIA,KFDIA
-  !      ZAIRDM(JL) = (7.24291E16_JPRB*PRSF1(JL,JK)/PTP(JL,JK)) * RMD
-  !      !end do
-  !      DO JMOD=1,NMOD
-  !         ZAERNL(JL,JK,JMOD)=MAX(PAEROP(JL,JK,MODE_START(JMOD))/ZAIRDM(JL),0.0_JPRB)
-  !      END DO
-  !
-  !   end do
-  !end do
-  
-!!$     DO JMOD=1,NMOD
-!!$        DO JAERCLASS=1,NAERMOD
-!!$           IF (MODE_TRACERS_BY_MODS(JAERCLASS,JMOD)>0) THEN
-!!$              ZAERML(KIDIA:KFDIA,1:KLEV,JAERCLASS)=ZCEN(KIDIA:KFDIA,1:KLEV,MODE_TRACERS_BY_MODS(JAERCLASS,JMOD))
-!!$           END IF
-!!$        END DO
-!!$     END DO
-!!$
-!!$     call M7(KIDIA  , KFDIA  , KLON   , KLEV , &
-!!$          ! &  KFLDX, KLEVX,  KTRAC  , KAERO , KCHEM, &
-!!$          PRSF1,ZRH,PTP,&
-!!$          ZSO4G,ZELVOC, ZSVOC,ZAERML,ZAERNL,&
-!!$          ZRHOP,ZWW,ZM6RP,ZM6DRY,&
-!!$          PTSPHY)
 
   CASE("hamm7")
     ! Initializations for submodel interface
@@ -1067,7 +1046,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
      ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
      ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
      PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*(PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH)+MAX((ZCDNCACT(KIDIA:KFDIA,1:KLEV)),1.0E+6_JPRB)) ! add CDNC to PGFL field (convert from #/m3 to #/cm3) and treshold minimum value to 1 cm-3
-     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = 1.0E-6_JPRB*(PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH)+ZICNC(KIDIA:KFDIA,1:KLEV)*1.0E6_JPRB) ! add ICNC to PGFL field (does not need convert)
+     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = 1.0E-6_JPRB*(PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH)+ZICNC(KIDIA:KFDIA,1:KLEV)*1.0E6_JPRB) ! add ICNC to PGFL field (does not need convert) - CHECK: no conversion in 43r3
      !--> End store CDNC and ICNC
 
 
