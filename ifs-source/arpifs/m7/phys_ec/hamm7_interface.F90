@@ -1373,11 +1373,13 @@ SELECT CASE (TRIM(AERO_SCHEME))
             ZFLXS=PFPLCN(JL,JK-1)
             ZFLXRB=PFPLCL(JL,JK)
             ZFLXSB=PFPLCN(JL,JK)
-              !same formula negatives/positives for evap or formation
-              ZMRATEPR_cov(JL,JK) =  ZFLXRB-ZFLXR
-              ZMRATEPS_cov(JL,JK) =  ZFLXSB-ZFLXS
-              ZFEVAPR_cov(JL,JK) =  ZFLXRB-ZFLXR
-              ZFSUBLS_cov(JL,JK) =  ZFLXSB-ZFLXS
+            ZMRATEPR_cov(JL,JK) =  MAX(ZFLXRB-ZFLXR,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
+            ZMRATEPS_cov(JL,JK) =  MAX(ZFLXSB-ZFLXS,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
+            ZMRATEPR_cov(JL,JK) = ZMRATEPR_cov(JL,JK) * TIME_STEP_LEN ! time integrated
+            ZMRATEPS_cov(JL,JK) = ZMRATEPS_cov(JL,JK) * TIME_STEP_LEN ! time integrated
+            !same formula negatives/positives for evap or formation
+            ZFEVAPR_cov(JL,JK) =  -1._JPRB*MIN(ZFLXRB-ZFLXR,0._JPRB) ! [kg/m2.s]
+            ZFSUBLS_cov(JL,JK) =  -1._JPRB*MIN(ZFLXSB-ZFLXS,0._JPRB) ! [kg/m2.s]
           END DO
         END DO
 
@@ -1387,22 +1389,25 @@ SELECT CASE (TRIM(AERO_SCHEME))
             ZFLXS=PFPLSN(JL,JK-1)
             ZFLXRB=PFPLSL(JL,JK)
             ZFLXSB=PFPLSN(JL,JK)
-              !same formula negatives/positives for evap or formation
-              ZMRATEPR_str(JL,JK) =  ZFLXRB-ZFLXR
-              ZMRATEPS_str(JL,JK) =  ZFLXSB-ZFLXS
-              ZFEVAPR_str(JL,JK) =  ZFLXRB-ZFLXR
-              ZFSUBLS_str(JL,JK) =  ZFLXSB-ZFLXS
+            ZMRATEPR_str(JL,JK) = MAX(ZFLXRB-ZFLXR,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
+            ZMRATEPS_str(JL,JK) = MAX(ZFLXSB-ZFLXS,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
+            ZMRATEPR_str(JL,JK) = ZMRATEPR_str(JL,JK) * TIME_STEP_LEN ! time integrated
+            ZMRATEPS_str(JL,JK) = ZMRATEPS_str(JL,JK) * TIME_STEP_LEN ! time integrated
+            !same formula negatives/positives for evap or formation
+            ZFEVAPR_str(JL,JK) =  -1._JPRB*MIN(ZFLXRB-ZFLXR,0._JPRB) ! [kg/m2.s]
+            ZFSUBLS_str(JL,JK) =  -1._JPRB*MIN(ZFLXSB-ZFLXS,0._JPRB) ! [kg/m2.s]
           END DO
         END DO
 
-        ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = ZMRATEPS_str(KIDIA:KFDIA,1:KLEV) !?
+        !ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = ZMRATEPS_str(KIDIA:KFDIA,1:KLEV) !?
+        ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = PSP(KIDIA:KFDIA,1:KLEV) !?
 
         ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
 
-        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB  ! temporary variable for cloud ice water content (modified in wetdep)
-
         ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
         ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud ice water content (modified in wetdep)
+
+        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB  ! temporary variable for cloud ice water content (modified in wetdep)
 
         ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
         IF (.NOT.LAERCHEM)THEN
@@ -1434,7 +1439,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
 
           CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = FALSE for conv. case
-                  ZDPG,  PRP, PSP,   ZMSNOWACL,                      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                  ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                   ZLPU,  ZIP,                                        & ! cloud water content, cloud ice water content
                   ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
                   REFFI,  REFFL,                                     & ! effective radii
@@ -1482,7 +1487,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
         LSTRAT = .TRUE. !True for strat case, large scale
         CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = TRUE for strat. case
-                ZDPG,  PRP, PSP,   ZMSNOWACL,                      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                ZDPG,  ZMRATEPR_STR, ZMRATEPS_STR, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                 ZLP,  ZIP,                                         & ! cloud water content, cloud ice water content
                 ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
                 REFFI,  REFFL,                                     & ! effective radii
