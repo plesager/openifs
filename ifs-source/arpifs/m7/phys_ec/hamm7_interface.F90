@@ -1264,7 +1264,7 @@ ENDDO
         ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))
 
 !-- cloud and ice water path in kg m-2
-        ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)
+        ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)!!!!jira 592
         ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
 !-- cloud and ice water content in g m-3
         ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
