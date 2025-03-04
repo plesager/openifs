@@ -153,9 +153,9 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   REAL(dp), OPTIONAL :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
   REAL(dp), OPTIONAL :: ppbl    (kbdim)            ! Planetary boundary layer top level
 
-  REAL(dp), OPTIONAL :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [cm]
-                        pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [cm] -> FMI suggests both radii unit should be [m]
-                        prhop(kbdim,klev,nclass),     & ! mean mode particle density [g cm-3] -> FMI suggests this unit should be [kg m-3]
+  REAL(dp), OPTIONAL :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [m]
+                        pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [m]
+                        prhop(kbdim,klev,nclass),     & ! mean mode particle density [kg m-3]
                         pww(kbdim,klev,nclass)         ! aerosol water content for each mode [kg(water) m-3(air)]
 
 
@@ -209,8 +209,7 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
                                              ! and ug m-3 for bc, oc, ss, and dust]
              zaernl(kbdim,klev,nclass),    & ! aerosol number for each mode [cm-3]
              zm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [cm]
-             !!!zm6dry(kbdim,klev,nclass),    & ! dry radius for soluble modes [cm] !!! wlh
-             zm6dry(kbdim,klev,nsol),    & ! dry radius for soluble modes [cm]
+             zm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [cm]
              zrhop(kbdim,klev,nclass),     & ! mean mode particle density [g cm-3]
              zww(kbdim,klev,nclass),       &   ! aerosol water content for each mode [kg(water) m-3(air)]
              zaervl(kbdim,klev,naerocomp) ! aerosol mass for individual compounds [molec. cm-3 for sulfate and ug m-3 for bc, oc, ss, and dust] !alaak
@@ -618,7 +617,7 @@ INTEGER:: KIDIA
     !--- Dry Count Median Radius from [cm] to [m]:
     pm6dry(1:kproma,:,:)   = zm6dry(1:kproma,:,:)/100._dp
     !--- Mean mode density from [g/cm3] to [kg/m3]:
-    prhop(1:kproma,:,:)    = zrhop(1:kproma,:,:)*1000._dp !eehol: g/cm3 to kg/m3
+    prhop(1:kproma,:,:)    = zrhop(1:kproma,:,:)*1000._dp
   !--- Store diagnostic aerosol properties 
     pww(1:kproma,:,:)      = zww(1:kproma,:,:)
 #ifdef HAMMOZ
