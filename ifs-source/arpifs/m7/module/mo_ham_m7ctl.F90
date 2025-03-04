@@ -76,7 +76,7 @@ MODULE mo_ham_m7ctl
   PUBLIC :: bk, rerg, r_kcal
 
   PUBLIC :: so4_coating_threshold
-  PUBLIC :: cmr2ras, cmr2mmr, cmedr2mmedr, cmr2ram, ram2cmr, cmr2smr
+  PUBLIC :: cmr2ras, cmr2mmr, cmedr2mmedr, cmr2ram, ram2cmr
 
   !--- 1) Define and pre-set switches for the processes of M7: -----------------------
 
@@ -189,8 +189,6 @@ MODULE mo_ham_m7ctl
   REAL(dp) :: cmr2ram(naeroclass(HAM_M7)) ! Conversion factor: count median radius to radius of average mass
 
   REAL(dp) :: ram2cmr(naeroclass(HAM_M7)) ! Conversion factor: radius of average mass to count median radius
-
-  REAL(dp) :: cmr2smr(naeroclass(HAM_M7)) ! Conversion factor: count median radius to surface mean radius
 
   !--- 6) Assumed thresholds for occurence of specific quantities: -------------
 
@@ -435,9 +433,6 @@ CONTAINS
        !--- Count Median Radius to Radius of Average Surface:
 
        cmr2ras(jclass) = EXP(1.0_dp*(LOG(sigma(jclass)))**2)
-
-       !--- Count Median Radius to surface Mean Radius:
-       cmr2mmr(jclass) = EXP(2.0_dp*(LOG(sigma(jclass)))**2)
 
        !--- 2) Calculate the natural logarithm of the standard deviation:
 

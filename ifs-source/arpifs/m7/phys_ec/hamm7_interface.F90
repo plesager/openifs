@@ -1035,14 +1035,12 @@ SELECT CASE (TRIM(AERO_SCHEME))
     !<-- End activation for HAM-M7
     !-----------------------------------------------------------------
     
-    
-     !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
-     ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
-     ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-     PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*(PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH)+MAX((ZCDNCACT(KIDIA:KFDIA,1:KLEV)),1.0E+6_JPRB)) ! add CDNC to PGFL field (convert from #/m3 to #/cm3) and treshold minimum value to 1 cm-3
-     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = 1.0E-6_JPRB*(PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH)+ZICNC(KIDIA:KFDIA,1:KLEV)*1.0E6_JPRB) ! add ICNC to PGFL field (does not need convert) - CHECK: no conversion in 43r3
-     !--> End store CDNC and ICNC
-
+    !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
+    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
+    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
+    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), 1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
+    PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,1:KLEV) ! no conversion needed: already in #/cm3
+    !--> End store CDNC and ICNC
 
     !-----------------------------------------------------------------
     !--> Calculation for effective radii and put to PGFL fields
