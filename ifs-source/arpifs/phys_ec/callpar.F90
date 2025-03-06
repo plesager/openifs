@@ -1120,16 +1120,16 @@ IF (LUSEKF_REF) CALL UPDATE_FIELDS(YDPHY2, 2,KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, 
 !                  ------------------------------------------------------
 
 IF (NAERCLD > 0) THEN
-    SELECT CASE (TRIM(AERO_SCHEME))
-           CASE ("hamm7")!!! introduce this to avoid modification within cloud_layer.F90
-             ! Note that in 43r3, ccn=max(.,1) and nice=max(.,0.027)
-               AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH)!!! liquid cloud condensation nuclei
-               AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH)!!! ice number concentration (cf. CCN) 
-           CASE ("aer3")
-               CALL AER_CLOUD_LAYER(YDMODEL,KDIM,PAUX,STATE_T0,PDIAG,GEMSL,AUXL)
-           CASE DEFAULT
-               CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME) )
-   END SELECT
+  SELECT CASE (TRIM(AERO_SCHEME))
+  CASE ("hamm7")
+    ! To avoid modification within cloud_layer.F90
+    AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH) ! liquid cloud condensation nuclei
+    AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH) ! ice number concentration (cf. CCN) 
+  CASE ("aer3")
+    CALL AER_CLOUD_LAYER(YDMODEL,KDIM,PAUX,STATE_T0,PDIAG,GEMSL,AUXL)
+  CASE DEFAULT
+    CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME) )
+  END SELECT
 ELSE
   ! routine is by-passed
   AUXL%ZLCRIT_AER(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
