@@ -663,7 +663,8 @@ ASSOCIATE(LAERICEAUTO=>YDECLDP%LAERICEAUTO, LAERICESED=>YDECLDP%LAERICESED, &
  & RCL_INHOMOGAUT    => YDECLDP%RCL_INHOMOGAUT, &
  & RCL_INHOMOGACC    => YDECLDP%RCL_INHOMOGACC, &
  & RCL_OVERLAPLIQICE => YDECLDP%RCL_OVERLAPLIQICE, &
- & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME )
+ & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME, &
+ & NCLOUDACT         => YDERAD%NCLOUDACT)
 !===============================================================================
 
 
@@ -2008,20 +2009,36 @@ DO JK=NCLDTOP,KLEV
 
       IF (LLPERT_RCLCRIT) THEN  !Apply SPP perturbations
         IF (PLSM(JL) > 0.5_JPRB) THEN
-          ZCONST = RCL_KK_CLOUD_NUM_LAND  ! FPE triggered below when using PCCN(JL,JK) here
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
+          END IF
           ! perturbed land value of RCLCRIT
           ZLCRIT = RCLCRIT_LAND*EXP(PN1RCLCRIT%MU(1)+PN1RCLCRIT%XMAG(1)*PGP2DSPP(JL, IPRCLCRIT))
         ELSE
-          ZCONST = RCL_KK_CLOUD_NUM_SEA  ! FPE triggered below when using PCCN(JL,JK) here
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean
+          END IF
           ! perturbed ocean value of RCLCRIT
           ZLCRIT = RCLCRIT_SEA *EXP(PN1RCLCRIT%MU(2)+PN1RCLCRIT%XMAG(2)*PGP2DSPP(JL, IPRCLCRIT))
         ENDIF
       ELSE
         IF (PLSM(JL) > 0.5_JPRB) THEN ! land  (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_LAND  ! FPE triggered below when using PCCN(JL,JK) here
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
+          END IF
           ZLCRIT = RCLCRIT_LAND
         ELSE                          ! ocean (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_SEA  ! FPE triggered below when using PCCN(JL,JK) here
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean
+          END IF
           ZLCRIT = RCLCRIT_SEA
         ENDIF
       ENDIF
