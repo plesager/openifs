@@ -385,7 +385,7 @@ ELSE
   ! HAM-M7 only solves micro-physics, all other processes are handled
   ! by the TM5-M7 routines. We therefore set all TM5-M7 switches, but
   ! use HAM-M7-specific switches in the micro-physics routines.
-  CASE ("tm5m7", "hamm7")
+  CASE ("hamm7")
 
   LEPAERO  =.FALSE.
   LAERRAD  =.FALSE.
@@ -553,7 +553,7 @@ ELSE
 !           4 is Nabat et al 2012 with roughness length of smooth erodible
 !           surfaces
   NDDUST =3
-!-- Sulphate sceheme : 1 is operational
+!-- Sulphate scheme : 1 is operational
 !           2 is "mocage like" from MF J.Bock
   NSO4SCHEME = 1
   RAERDUB=1.E-11_JPRB   !  dust emission potential modulated by the areas' RDDUAER

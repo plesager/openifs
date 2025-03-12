@@ -507,8 +507,6 @@ IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
 
    CASE ("aer")         
       ! Setup of 'aer' configuration is done in su_aerw.F90
-   CASE ("tm5m7")         
-      CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM%YRCOMPO, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
    CASE ("hamm7")         
       ! HAM-M7 only calculates aerosol micro-physics, 
       ! all other processes are dealt with in TM5-M7

@@ -86,6 +86,7 @@ REAL(KIND=JPRB) :: ZEPSTAU, ZFAC
 LOGICAL :: LLPHYLIN
 !-----------------------------------------------------------------------
 
+#include "abor1.intfb.h"
 #include "satur.intfb.h"
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
@@ -241,6 +242,9 @@ ENDDO
 
         ITYP=YAERO_DESC(JAER)%NTYP
         IBIN=YAERO_DESC(JAER)%NBIN
+
+      CASE ("hamm7")
+        CALL ABOR1(" AEROSOL SCHEME hamm7 not supported yet in UV-radiation processor" )
 
     END SELECT
 

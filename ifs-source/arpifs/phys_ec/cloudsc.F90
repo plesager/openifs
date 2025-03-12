@@ -2407,7 +2407,7 @@ DO JK=NCLDTOP,KLEV
     !--------------------------------------------------------------
     ZSUPERSATICE = (ZQSLIQ(JL,JK)-ZQSICE(JL,JK))/ZQSICE(JL,JK)
 
-    IF (ZTP1(JL,JK)<(RTT-5._JPRB) .AND. ZQXFG(JL,NCLDQL)>RLMIN) THEN  ! T<273K
+    IF (ZTP1(JL,JK)>=RTHOMO .AND. ZTP1(JL,JK)<(RTT-5._JPRB) .AND. ZQXFG(JL,NCLDQL)>RLMIN) THEN  ! 235.15=<T<273K
 
       ZVPICE=FOEEICE(ZTP1(JL,JK))*RV/RD
       ZVPLIQ=ZVPICE*FOKOOP(ZTP1(JL,JK))
@@ -2513,7 +2513,7 @@ DO JK=NCLDTOP,KLEV
       
         ZVPICE = FOEEICE(ZTP1(JL,JK))*RV/RD
         ZVPLIQ = ZVPICE*FOKOOP(ZTP1(JL,JK))
-        ZICENUCLEI(JL)=1000.0_JPRB*EXP(12.96_JPRB*(ZVPLIQ-ZVPICE)/ZVPLIQ-0.639_JPRB)
+        ZICENUCLEI(JL)=1000.0_JPRB*EXP(12.96_JPRB*(ZVPLIQ-ZVPICE)/ZVPICE-0.639_JPRB)
 
         !-----------------------------------------------------
         ! RICEINIT=1.E-12_JPRB is initial mass of ice particle

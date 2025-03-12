@@ -206,7 +206,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
   ! HAM-M7 only implements the micro-physics part
   ! all other processes are still handled by the TM5-M7 code
-  CASE ("tm5m7", "hamm7")
+  CASE ("hamm7")
    
     CALL TM5M7_PHY2( &
         & YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV, KDIM%KFLDX , KDIM%KLEVX,& 

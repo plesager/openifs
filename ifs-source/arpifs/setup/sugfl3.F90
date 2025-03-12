@@ -943,8 +943,8 @@ DO JGFL=1,NAEROUT
    & KCOUPLING=YAEROUT_NL(JGFL)%NCOUPLING,&
    & PREFVALC=YAEROUT_NL(JGFL)%REFVALC)
 ENDDO
-!eehol: cloud prop
-! Aerosol-cloud interaction fields, EC-EARTH
+
+! Aerosol-cloud interaction fields
 IF (TRIM(AERO_SCHEME)=="hamm7" )THEN
     IF (YCDNC%LACTIVE) THEN
       CALL SET_GFL_ATTR(YDDIMV, YGFL, YCDNC, LDADV=.FALSE., LDT9=.FALSE., LDPHY=.FALSE.) 

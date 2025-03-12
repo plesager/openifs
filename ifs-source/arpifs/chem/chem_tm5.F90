@@ -503,7 +503,7 @@ ENDIF
 ! ITAU_MACC = 2_JPIM  ! Use simple (but wrong) climatology for aerosol optical depth if no prognostic MACC aerosol is used 
 
 IF ( LCHEM_AEROI ) THEN 
-  IF (TRIM(AERO_SCHEME)=="aer" .OR. TRIM(AERO_SCHEME)=="hamm7")THEN !FIXME: no M7 and LCHEM_AEROI?
+  IF (TRIM(AERO_SCHEME)=="aer") THEN !FIXME: M7 and LCHEM_AEROI - see OIFS-568
     ! * from MACC fields
     CALL TM5_MACC_AEROSOL(KIDIA,KFDIA,KLON,KLEV, KAERO, &
       &   PRS1   , PAEROP  , ZRHCL   ,   &

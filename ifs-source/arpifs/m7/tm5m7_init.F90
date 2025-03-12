@@ -24,8 +24,6 @@
 !     --------------
 !        ORIGINAL : 2020-08-24
 
-
-
 USE GEOMETRY_MOD,   ONLY : GEOMETRY
 USE PARKIND1,       ONLY : JPRB, JPIM
 USE YOMHOOK,        ONLY : LHOOK, DR_HOOK, JPHOOK
@@ -50,7 +48,6 @@ USE YOERAD   , ONLY : TERAD!YRERAD
 
 IMPLICIT NONE
 
-
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
 TYPE(TCOMPO)      ,INTENT(IN)    :: YRCOMPO
 TYPE(TYPE_GFLD)   ,INTENT(IN)    :: YGFL
@@ -63,7 +60,6 @@ LOGICAL            :: LLFOUND
 REAL(KIND=JPRB),DIMENSION(:),ALLOCATABLE :: PHOTO_WAVELENGTHS
 
 REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
-
 
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -82,7 +78,6 @@ ASSOCIATE(&
 !*             Init aerosol scheme 
 !              ---------------
 
-
 SELECT CASE (TRIM(AERO_SCHEME))
 
   CASE ("aer")         
@@ -91,75 +86,14 @@ SELECT CASE (TRIM(AERO_SCHEME))
     IF (LHOOK) CALL DR_HOOK('TM5M7_INIT',1,ZHOOK_HANDLE)    
     RETURN
              
-  CASE ("tm5m7","hamm7")         
+  CASE ("hamm7")
     
-    ! initialization of tm5m7 aerosol tracer indices. All may be moved to a separate 
-    ! routine, if becomse too lengthy.
-    
-! Following now handled in hamm7_init 
+    ! Initialization of tm5m7 aerosol tracer indices is handled in hamm7_init 
 
-!!$    ! Make sure that aerosol indices are set correctly
-!!$    DO JK=1,NAERO
-!!$    
-!!$      LLFOUND = .FALSE.
-!!$      SELECT CASE (TRIM(YAERO(JK)%CNAME) )
-!!$        CASE ('SO4')   ; LLFOUND = (ISO4 == JK)
-!!$        CASE ('NH4')   ; LLFOUND = (INH4 == JK)
-!!$        CASE ('NO3_A') ; LLFOUND = (INO3_A == JK)
-!!$        CASE ('ACS_N') ; LLFOUND = (IACS_N == JK)
-!!$        CASE ('SO4ACS'); LLFOUND = (ISO4ACS == JK)
-!!$        CASE ('BCACS') ; LLFOUND = (IBCACS == JK)
-!!$        CASE ('POMACS'); LLFOUND = (IPOMACS == JK)
-!!$        CASE ('SSACS') ; LLFOUND = (ISSACS == JK)
-!!$        CASE ('DUACS') ; LLFOUND = (IDUACS == JK)
-!!$        CASE ('SOANUS'); LLFOUND = (ISOANUS == JK)
-!!$        CASE ('SOAAIS'); LLFOUND = (ISOAAIS == JK)
-!!$        CASE ('SOAACS'); LLFOUND = (ISOAACS == JK)
-!!$        CASE ('SOACOS'); LLFOUND = (ISOACOS == JK)
-!!$        CASE ('SOAAII'); LLFOUND = (ISOAAII == JK)
-!!$        CASE ('H2OPART');LLFOUND = (IH2OPART == JK)
-!!$        CASE ('AII_N') ; LLFOUND = (IAII_N == JK)
-!!$        CASE ('BCAII') ; LLFOUND = (IBCAII == JK)
-!!$        CASE ('POMAII'); LLFOUND = (IPOMAII == JK)
-!!$        CASE ('ACI_N') ; LLFOUND = (IACI_N == JK)
-!!$        CASE ('DUACI') ; LLFOUND = (IDUACI == JK)
-!!$        CASE ('AIS_N') ; LLFOUND = (IAIS_N == JK)
-!!$        CASE ('SO4AIS'); LLFOUND = (ISO4AIS == JK)
-!!$        CASE ('BCAIS') ; LLFOUND = (IBCAIS == JK)
-!!$        CASE ('POMAIS'); LLFOUND = (IPOMAIS == JK)
-!!$        CASE ('COI_N') ; LLFOUND = (ICOI_N == JK)
-!!$        CASE ('DUCOI') ; LLFOUND = (IDUCOI == JK)
-!!$        CASE ('COS_N') ; LLFOUND = (ICOS_N == JK)
-!!$        CASE ('SO4COS'); LLFOUND = (ISO4COS == JK)
-!!$        CASE ('BCCOS') ; LLFOUND = (IBCCOS == JK)
-!!$        CASE ('POMCOS'); LLFOUND = (IPOMCOS == JK)
-!!$        CASE ('SSCOS') ; LLFOUND = (ISSCOS == JK)
-!!$        CASE ('DUCOS') ; LLFOUND = (IDUCOS == JK)
-!!$        CASE ('NUS_N') ; LLFOUND = (INUS_N == JK)
-!!$        CASE ('SO4NUS'); LLFOUND = (ISO4NUS == JK)
-!!$        CASE ('ELVOC') ; LLFOUND = (IELVOC == JK)
-!!$        CASE ('ISVOC') ; LLFOUND = (IISVOC == JK)
-!!$        CASE ('MSA')   ; LLFOUND = (IMSA == JK)
-!!$        CASE ('Total_aerosol') ; LLFOUND = .TRUE.
-!!$
-!!$        CASE DEFAULT
-!!$          WRITE(NULOUT,*) 'ERROR tm5m7_init: no matching aerosol name for '//TRIM(YAERO(JK)%CNAME)
-!!$          CALL ABOR1('tm5m7_init: No matching tracer name available')
-!!$      END SELECT
-!!$
-!!$      IF (.NOT. LLFOUND) THEN
-!!$        WRITE(NULOUT,*) 'ERROR tm5m7_init: Wrong tracer index or status for '//TRIM(YAERO(JK)%CNAME)
-!!$        CALL ABOR1('tm5m7_init: wrong tracer index or tracer name')
-!!$      ENDIF
-!!$
-!!$    ENDDO
+    ! Initialize various dust properties
+    CALL TM5M7_SRC_DUST_INIT
 
-!   CALL TM5M7_DIAGNOSTICS_DATA
-
-   ! Initialize various dust properties
-   CALL TM5M7_SRC_DUST_INIT
-
-   !IF(.not.LAERCHEM)THEN
+    !IF(.not.LAERCHEM)THEN
       ! Initialize optics:
       ! Make sure that 'WAVE' is already initialized (in tm5_init.F90)
       !IF (.NOT. LL_TM5_PHOTO_INI) THEN
@@ -170,74 +104,58 @@ SELECT CASE (TRIM(AERO_SCHEME))
       !   END if
      
       !ENDIF
-   !END IF
-   ! define wavelengths for optics calculations
-   nwdep = nbands_trop + count(lmid.ne.lmid_gridA)
-   wav_grid  = 0
-   wav_gridA = 0
-   allocate(photo_wavelengths(nwdep))
+    !END IF
 
-   JL=1
-   do JI=1,nbands_trop
+    ! Define wavelengths for optics calculations
+    nwdep = nbands_trop + count(lmid.ne.lmid_gridA)
+    wav_grid  = 0
+    wav_gridA = 0
+    allocate(photo_wavelengths(nwdep))
+
+    JL=1
+    do JI=1,nbands_trop
       if (lmid(JI)==lmid_gridA(JI)) then
-         photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
-         wav_grid(JI) = JL
-         wav_gridA(JI) = JL
-         JL=JL+1   
+        photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
+        wav_grid(JI) = JL
+        wav_gridA(JI) = JL
+        JL=JL+1   
       else
-         photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
-         photo_wavelengths(JL+1) = wave(lmid_gridA(JI))*1.e4 ! cm to um
-         wav_grid(JI) = JL
-         wav_gridA(JI) = JL+1
-         JL=JL+2
+        photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
+        photo_wavelengths(JL+1) = wave(lmid_gridA(JI))*1.e4 ! cm to um
+        wav_grid(JI) = JL
+        wav_gridA(JI) = JL+1
+        JL=JL+2
       endif
-   enddo
-   allocate(wdep(nwdep))
-   wdep(:)%wl = photo_wavelengths
-   wdep(:)%split = .false.
-   wdep(:)%insitu = .false.
+    enddo
+    allocate(wdep(nwdep))
+    wdep(:)%wl = photo_wavelengths
+    wdep(:)%split = .false.
+    wdep(:)%insitu = .false.
 
-   CALL TM5M7_OPTICS_INIT(NWDEP,WDEP)
+    CALL TM5M7_OPTICS_INIT(NWDEP,WDEP)
 
-   
-   if (allocated(photo_wavelengths)) deallocate(photo_wavelengths)
-   if (allocated(wdep)) deallocate(wdep)
+    if (allocated(photo_wavelengths)) deallocate(photo_wavelengths)
+    if (allocated(wdep)) deallocate(wdep)
 
-!    nwdep=14
-! !! A.Laakso: Taken from ecearth_optics (TM5-ECEARTH3) 
-   ! HAM aerosol optics are using these too	  
-   NASWBAND=YDERAD%NTSW
-   if (allocated(ASWBAND)) deallocate(ASWBAND)
-   allocate(ASWBAND(YDERAD%NTSW))
-     ASWBAND(13)%wl = 0.257_JPRB
-     ASWBAND(12)%wl = 0.313_JPRB
-     ASWBAND(11)%wl = 0.398_JPRB
-     ASWBAND(10)%wl = 0.530_JPRB
-     ASWBAND( 9)%wl = 0.697_JPRB
-     ASWBAND( 8)%wl = 0.973_JPRB
-     ASWBAND( 7)%wl = 1.269_JPRB
-     ASWBAND( 6)%wl = 1.447_JPRB
-     ASWBAND( 5)%wl = 1.767_JPRB
-     ASWBAND( 4)%wl = 2.040_JPRB
-     ASWBAND( 3)%wl = 2.308_JPRB
-     ASWBAND( 2)%wl = 2.752_JPRB
-     ASWBAND( 1)%wl = 3.407_JPRB
-     ASWBAND(14)%wl = 5.254_JPRB
-
-!    ASWBAND( 1)%wl = 0.257 
-!    ASWBAND( 2)%wl = 0.313
-!    ASWBAND( 3)%wl = 0.398
-!    ASWBAND( 4)%wl = 0.530
-!    ASWBAND( 5)%wl = 0.697
-!    ASWBAND( 6)%wl = 0.973
-!    ASWBAND( 7)%wl = 1.269
-!    ASWBAND( 8)%wl = 1.447
-!    ASWBAND( 9)%wl = 1.767
-!    ASWBAND(10)%wl = 2.040
-!    ASWBAND(11)%wl = 2.308
-!    ASWBAND(12)%wl = 2.752
-!    ASWBAND(13)%wl = 3.407
-!    ASWBAND(14)%wl = 5.254
+    ! A.Laakso: Taken from ecearth_optics (TM5-ECEARTH3) 
+    ! HAM aerosol optics are using these too
+    NASWBAND=YDERAD%NTSW
+    if (allocated(ASWBAND)) deallocate(ASWBAND)
+    allocate(ASWBAND(YDERAD%NTSW))
+    ASWBAND(13)%wl = 0.257_JPRB
+    ASWBAND(12)%wl = 0.313_JPRB
+    ASWBAND(11)%wl = 0.398_JPRB
+    ASWBAND(10)%wl = 0.530_JPRB
+    ASWBAND( 9)%wl = 0.697_JPRB
+    ASWBAND( 8)%wl = 0.973_JPRB
+    ASWBAND( 7)%wl = 1.269_JPRB
+    ASWBAND( 6)%wl = 1.447_JPRB
+    ASWBAND( 5)%wl = 1.767_JPRB
+    ASWBAND( 4)%wl = 2.040_JPRB
+    ASWBAND( 3)%wl = 2.308_JPRB
+    ASWBAND( 2)%wl = 2.752_JPRB
+    ASWBAND( 1)%wl = 3.407_JPRB
+    ASWBAND(14)%wl = 5.254_JPRB
 
     ASWBAND(:)%split = .false. 
     ASWBAND(:)%insitu = .false. 
@@ -254,7 +172,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
     & 1080._JPRB,1180._JPRB,1390._JPRB,1480._JPRB,1800._JPRB,2080._JPRB, &
     & 2250._JPRB,2380._JPRB,2600._JPRB,3250._JPRB/)
 
-
   CASE DEFAULT
   
     ! Option not implemented
@@ -262,9 +179,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
 END SELECT 
 
-
-
 END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('TM5M7_INIT',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_INIT 
-
