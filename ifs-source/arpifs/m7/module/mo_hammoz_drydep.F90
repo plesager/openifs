@@ -463,15 +463,15 @@ MODULE mo_hammoz_drydep
                          zvd,      zvdstom,   idt_ddep_detail            )
 !<<gf
 #else
-    zrahwat(:)  = MAX(1._dp,pcdnw(:)) !eehol: aerodyn resistance water from not used variable
-    zrahice(:)  = MAX(1._dp,pcdnw(:)) !eehol: aerodyn resistance ice from not used variable
-    zrahveg(:)  = MAX(1._dp,pcdnw(:)) !eehol: aerodyn resistance vegetation from not used variable
-    zrahslsn(:) = MAX(1._dp,pcdnw(:)) !eehol: aerodyn resistance snow and soil from not used variable
-    zustarl(:)  = MAX(pcdnl(:), ustarmin) !eehol: ustar land from not used variable
-    zustarw(:)  = MAX(pcdnl(:), ustarmin) !eehol: ustar water from not used variable
-    zustari(:)  = MAX(pcdnl(:), ustarmin) !eehol: ustar ice from not used variable
-    zustveg(:)  = MAX(pcdnl(:), ustarmin) !eehol: ustar vegetation from not used variable
-    zustslsn(:) = MAX(pcdnl(:), ustarmin) !eehol: ustar snow and soil from not used variable
+    zrahwat(1:kproma)  = MAX(1._dp,pcdnw(1:kproma)) !eehol: aerodyn resistance water from not used variable
+    zrahice(1:kproma)  = MAX(1._dp,pcdnw(1:kproma)) !eehol: aerodyn resistance ice from not used variable
+    zrahveg(1:kproma)  = MAX(1._dp,pcdnw(1:kproma)) !eehol: aerodyn resistance vegetation from not used variable
+    zrahslsn(1:kproma) = MAX(1._dp,pcdnw(1:kproma)) !eehol: aerodyn resistance snow and soil from not used variable
+    zustarl(1:kproma)  = MAX(pcdnl(1:kproma), ustarmin) !eehol: ustar land from not used variable
+    zustarw(1:kproma)  = MAX(pcdnl(1:kproma), ustarmin) !eehol: ustar water from not used variable
+    zustari(1:kproma)  = MAX(pcdnl(1:kproma), ustarmin) !eehol: ustar ice from not used variable
+    zustveg(1:kproma)  = MAX(pcdnl(1:kproma), ustarmin) !eehol: ustar vegetation from not used variable
+    zustslsn(1:kproma) = MAX(pcdnl(1:kproma), ustarmin) !eehol: ustar snow and soil from not used variable
 #endif
     !--- Calculate the dry deposition velocity for aerosols:
     !### argument ordering should be similar to drydep_lg_vdbl
