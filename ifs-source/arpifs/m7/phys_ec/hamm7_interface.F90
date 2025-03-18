@@ -320,7 +320,7 @@ REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
 REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
 REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV)
-REAL(KIND=JPRB) :: ZTMPA!, ZTEMP, ZDPOG, ZQIWP, ZPODT
+REAL(KIND=JPRB) :: ZTMPA, ZTEMP, ZDPOG, ZQIWP, ZPODT
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
@@ -1283,11 +1283,10 @@ ENDDO
         LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
         LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
         ! ZQLWP2(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
-        ! ZQLWP2(JL,JK) = MIN(MAX(ZQLWP2(JL,JK),0.0_JPRB),10*RCLDMAX) ! treshold lwp, lianghai changed
 
         ! effective radius calculated similarly as in radlswr.F90
         ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),10._JPRB)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
+        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),10._JPRB)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
 
     END DO
    END DO

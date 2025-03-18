@@ -1328,6 +1328,7 @@ MODULE mo_ham_wetdep
               zheneff(kbdim,klev), zhp(kbdim,klev), &
               zhenry_so2(2)
 
+  REAL(dp) :: tmp1(kbdim,klev)
   INTEGER  :: jt, jn_idt_so4, jdx, idt_so2_loc
   INTEGER, ALLOCATABLE :: idt_so4_array(:)
 
@@ -1342,16 +1343,15 @@ MODULE mo_ham_wetdep
 
   !>>SF #458 (replacing where statements)
   ll1(1:kproma,:) = (pmlwc(1:kproma,:) > 1.E-15_dp)
+  !tmp1 = 1000._dp/(pmlwc(1:kproma,:)*mw_so2)
 
-  zfac(1:kproma,:)  = MERGE( &
-                            1000._dp/(pmlwc(1:kproma,:)*mw_so2), &
-                            0._dp, &
-                            ll1(1:kproma,:) )
+  where (pmlwc(1:kproma,:) > 1.E-15_dp) tmp1 = 1000._dp/(pmlwc(1:kproma,:)*mw_so2)
+  !zfac(1:kproma,:)  = MERGE( 1000._dp/(pmlwc(1:kproma,:)*mw_so2), 0._dp, ll1(1:kproma,:) )
+  zfac(1:kproma,:)  = MERGE( tmp1, 0._dp,  ll1(1:kproma,:))
 
-  zfac4(1:kproma,:)  = MERGE( &
-                             1000._dp/(pmlwc(1:kproma,:)*mw_so4), &
-                             0._dp, &
-                             ll1(1:kproma,:) )
+  where (pmlwc(1:kproma,:) > 1.E-15_dp) tmp1 = 1000._dp/(pmlwc(1:kproma,:)*mw_so4)
+  !zfac4(1:kproma,:)  = MERGE( 1000._dp/(pmlwc(1:kproma,:)*mw_so4), 0._dp, ll1(1:kproma,:) )
+  zfac4(1:kproma,:) = MERGE( tmp1, 0._dp,  ll1(1:kproma,:))
   !<<SF #458 (replacing where statements)
 
   !--- Set the list of relevant tracer id's (!SF #397: compliance for SALSA)
