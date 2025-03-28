@@ -231,7 +231,9 @@ END TYPE MODAL_DATA
                      !
                      !doc     = 2.,         & ! Density          oc     [g cm-3]
                  &   doc     = 1.3,        & ! Density          POM     [g cm-3]
-                     !<<< TvN
+                 !<<< TvN
+                 &   dnh4no3 = 1.73,       & ! Density          NH4NO3 [g cm-3]
+                 &   dmsa    = 1.48,       & ! Density          MSA    [g cm-3]
                  &   dnacl   = 2.165,      & ! Density          NaCl   [g cm-3]
                  &   dna2so4 = 2.68,       & ! Density          Na2SO4 [g cm-3]
                  &   dnahso4 = 2.435,      & ! Density          NaHSO4 [g cm-3]
@@ -245,7 +247,9 @@ END TYPE MODAL_DATA
                  &   wcl     = 35.453,     & ! Atomic    weight Cl     [g mol-1]
                  &   wnacl   = 58.443,     & ! Molecular weight NaCl   [g mol-1]
                  &   wna2so4 = 142.0376,   & ! Molecular weight Na2SO4 [g mol-1]
-                 &   wnahso4 = 120.0555      ! Molecular weight NaHSO4 [g mol-1]
+                 &   wnahso4 = 120.0555,   & ! Molecular weight NaHSO4 [g mol-1]
+                 &   wdair   = 28.970        ! Molecular weight dry air[g mol-1]
+  
 
 
   !--- 9) Assumed parameters: ------------------------------------------------------

@@ -167,12 +167,9 @@ CONTAINS
        ! calculation.
        pwpdf(1:kproma,:,1) = 1.0_dp
     ELSE
-#ifdef HAMMOZ
+
        CALL aero_activ_updraft_sigma(kproma,   kbdim,   klev,    krow, &
                                      ptkem1,  zwturb                   )
-#else
-       zwturb(1:kproma,:) = 0.8_dp !eehol: use prescribed value for sigma if HAMMOZ not used
-#endif
 
        CALL aero_activ_updraft_pdf(kproma,  kbdim,  klev,  krow, &
                                    zwlarge, zwturb, pw,    pwpdf )
