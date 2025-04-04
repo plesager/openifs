@@ -817,51 +817,53 @@ SELECT CASE (TRIM(CHEM_SCHEME))
  &     KLEVX,ZDELP,PTSTEP,ZTENC1,ZTENC0,PEXTRA(:,:, IEXTR_CH))
     ENDIF
 
-  ! Simplified sulfur scheme, implemented for coupling with M7 aerosol scheme
+  ! Simplified sulfur scheme V2 - here only for M7 aerosols scheme
   CASE ("SimChem")
 
-        ISSO2=ISO2_TM5! need to be checked, Lianghai
-        ISSO4=ISO4_TM5
-        ISSO4_ACS=5! index in YAERO OIFS
-        ! for test only, not checked yet
+    !ISSO4=ISO4_TM5
+    !ISSO4_ACS=5! index in YAERO OIFS
+    
+    DO JT=1,NCHEM
+      IF (TRIM (YCHEM(JT)%CNAME) == 'SO2' ) ISSO2=JT
+      ! IF (TRIM (YCHEM(JT)%CNAME) == 'SO4' ) ISSO4=JT
+    ENDDO
+    
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        !ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
+        !ZTSO4(JL,JK)    = PTENC(JL,JK,ISSO4)
+        !ZTSO4_AQ(JL,JK) = PTENC(JL,JK,ISSO4_ACS)! liquid phase
+        !ZSO2(JL,JK)     = PAEROP(JL,JK,ISSO2)
+        ZSO2(JL,JK)     = ZCON(JL,JK,ISSO2)  ! SO2 concentration
+        ZITSO2(JL,JK)   = ZTENC0(JL,JK,ISSO2)! SO2 tendecny at previous time step
+      END DO
+    END DO
 
-        DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA
-            !ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
-            !ZTSO4(JL,JK)    = PTENC(JL,JK,ISSO4)
-            !ZTSO4_AQ(JL,JK) = PTENC(JL,JK,ISSO4_ACS)! liquid phase
-            !ZSO2(JL,JK)     = PAEROP(JL,JK,ISSO2)
-            ZSO2(JL,JK)     = ZCON(JL,JK,ISSO2)! SO2 concentration
+    CALL AER_SO2SO4_V2( YDRIP,                                                &
+                      & KIDIA , KFDIA , KLON  , KLEV  ,                       &
+                      & PTSTEP, PTP   , PRSF1 , PAP  , PLP  , PGELAT, PGELAM, &
+                      & ZSO2  , ZITSO2,                                       &
+                      & PGFL(:,:, YGFL%YAEROCLIM(1)%MP),                      &
+                      & PGFL(:,:,YGFL%YAEROCLIM(2)%MP),                       &
+                      & PGFL(:,:,YGFL%YAEROCLIM(3)%MP) ,                      &
+                      & ZTSO2 , ZTSO4(:,:), ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDELP)
 
-            ZITSO2(JL,JK)   = ZTENC0(JL,JK,ISSO2)! SO2 tendecny at previous time step
-          END DO
-        END DO
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        ! ZTSO2
+        !PTENC(JL,JK,ISSO2) = PTENC(JL,JK,ISSO2)+ZTSO2(JL,JK)
+        !ZTENC1(JL,JK,ISSO2) = ZTENC1(JL,JK,ISSO2)+ZTSO2(JL,JK)
+        ZTENC1(JL,JK,ISSO2) = ZTSO2(JL,JK)
+        !! ZTSO4 
+        !PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,Jk)
+        !! SO4 formed in clouds is applied to Accumulati 
+        !PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
+        PCHEM2AER(JL,JK,1) = ZTSO4(JL,Jk)
+        PCHEM2AER(JL,JK,2) = ZTSO4_AQ(JL,JK)
+      END DO
+    END DO
 
-        CALL AER_SO2SO4_V2( YDRIP,                                                &
-                          & KIDIA , KFDIA , KLON  , KLEV  ,                       &
-                          & PTSTEP, PTP   , PRSF1 , PAP  , PLP  , PGELAT, PGELAM, &
-                          & ZSO2  , ZITSO2,                                       &
-                          & PGFL(:,:, YGFL%YAEROCLIM(1)%MP),                      &
-                          & PGFL(:,:,YGFL%YAEROCLIM(2)%MP),                       &
-                          & PGFL(:,:,YGFL%YAEROCLIM(3)%MP) ,                      &
-                          & ZTSO2 , ZTSO4(:,:), ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDELP)
-
-        DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA
-            ! ZTSO2
-            !PTENC(JL,JK,ISSO2) = PTENC(JL,JK,ISSO2)+ZTSO2(JL,JK)
-            ZTENC1(JL,JK,ISSO2) = ZTENC1(JL,JK,ISSO2)+ZTSO2(JL,JK)
-            !! ZTSO4 
-            !PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,Jk)
-            !! SO4 formed in clouds is applied to Accumulati 
-            !PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
-            PCHEM2AER(JL,JK,1) =  ZTSO4(JL,Jk)
-            PCHEM2AER(JL,JK,2) =  ZTSO4_AQ(JL,JK)
-            
-          END DO
-        END DO
-
-     ! output for aerosol scheme
+    ! output for aerosol scheme
     !IF (NACTAERO > 0 .AND. LAERCHEM) THEN
 
     !  PCHEM2AER(KIDIA:KFDIA,1:KLEV,1) =  ZTENC1(KIDIA:KFDIA,1:KLEV,ISO4_TM5) -ZTENC0(KIDIA:KFDIA,1:KLEV,ISO4_TM5)

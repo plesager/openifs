@@ -142,21 +142,19 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   
 ! optional arguments
 
-  INTEGER,  OPTIONAL :: krow                       ! geographic block number
-  REAL(dp), OPTIONAL :: pap     (kbdim,klev)       ! pressure [Pa], at full levels
-  REAL(dp), OPTIONAL :: paph    (kbdim,klev+1)     ! pressure [Pa], at half levels
-  REAL(dp), OPTIONAL :: pt      (kbdim,klev)       ! temperature [K]  
-  REAL(dp), OPTIONAL :: pq      (kbdim,klev)       ! specific humidity [kg/kg]
-  REAL(dp), OPTIONAL :: pqs     (kbdim,klev)       ! saturation specific humidity [kg/kg]
-  REAL(dp), OPTIONAL :: pxtm1   (kbdim,klev,ktrac) ! tracer mass/number mixing ratio at 
-  REAL(dp), OPTIONAL :: pxtte   (kbdim,klev,ktrac) ! tracer mass/number mixing ratio tendencies [kg/kg s-1 or #/kg s-1]
-  REAL(dp), OPTIONAL :: paclc   (kbdim,klev)       ! cloud cover [0,1]
-  REAL(dp), OPTIONAL :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
-  REAL(dp), OPTIONAL :: ppbl    (kbdim)            ! Planetary boundary layer top level
-  REAL(dp), OPTIONAL :: pforest    (kbdim)            ! Planetary boundary layer top level
-  REAL(dp), OPTIONAL :: pout_dnuc(kbdim,klev,4)
+  INTEGER   :: krow                       ! geographic block number
+  REAL(dp)  :: pap     (kbdim,klev)       ! pressure [Pa], at full levels
+  REAL(dp)  :: paph    (kbdim,klev+1)     ! pressure [Pa], at half levels
+  REAL(dp)  :: pt      (kbdim,klev)       ! temperature [K]  
+  REAL(dp)  :: pq      (kbdim,klev)       ! specific humidity [kg/kg]
+  REAL(dp)  :: pqs     (kbdim,klev)       ! saturation specific humidity [kg/kg]
+  REAL(dp)  :: pxtm1   (kbdim,klev,ktrac) ! tracer mass/number mixing ratio at 
+  REAL(dp)  :: pxtte   (kbdim,klev,ktrac) ! tracer mass/number mixing ratio tendencies [kg/kg s-1 or #/kg s-1]
+  REAL(dp)  :: paclc   (kbdim,klev)       ! cloud cover [0,1]
+  REAL(dp)  :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
+  REAL(dp)  :: ppbl    (kbdim)            ! Planetary boundary layer top level
 
-  REAL(dp), OPTIONAL :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [m]
+  REAL(dp)  :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [m]
                         pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [m]
                         prhop(kbdim,klev,nclass),     & ! mean mode particle density [kg m-3]
                         pww(kbdim,klev,nclass)         ! aerosol water content for each mode [kg(water) m-3(air)]

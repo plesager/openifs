@@ -858,13 +858,14 @@ DO JCLASS=1,nclass
     END DO
   END DO
 END DO
+
 !mass
 DO JMASS=1,naerocomp
   JO=ind_oifs_ham%ind_mass_OIFS(JMASS) ! JO -> index context OIFS
   JH=ind_oifs_ham%ind_mass_HAM(JMASS)  ! JH -> index context HAM
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
-      ZXTM1(JL,JK,JH) =  ZCEN(JL,JK,KAERO(JO))
+      ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KAERO(JO))
       ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
       ! in case of simple sulfur scheme add SO4_AQ part into SO4_ACS
       ! both original tendency and m7tendency [FIXME: what??]
@@ -874,51 +875,52 @@ DO JMASS=1,naerocomp
         ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,2)
       end if
 
+      if(trim(YAERO(JO)%CNAME)=='SO4') then   
+        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,1)
+      end if
       !if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4') then!!! add SO4 into tendency, ugly loop for now,Lianghai
       !  ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,1)
       !end if
 
     END DO
   END DO
-
-
 END DO
-!gas
 
-         !WRITE(*,*)"subm_ngasspec", subm_ngasspec
-DO JGAS=1,subm_ngasspec
-  JO=ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
-  JH=ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
-          !WRITE(*,*)"JO",JO
-          !WRITE(*,*)"JH",JH
-          !WRITE(*,*)"YCHEM(JO)%CNAME",YCHEM(JO)%CNAME
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-      IF (TRIM(CHEM_SCHEME)=="tm5") THEN
-        ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
-        IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
-          ZXTTE(JL,JK,JH) = ZCHEM2AER(JL,JK,1)
-        ELSE
-          ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
-        END IF
-      ELSE IF (TRIM(CHEM_SCHEME)=="SimChem") THEN
-        ! Simple sulfur scheme
-        IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
-          ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
-          ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO))
-          ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
-          
-        ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
-          ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
-          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
-          !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
-        END IF
-      ELSE
-          CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
-      END IF
-    END DO
-  END DO
-END DO
+!!gas
+!DO JGAS=1,subm_ngasspec
+!  JO=ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
+!  JH=ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
+!          !WRITE(*,*)"JO",JO
+!          !WRITE(*,*)"JH",JH
+!          !WRITE(*,*)"YCHEM(JO)%CNAME",YCHEM(JO)%CNAME
+!  DO JK=1,KLEV
+!    DO JL=KIDIA,KFDIA
+!      IF (TRIM(CHEM_SCHEME)=="tm5") THEN
+!        ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
+!        IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
+!          ZXTTE(JL,JK,JH) = ZCHEM2AER(JL,JK,1)
+!        ELSE
+!          ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
+!        END IF
+!      ELSE IF (TRIM(CHEM_SCHEME)=="SimChem") THEN
+!        ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
+!        IF (TRIM(YAERO(JO)%CNAME)=='SO4')THEN
+!          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
+!          !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
+!        END IF
+!        !IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
+!        !  ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO))
+!        !  ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))          
+!        !ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
+!        !  ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
+!        !  !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
+!        !END IF
+!      ELSE
+!          CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
+!      END IF
+!    END DO
+!  END DO
+!END DO
 
 
 ! RCHG -> This will produce segmentation fault if CDNC are not in the namelist 
@@ -1643,15 +1645,15 @@ ENDDO
       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_mass_HAM(JMASS))
     END DO
     !gas
-    IF(LAERCHEM) THEN
-      !DO JGAS=1,SUBM_NGASSPEC
-      !  PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
-      !END DO
-    !ELSE
+    !IF(LAERCHEM) THEN
     !  DO JGAS=1,SUBM_NGASSPEC
-    !    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
+    !    PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
     !  END DO
-    END IF
+    !!ELSE
+    !!  DO JGAS=1,SUBM_NGASSPEC
+    !!    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
+    !!  END DO
+    !END IF
 
     ! RCHG -> not sure best way to solve here. I commented to avoid segmentation fault 
     !         but it may be avoided with other more specific flag. Anyway something was 

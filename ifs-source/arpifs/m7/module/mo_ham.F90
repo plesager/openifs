@@ -163,7 +163,7 @@ MODULE mo_ham
   ! SST scheme. OIFS supports only the "Gong + SST" scheme from either TM5
   ! implementation (nseasalt=0) or HAMM7 one (nseasalt=8), hardcoded
   ! here.
-  INTEGER :: nseasalt    = 8           ! Sea Salt emission scheme: 
+  INTEGER :: nseasalt    = 0           ! Sea Salt emission scheme: 
 #endif
                                        ! 
                                        !    nseasalt = 1  Monahan (1986)
