@@ -429,6 +429,8 @@ ELSE
 !- NAERWND = 2 for wind+gust in dust emission
 !- NAERWND = 3 for wind+gust in sea salt and dust emissions  
   
+!-- Sulphate scheme  
+  NSO4SCHEME = 2
   WRITE(UNIT=NULOUT,FMT='('' NAERWND= '',I1)') &
    & NAERWND
 
