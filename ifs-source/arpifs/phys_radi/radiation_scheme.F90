@@ -451,8 +451,11 @@ ELSE
         &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
         &  ZRE_ICE_UM, PPERT=PPERT)
 ENDIF
-YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
-YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+!YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+!YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+
+YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = MIN((MAX((ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),2.0E-6_JPRB)),50.0E-6_JPRB) !eehol: treshold liq effective radius 2-50 um
+YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = MIN((MAX((ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),10.0E-6_JPRB)),150.0E-6_JPRB) !eehol: treshold ice effective radius 10-150 um
 
 ! Get the cloud overlap decorrelation length (for cloud boundaries),
 ! in km, according to the parameterization specified by NDECOLAT,

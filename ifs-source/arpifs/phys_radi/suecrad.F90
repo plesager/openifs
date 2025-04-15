@@ -522,8 +522,9 @@ IDUM=0
 !                   --------------------------
 
 ! Cloud activation scheme
-NCLOUDACT= 0   ! 0:  effective radius from IFS code
-               ! >0: use Abdul-Razzak & Ghan activation scheme from HAMM7
+NCLOUDACT= 0   ! 0:  effective radius from IFS code and default activation
+               ! 1: use Morales & Nenes activation scheme from HAMM7
+               ! 2: use Abdul-Razzak & Ghan activation scheme from HAMM7
 
 ! Computation of M7 aerosols optical properties
 NAEROOPT = 2 ! 2: HAM optics (faster and calculated for LW too)

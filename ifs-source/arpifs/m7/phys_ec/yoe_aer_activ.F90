@@ -1656,9 +1656,9 @@ CONTAINS
     DOUBLE PRECISION TPI(NSOL-1), DPGI(NSOL-1), SIGI(NSOL-1), AKKI(NSOL-1), &
                    & TPARC, PPARC, WPARC, SG(NSOL-1), NACT, SMAX
 
-    DOUBLE PRECISION, PARAMETER :: A = 2.25_JPRB ! Default FHH adsorption parameters (in the case of FHH-AT)
-    DOUBLE PRECISION, PARAMETER :: B = 1.20_JPRB ! See Kumar et al., (2011) ACP
-    DOUBLE PRECISION, PARAMETER :: ACCOM = 1.0_JPRB ! Accommodation coefficient
+    DOUBLE PRECISION, PARAMETER :: A = 2.25 ! Default FHH adsorption parameters (in the case of FHH-AT)
+    DOUBLE PRECISION, PARAMETER :: B = 1.20 ! See Kumar et al., (2011) ACP
+    DOUBLE PRECISION, PARAMETER :: ACCOM = 1.0 ! Accommodation coefficient
 
     ! Standard deviation of the updraft velocity distribution (m/s)
     ! For the moment it is set to a constant value of 0.8 m/s,

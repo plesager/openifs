@@ -321,8 +321,8 @@ TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: DENS_MODE
 REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
 REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
-REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV), ZQLWP2(KLON,KLEV)
-REAL(KIND=JPRB) :: ZTMPA, ZTEMP, ZDPOG, ZQIWP, ZPODT
+REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTMPA!, ZTEMP, ZDPOG, ZQIWP, ZPODT
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
@@ -549,7 +549,6 @@ ASSOCIATE( &
          ! --- YREAERATM -------------------------------------------
          & LAERDRYDP      => YREAERATM%LAERDRYDP,                  &
          & LAERSEDIM      => YREAERATM%LAERSEDIM,                  &
-         & NAERACT        => YREAERATM%NAERACT,                    & !eehol: integer to switch activation scheme
          & LAERSURF       => YREAERATM%LAERSURF,                   & !add logicals for dry dep and sedi
          & LAER6SDIA      => YREAERATM%LAER6SDIA,                  &
          & LAERCLIMG      => YREAERATM%LAERCLIMG,                  &
@@ -570,6 +569,9 @@ ASSOCIATE( &
          & RSIGAIR        => YRERAD%RSIGAIR,                       & !!! YAERCLIM is now become YAEROCLIM
          & NRADFR         => YRERAD%NRADFR,                        & !FREQUENCY OF FULL RADIATION COMPUTATIONS
          & NAEROOPT       => YRERAD%NAEROOPT,                      &
+         & NCLOUDACT      => YRERAD%NCLOUDACT,                     & !eehol: integer to switch activation scheme (0=default,1=Morales&Nenes, 2=Abdul-Razzak&Ghan)
+         & RCCNSEA        => YRERAD%RCCNSEA,                       & !eehol: default ccn value over sea
+         & RCCNLND        => YRERAD%RCCNLND,                       & !eehol: default ccn value over land
          ! --- OTHERS ----------------------------------------------
          & YDAERM7        => YDPHYAER%YREAEROPT,                   & ! use this to transfer AOD, SSA and ASY to rad scheme
          & NWLID          => YREAERLID%NWLID,                      &
@@ -1032,8 +1034,18 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
     ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero for now as it is not used (YET!)
 
+    DO JK=1,KLEV
+       DO JL=KIDIA,KFDIA
+          ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
+          LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
+          LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
+          ZQLWP(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwc
+          ZQLWP(JL,JK) = MIN(MAX(ZQLWP(JL,JK),0.0_JPRB),RCLDMAX) ! treshold lwc
+       END DO
+    END DO
+    
     !eehol: integer to use M&N activation scheme or AR&G
-    IF ( NAERACT == 1 ) THEN ! Morales and Nenes activation scheme
+    IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes activation scheme
        
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!)
        ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB
@@ -1061,7 +1073,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
        
-    ELSE IF (NAERACT == 2) THEN !eehol: use AR&G scheme
+    ELSE IF (NCLOUDACT == 2) THEN !eehol: use AR&G scheme
 
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!!)
        ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((0.8_JPRB)**2) !eehol: this is converted back to sigma_w in mo_activ.F90
@@ -1110,6 +1122,10 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
        !<-- End activation for HAM-M7
        !-----------------------------------------------------------------
+
+       ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
+       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
+       ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*RNICE,LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
        
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
@@ -1126,43 +1142,15 @@ SELECT CASE (TRIM(AERO_SCHEME))
        reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
        
        ! liquid effective radius
-       
        DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA
-             IF ( PAP(JL,JK) >=0.001_JPRB ) THEN
-                ZTEMP=1.0_JPRB/PAP(JL,JK)
-                ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))            
-                !-- cloud and ice water path in kg m-2
-                ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)
-                ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
-                !-- cloud and ice water content in g m-3
-                ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
-                ZIP(JL,JK)=PIP(JL,JK)*ZPODT*ZTEMP
-                ZLP(JL,JK)=PLP(JL,JK)*ZPODT*ZTEMP
-             ELSE
-                ZQIWP = 0._JPRB
-                ZQLWP(JL,JK) = 0._JPRB
-                ZLP(JL,JK) = 0._JPRB
-                ZIP(JL,JK) = 0._JPRB
-             ENDIF
-          END DO
-       END DO
-       
-       DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA
-             ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
-             LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
-             LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-             ZQLWP2(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
-             ZQLWP2(JL,JK) = MIN(MAX(ZQLWP2(JL,JK),0.0_JPRB),10*RCLDMAX) ! treshold lwp, lianghai changed
-             
+          DO JL=KIDIA,KFDIA             
              ! effective radius calculated similarly as in radlswr.F90
              ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-             ZRE_LIQ(JL,JK) = 1.0E+6_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),ZMIN_CDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
+             ZRE_LIQ(JL,JK) = 1.0E+6_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),ZMIN_CDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
           END DO
        END DO
        ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
-       REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV)*1.E+6_JPRB,4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+       REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
        CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
             &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
             &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
@@ -1176,12 +1164,57 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
        !<-- End calculation for effective radii
        !-----------------------------------------------------------------
-
-       ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
-       PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MERGE(PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH),ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV))
-       PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MERGE(PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH),RNICE,LICECLD(KIDIA:KFDIA,1:KLEV))
        
-    END IF !eehol: end if for M&N or AR&G activation
+    ELSE !eehol: default values if neither activation is used
+       
+       DO JL = KIDIA,KFDIA !eehol: add CDNC over land and over ocean as default values
+          IF ( PLSM(JL) < 0.5_JPRB ) THEN !over ocean
+             ZCDNCACT(JL,1:KLEV) = RCCNSEA*1.0E6_JPRB !from 1/cm3 to 1/m3
+          ELSE !over land
+             ZCDNCACT(JL,1:KLEV) = RCCNLND*1.0E6_JPRB !from 1/cm3 to 1/m3
+          END IF
+       END DO
+       
+       ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
+       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
+       ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*RNICE,LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
+
+       !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
+       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
+       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
+       
+       PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), ZMIN_CDNC*1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
+       PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), 0.027_JPRB) ! no conversion needed: already in #/cm3, just max of default value (RNICE in sucldp.F90) and icnc
+
+       ! put default values for effective radii
+       reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
+       reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
+
+       !liquid effective radius
+       DO JK=1,KLEV
+          DO JL=KIDIA,KFDIA
+             ! effective radius calculated similarly as in radlswr.F90
+             ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
+             ZRE_LIQ(JL,JK) = 1.E+6_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),ZMIN_CDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
+          END DO
+       END DO
+
+       ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
+       REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+
+       !ice effective radius
+       CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
+            &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
+            &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
+       
+       ! only if there is ice cloud else minimum value
+       REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
+
+       ! add effective radii to PGFL fields
+       PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+       PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+
+    END IF !eehol: end if for default or M&N or AR&G activation
 
     CALL GSTATS(2502,1)
     
