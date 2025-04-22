@@ -2,6 +2,7 @@
 
   !---inherited functions, types, variables and constants 
   USE PARKIND1,            ONLY: JPIM,JPRB
+  USE YOMHOOK,             ONLY: LHOOK,  DR_HOOK, JPHOOK
   !USE PHY_DIAG_MOD,        ONLY: T_DIAG
 
   IMPLICIT NONE
@@ -68,7 +69,6 @@ CONTAINS
    !  either via interactive coupling to TM5 or a prescribed pre-industrial climatology
       
    !---inherited functions, types, variables and constants
-   USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
    USE YOMCST,              ONLY: RD, RPI, RG
    !  USE YOERAD,              ONLY: LNEWAER, LCMIP5, LTM5AER, LCMIP6_PI_AEROSOLS, LMAC2SPACI
    !  USE YOECLDP,             ONLY: NCLOUDACT, JP_ACT_FOUNTOUKIS_NENES, JP_ACT_ABDULRAZZAK_GHAN, & 
@@ -194,7 +194,7 @@ CONTAINS
    REAL(KIND=JPRB) :: ZDUBULK(KLON,KLEV)                    ! bulk dust mass mixing ratio [kg/kg]
    !REAL(KIND=JPRB) :: ZW(KLON,KLEV,nw)                 ! updraft speed [m/s]
    !REAL(KIND=JPRB) :: ZWPDF(KLON,KLEV,nw)              ! updraft probability
-   REAL(KIND=JPRB) :: ZHOOK_HANDLE
+   REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
    REAL(KIND=JPRB) :: ZTMP(KLON,KLEV)                       ! interim for diagnostics
 
    REAL(KIND=JPRB) :: ZCDNC(KLON,KLEV)                      ! cloud droplet number concentration [#/cm-3]
@@ -529,7 +529,6 @@ CONTAINS
 !
 !    USE YOMCST,              ONLY: R, RV, RPI, RCPD, RG, RLVTT, RMV, RMD, RTT , RLSTT
 !    USE YOECLDP,             ONLY: RTHOMO, PPRHO_WAT
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOMLUN,              ONLY: NULOUT
 !    USE YOETHF   , ONLY : R2ES     ,R3LES    ,R3IES    ,R4LES    ,&
 !         & R4IES    ,R5LES    ,R5IES    ,R5ALVCP  ,R5ALSCP  ,&
@@ -646,7 +645,7 @@ CONTAINS
 !    ! Miscellaneous
 !    REAL(KIND=JPRB)    :: ZEPS
 !    REAL(KIND=JPRB)    :: Z4PIOVER3, ZSQRT2
-!    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !    REAL(KIND=JPRB), PARAMETER :: PPEPSSEC = 1.E-25_JPRB  ! used to avoid division by 0
 !
 !    ! mass accomodation coefficient
@@ -1031,7 +1030,6 @@ CONTAINS
 !
 !    USE YOMCST,              ONLY: R, RV, RPI, RCPD, RG, RLVTT, RMV, RMD, RTT , RLSTT
 !    USE YOECLDP,             ONLY: RTHOMO, PPRHO_WAT
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOMLUN,              ONLY: NULOUT
 !    USE YOETHF   , ONLY : R2ES     ,R3LES    ,R3IES    ,R4LES    ,&
 !         & R4IES    ,R5LES    ,R5IES    ,R5ALVCP  ,R5ALSCP  ,&
@@ -1150,7 +1148,7 @@ CONTAINS
 !    ! Miscellaneous
 !    REAL(KIND=JPRB)    :: ZEPS
 !    REAL(KIND=JPRB)    :: Z4PIOVER3, ZSQRT2
-!    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !    REAL(KIND=JPRB), PARAMETER :: PPEPSSEC = 1.E-25_JPRB  ! used to avoid division by 0
 !
 !    ! mass accomodation coefficient
@@ -1575,7 +1573,6 @@ CONTAINS
     ! Morales and Nenes, JGR, D18220, 2010
 
     USE YOMCST,              ONLY: RG, RPI
-    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
     USE YOMLUN,              ONLY: NULOUT
     USE TM5M7_DATA,          ONLY: NMOD, NSOL, DDUST, DNACL, &
                                  & DOC, DBC, DH2SO4, DNA2SO4, DNH4NO3, DMSA, &
@@ -1648,7 +1645,7 @@ CONTAINS
     ! Miscellaneous
     REAL(KIND=JPRB)    :: ZEPS
     REAL(KIND=JPRB)    :: Z4PIOVER3
-    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
     ! Variables to interface with Nenes routines
     ! These are declared double precision as they are in those routines.
@@ -1839,7 +1836,6 @@ CONTAINS
 !    ! Morales and Nenes, JGR, D18220, 2010
 !
 !    USE YOMCST,              ONLY: RG, RPI
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOMLUN,              ONLY: NULOUT
 !    USE YOE_AERO_M7_DATA,    ONLY: NMOD, NSOL, SIGMA, SIGMALN, CMR2RAM, &
 !         & DH2SO4, DBC, DOC, DNACL, DDUST, &
@@ -1909,7 +1905,7 @@ CONTAINS
 !    ! Miscellaneous
 !    REAL(KIND=JPRB)    :: ZEPS
 !    REAL(KIND=JPRB)    :: Z4PIOVER3
-!    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !
 !    ! Variables to interface with Nenes routines
 !    ! These are declared double precision as they are in those routines.
@@ -2102,7 +2098,6 @@ CONTAINS
 !    !---inherited functions, types, variables and constants
 !    USE YOMCST,              ONLY: RPI, R, RCPD, RG, RMD, RV, RTT, RLVTT, RLSTT, RMD, RMV
 !    USE YOECLDP,             ONLY: RTHOMO, PPRHO_WAT, LACI_DIAG
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOE_AERO_M7_DATA,     ONLY: NSOL, SIGMALN, CMR2RAM,  &
 !         & PPKAPPA_H2SO4, PPKAPPA_NACL, PPKAPPA_NA2SO4, &
 !         & PPKAPPA_BC, PPKAPPA_OC, PPKAPPA_DU, &
@@ -2216,7 +2211,7 @@ CONTAINS
 !    ! thermal accomodation coefficient
 !    REAL(KIND=JPRB), PARAMETER :: PPALPHA_T = 0.96_JPRB
 !
-!    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !
 !    !---executable procedure
 !    IF (LHOOK) CALL DR_HOOK('YOE_AER_ACTIV.AER_ACTIV_ABDULRAZZAK_GHAN', 0, ZHOOK_HANDLE)
@@ -2474,7 +2469,6 @@ CONTAINS
 !    ! Menon et al., J. Atm. Sci. 59 692-713, 2002
 !
 !    !---inherited functions, types, variables and constants:
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOMCST,              ONLY: RPI
 !    USE YOECLDP,             ONLY: RTHOMO, RCDNCSU, RCDNCSS, RCDNCOM
 !
@@ -2501,7 +2495,7 @@ CONTAINS
 !    REAL(KIND=JPRB)    :: ZCDNC_OCEAN(KLON)                    ! CDNC according to 'over ocean' formulation in Menon et al.
 !    INTEGER(KIND=JPIM) :: JK, JL                               ! loop indices
 !
-!    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !
 !
 !    !---executable procedure
@@ -2541,7 +2535,6 @@ CONTAINS
                              & PNO3MASS, PMSAMASS)
 
     !---inherited functions, types, variables and constants
-    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
     USE YOMCST,              ONLY: RPI 
     USE TM5M7_DATA,          ONLY: NSOL
 
@@ -2607,7 +2600,7 @@ CONTAINS
     REAL(KIND=JPRB)    :: ZDRYVOL2, ZDRYVOL3, ZDRYVOL4      ! Volume per particle [m3/#]
     REAL(KIND=JPRB)    :: ZDUMMY(KLON,KLEV)       ! For fields we don't use in subroutine call
     REAL(KIND=JPRB)    :: Z4PIOVER3
-    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
     INTEGER(KIND=JPIM) :: JL, JK, IBL, IL, IK
 
     !---executable procedure
@@ -2977,7 +2970,6 @@ CONTAINS
 !    ! PDUMASS   : mass mixing ratio of mineral dust aerosol 
 !    
 !    USE PARKIND1  ,ONLY : JPIM     ,JPRB
-!    USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
 !    
 !    USE YOMCST   , ONLY : RG       ,RD       ,RETV     ,&
 !         & RLVTT    ,RTT     ,RPI, RLSTT
@@ -3062,7 +3054,7 @@ CONTAINS
 !    INTEGER(KIND=JPIM) :: IWAVL
 !    INTEGER(KIND=JPIM) :: JK, JL
 !    
-!    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !    
 !    !------------------------
 !    ! interface include files
@@ -3232,7 +3224,6 @@ CONTAINS
 !    ! *LIQ_CLOUD_RE* calculates the effective radius (Re) for liquid clouds
 !
 !    !---inherited functions, types, variables and constants
-!    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
 !    USE YOMCST,              ONLY: RPI
 !    USE YOECLDP,             ONLY: RCLDMAX, PPRHO_WAT
 !    USE YOM_YGFL,            ONLY: YGFL, YCDNC, YRE_LIQ
@@ -3259,7 +3250,7 @@ CONTAINS
 !    !---local data:
 !    REAL(KIND=JPRB)    :: ZCLD, ZRE_LIQ(KLON,KLEV)
 !    REAL(KIND=JPRB)    :: ZEPSEC
-!    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+!    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !
 !    INTEGER(KIND=JPIM) :: JL,JK
 !
@@ -3306,7 +3297,6 @@ CONTAINS
     ! implemented in the subroutine aer_cld.F90 
  
     !---inherited functions, types, variables and constants
-    USE YOMHOOK,             ONLY: LHOOK, DR_HOOK
     USE YOMCST,              ONLY: RPI, RTT, RETV, RLSTT, RLVTT
     !USE YOECLDP,             ONLY: RNICE, PPRHO_ICE, RCLDMAX
     !USE YOE_AERO_M7_DATA,    ONLY: NSOL
@@ -3373,7 +3363,7 @@ CONTAINS
     REAL(KIND=JPRB)    :: ZNCRIT_GIERENS, ZNCRIT_REN
     REAL(KIND=JPRB)    :: ZCLD
     REAL(KIND=JPRB)    :: ZZEPSEC
-    REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
     
     !---executable procedure
@@ -3502,7 +3492,6 @@ CONTAINS
 !  SUBROUTINE PDF_UPDRAFT(KIDIA, KFDIA, KLON, KTDIA, KLEV, KPDF, PRHO, PLSM, PVERVEL, PW, PWPDF) 
 !
 !    !---inherited functions, types, variables and constants
-!    USE YOMHOOK, ONLY: LHOOK, DR_HOOK
 !    USE YOMCST,  ONLY: RG, RPI
 !    !USE YOECLDP, ONLY: NACTPDF
 !    USE MO_ACTIV, ONLY: nw
@@ -3536,11 +3525,11 @@ CONTAINS
 !
 !    INTEGER(KIND=JPIM) :: JL,JK, JW
 !    
-!    REAL(KIND=JPRB) :: ZWLARGE(KLON,KLEV)
-!    REAL(KIND=JPRB) :: ZW_PRESC(KLON)
-!    REAL(KIND=JPRB) :: ZSQ2PI 
-!    REAL(KIND=JPRB) :: ZW_WIDTH
-!    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+!    REAL(KIND=JPRB)   :: ZWLARGE(KLON,KLEV)
+!    REAL(KIND=JPRB)   :: ZW_PRESC(KLON)
+!    REAL(KIND=JPRB)   :: ZSQ2PI 
+!    REAL(KIND=JPRB)   :: ZW_WIDTH
+!    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !
 !    !---executable procedure
 !    IF (LHOOK) CALL DR_HOOK('YOE_AER_ACTIV.PDF_UPDRAFT',0,ZHOOK_HANDLE)
@@ -3578,7 +3567,6 @@ CONTAINS
     
 !  SUBROUTINE GET_CDNC_FACTOR(KIDIA,KFDIA,KLON,PGEMU,PGELAM,PMAC2SP_CDNC_FACTOR)
 !
-!   USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
 !   USE YOMCST   , ONLY : RPI, RDAY
 !   USE YOMCT0   , ONLY : LTWOTL, LNF
 !   USE YOMCT2   , ONLY : NSTAR2
@@ -3616,7 +3604,7 @@ CONTAINS
 !   REAL(KIND=JPRB)::  SSA_MAC2SP(KLON,KLEV)
 !   REAL(KIND=JPRB)::  ASY_MAC2SP(KLON,KLEV)
 !
-!   REAL(KIND=JPRB)    :: ZHOOK_HANDLE
+!   REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !
 !#include "updcal.intfb.h"
 !#include "fcttim.h"
@@ -3678,7 +3666,6 @@ CONTAINS
 ! END SUBROUTINE GET_CDNC_FACTOR
 ! SUBROUTINE SETUP_ACI_DIAG
 !
-!   USE YOMHOOK, ONLY: LHOOK, DR_HOOK
 !   USE PHY_DIAG_MOD, ONLY: NEW_DIAG_SET, NEW_DIAGNOSTIC 
 !   USE YOM_GRIB_CODES, ONLY: NGRBCDNC, NGRBREFF, NGRBLIQCLDTIME
 !   USE YOMLUN, ONLY: NULOUT
@@ -3686,7 +3673,7 @@ CONTAINS
 !   IMPLICIT NONE
 !
 !   INTEGER(KIND=JPIM) :: ISET
-!   REAL(KIND=JPRB) :: ZHOOK_HANDLE
+!   REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !
 !   IF (LHOOK) CALL DR_HOOK('YOE_AER_ACTIV.SETUP_ACI_DIAG',0,ZHOOK_HANDLE)
 !
