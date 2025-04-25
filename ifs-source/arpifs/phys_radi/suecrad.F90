@@ -155,7 +155,7 @@ USE YOMGHGTIMESERIES  , ONLY : YGHGTIMESERIES ! GHG multi-annual timeseries
 USE YOMSOLARIRRADIANCE, ONLY :YSOLARIRRADIANCE ! Total solar irradiance multi-annual timeseries
 USE YOERADGHG         , ONLY : YRADGHG  ! Climatology interpolated to current model time
 USE RADIATION_SETUP   , ONLY : SETUP_RADIATION_SCHEME
-
+USE ND_PARAM          , ONLY : ND_PARAM_SETUP
 !-------------------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -2135,6 +2135,8 @@ IF (NACTAERO > 0) THEN
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7ASYM(:,:,:,:)  = 0.0_JPRB
      YDAERM7%M7AODLW(:,:,:,:) = 0.0_JPRB
+
+     IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF
 ! -      6.1.  PARAMETERS FOR THE STANDARD TEGEN AEROSOL CLIMATOLOGY

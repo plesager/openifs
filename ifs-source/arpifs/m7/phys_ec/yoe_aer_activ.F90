@@ -1,8 +1,8 @@
   MODULE YOE_AER_ACTIV
 
   !---inherited functions, types, variables and constants 
-  USE PARKIND1,            ONLY: JPIM,JPRB
-  USE YOMHOOK,             ONLY: LHOOK,  DR_HOOK, JPHOOK
+  USE PARKIND1,            ONLY: JPIM, JPRB
+  USE YOMHOOK,             ONLY: LHOOK, DR_HOOK, JPHOOK
   !USE PHY_DIAG_MOD,        ONLY: T_DIAG
 
   IMPLICIT NONE
@@ -192,8 +192,8 @@ CONTAINS
    REAL(KIND=JPRB) :: ZOMBULK(KLON,KLEV)                    ! bulk organic matter mass mixing ratio [kg/kg]
    REAL(KIND=JPRB) :: ZSSBULK(KLON,KLEV)                    ! bulk sea salt mass mixing ratio [kg/kg]
    REAL(KIND=JPRB) :: ZDUBULK(KLON,KLEV)                    ! bulk dust mass mixing ratio [kg/kg]
-   !REAL(KIND=JPRB) :: ZW(KLON,KLEV,nw)                 ! updraft speed [m/s]
-   !REAL(KIND=JPRB) :: ZWPDF(KLON,KLEV,nw)              ! updraft probability
+   !REAL(KIND=JPRB) :: ZW(KLON,KLEV,nw)                      ! updraft speed [m/s]
+   !REAL(KIND=JPRB) :: ZWPDF(KLON,KLEV,nw)                   ! updraft probability
    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
    REAL(KIND=JPRB) :: ZTMP(KLON,KLEV)                       ! interim for diagnostics
 
@@ -201,7 +201,7 @@ CONTAINS
    REAL(KIND=JPRB) :: ZICNC(KLON,KLEV)                      ! ice crystal number concentration [#/cm-3]
    REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)                    ! liquid droplet effective radius [um]
    REAL(KIND=JPRB) :: ZRE_ICE(KLON,KLEV)                    ! ice crystal effective radius [um]
-   REAL(KIND=JPRB) :: ZSMAX(KLON,KLEV)                    ! maximum supersaturation [%]
+   REAL(KIND=JPRB) :: ZSMAX(KLON,KLEV)                      ! maximum supersaturation [%]
 
    !variables for liquid droplet eff rad calculations
    REAL(KIND=JPRB) :: ZQLWC(KLON,KLEV) !tresholded LWC [kg/kg]
@@ -212,9 +212,9 @@ CONTAINS
    LOGICAL :: LICECLD(KLON,KLEV)                            ! true if ice cloud is present
 
    LOGICAL :: LL1
-   LOGICAL :: LBULK, LMODE                                  ! fetch TM5 aerosols as bulk mass / per-mode mass
+   LOGICAL :: LBULK, LMODE                                  ! fetch HAMM7 aerosols as bulk mass / per-mode mass
 
-   LOGICAL :: LCALCINCLOUD = .TRUE.                        ! eehol: logical to calculate activation only in-cloud (T) or everywhere (F)
+   LOGICAL :: LCALCINCLOUD = .TRUE.                         ! calculate activation only in-cloud (T) or everywhere (F)
    REAL(KIND=JPRB) :: ZEPS                                  ! epsilon(1.)
    INTEGER(KIND=JPIM) :: ITOP                               ! highest level for water cloud
    INTEGER(KIND=JPIM) :: JK, JL, JMOD                       ! loop indices
@@ -253,17 +253,15 @@ CONTAINS
   !PGFL(KIDIA:KFDIA,:,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,:)
   !PGFL(KIDIA:KFDIA,:,YRE_ICE%MP9_PH) = PREFFI(KIDIA:KFDIA,:)
 
-  !---get aerosols from TM5
-  !IF (LTM5AER .OR. LCMIP6_PI_AEROSOLS) THEN
+   !---get aerosols from HAMM7
    LMODE = .TRUE.
    LBULK = (LAERICESED .OR. LAERICEAUTO) ! .OR. NCLOUDACT==JP_ACT_MENON)
    CALL GET_HAMM7_AERO_PROP(KIDIA, KFDIA, KLON, KTDIA, KLEV, KSTGLO, LMODE, LBULK, &
-                        & PAPH,     PGELAM,  PGEMU, PXTM1, KTRAC, &
-                        & ZDRYRSOLOLD, ZAERONUM, &
-                        & ZSO4MASS, ZBCMASS, ZOMMASS, ZSSMASS, ZDUMASS, &
-                        & ZSO4BULK, ZBCBULK, ZOMBULK, ZSSBULK, ZDUBULK, &
-                        & ZNO3MASS, ZMSAMASS)
-   !END IF
+                          & PAPH,        PGELAM,  PGEMU, PXTM1, KTRAC, &
+                          & ZDRYRSOLOLD, ZAERONUM, &
+                          & ZSO4MASS,    ZBCMASS, ZOMMASS, ZSSMASS, ZDUMASS, &
+                          & ZSO4BULK,    ZBCBULK, ZOMBULK, ZSSBULK, ZDUBULK, &
+                          & ZNO3MASS,    ZMSAMASS)
 
    ZDRYRSOL(KIDIA:KFDIA,1:KLEV,:) = PDRYRSOLU(KIDIA:KFDIA,1:KLEV,:)
 
@@ -1589,6 +1587,7 @@ CONTAINS
    !       & PPKAPPA_NH4NO3, PPKAPPA_MSA, &
    !       & WSO4, WH2SO4, WNACL, WNA2SO4, &
    !       & WH2O, WDAIR
+    USE ND_PARAM, ONLY: CCNSPEC, PDFACTIV, NDPARAM 
 
     IMPLICIT NONE
 
@@ -1648,14 +1647,13 @@ CONTAINS
     REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
     ! Variables to interface with Nenes routines
-    ! These are declared double precision as they are in those routines.
-    ! Can be changed to IFS style.
-    DOUBLE PRECISION TPI(NSOL-1), DPGI(NSOL-1), SIGI(NSOL-1), AKKI(NSOL-1), &
-                   & TPARC, PPARC, WPARC, SG(NSOL-1), NACT, SMAX
+    TYPE(NDPARAM)   :: BOX
+    REAL(KIND=JPRB) :: TPI(NSOL-1), DPGI(NSOL-1), SIGI(NSOL-1), AKKI(NSOL-1)
+    REAL(KIND=JPRB) :: TPARC, PPARC, WPARC, SG(NSOL-1), NACT, SMAX
 
-    DOUBLE PRECISION, PARAMETER :: A = 2.25 ! Default FHH adsorption parameters (in the case of FHH-AT)
-    DOUBLE PRECISION, PARAMETER :: B = 1.20 ! See Kumar et al., (2011) ACP
-    DOUBLE PRECISION, PARAMETER :: ACCOM = 1.0 ! Accommodation coefficient
+    REAL(KIND=JPRB), PARAMETER :: A = 2.25 ! Default FHH adsorption parameters (in the case of FHH-AT)
+    REAL(KIND=JPRB), PARAMETER :: B = 1.20 ! See Kumar et al., (2011) ACP
+    REAL(KIND=JPRB), PARAMETER :: ACCOM = 1.0 ! Accommodation coefficient
 
     ! Standard deviation of the updraft velocity distribution (m/s)
     ! For the moment it is set to a constant value of 0.8 m/s,
@@ -1666,14 +1664,14 @@ CONTAINS
     ! A common approach is to use TKE or, alternatively, 
     ! the vertical diffusion coefficient 
     ! (see module VDIFLCZ in sinvect directory).
-    !DOUBLE PRECISION, PARAMETER :: SIGW = 0.6_JPRB
-    DOUBLE PRECISION SIGW !eehol: add sigma_w to not be a parameter but rather an input value
+    !REAL(KIND=JPRB), PARAMETER :: SIGW = 0.6_JPRB
+    REAL(KIND=JPRB)    ::  SIGW ! sigma_w is input now
 
     ! Logical switch to use a single characteristic velocity
     ! instead of Gauss-Legendre quadrature.
     LOGICAL, PARAMETER :: CHAR_VELOCITY = .FALSE.
 
-    INTEGER MODEI(NSOL-1)
+    INTEGER(KIND=JPIM) :: MODEI(NSOL-1)
 
     !--- executable procedure
     IF (LHOOK) CALL DR_HOOK('YOE_AER_ACTIV.AER_ACTIV_MORALES_NENES_FULL',0,ZHOOK_HANDLE)
@@ -1736,11 +1734,11 @@ CONTAINS
 
                   !---defensive step: minimum kappa to avoid divide by zero errors
                   ZKAPPA(JL,JK,JMOD) = MERGE(ZKAPPA(JL,JK,JMOD), 0.04_JPRB, ZKAPPA(JL,JK,JMOD) > 0.04_JPRB )
-                  ZKAPPA(JL,JK,JMOD)=MIN(ZKAPPA(JL,JK,JMOD),1.2)
-               ELSE !eehol: if total volume per mode is too small, use minimum kappa
-                  ZKAPPA(JL,JK,JMOD)=0.04_JPRB
+                  ZKAPPA(JL,JK,JMOD) = MIN(ZKAPPA(JL,JK,JMOD),1.2_JPRB)
+               ELSE
+                  ZKAPPA(JL,JK,JMOD) = 0.04_JPRB  ! if total volume per mode is too small, use minimum kappa
                END IF
-            END IF !eehol: LCLOUD
+            END IF
           END DO
        END DO
     END DO
@@ -1754,18 +1752,19 @@ CONTAINS
 
             DO JMOD=2,NSOL
             !Shift mode index
-               MODEI(JMOD-1) = 1   ! Kohler mode
+               MODEI(JMOD-1) = 1                                ! Kohler mode
                TPI(JMOD-1) = PAERONUM(JL,JK,JMOD) * PRHO(JL,JK) ! Number concentration (#/m3)
-               DPGI(JMOD-1) = 2._JPRB * PRDRY(JL,JK,JMOD)   ! Modal diameter (m)
-               SIGI(JMOD-1) = SIGMA(JMOD)  ! Geometric dispersion (sigma_g)
-               AKKI(JMOD-1) = ZKAPPA(JL,JK,JMOD)  ! Hygroscopicity parameter (kappa)
+               DPGI(JMOD-1) = 2._JPRB * PRDRY(JL,JK,JMOD)       ! Modal diameter (m)
+               SIGI(JMOD-1) = SIGMA(JMOD)                       ! Geometric dispersion (sigma_g)
+               AKKI(JMOD-1) = ZKAPPA(JL,JK,JMOD)                ! Hygroscopicity parameter (kappa)
             END DO
             TPARC = PT(JL,JK) ! Temperature (K)
             PPARC = PAP(JL,JK) ! Pressure (Pa)
          
             IF ( ANY(TPI(:) .GE. ZEPS) .AND. ANY(DPGI(:) .GE. 1e-9_JPRB) .AND. TPARC.GE.(273.15_JPRB-35.0_JPRB) ) THEN !eehol: any num con, diam and temperature need to be over treshold
-               ! Convert aerosol data into CCN
-               CALL CCNSPEC (TPI,DPGI,SIGI,MODEI,TPARC,PPARC,NSOL-1,AKKI,A,B,SG) 
+
+               ! Convert aerosol data into CCN, fill BOX object
+               CALL CCNSPEC (TPI,DPGI,SIGI,MODEI,TPARC,PPARC,NSOL-1,AKKI,A,B,ACCOM,BOX) 
 
                ! xxx To be done:
                ! Save CCN spectra for supersaturations:
@@ -1774,7 +1773,7 @@ CONTAINS
                ! which needs to be put into the output as 6 3-D fields
 
                !eehol: give sigma_w a value depending on the input variable
-               SIGW = MAX(0.1_JPRB,PSIGMA_W(JL,JK)) !treshold sigma to min value
+               SIGW = MAX(0.1_JPRB,PSIGMA_W(JL,JK)) ! threshold sigma to min value
 
                IF ( ZWLARGE(JL,JK).GE.ZEPS ) THEN
                   ! Calculate activated droplet number
@@ -1784,13 +1783,12 @@ CONTAINS
                      WPARC = 0.79*SIGW
                      ! Call activation for a single velocity
                      ! equal to the characteristic velocity
-                     CALL PDFACTIV (WPARC,TPI,AKKI,A,B,ACCOM,SG,0.d0,TPARC,PPARC,NACT,SMAX) 
+                     CALL PDFACTIV (WPARC,0._JPRB,NACT,SMAX,BOX) 
                   ELSE
                      ! Call activation for velocity PDF (SIGW is non-zero)
                      ! with WPARC set equal to the large-scale velocity (m/s)
                      WPARC = ZWLARGE(JL,JK)
-                     CALL PDFACTIV (WPARC,TPI,AKKI,A,B,ACCOM,SG,SIGW,TPARC,PPARC,NACT,SMAX) 
-
+                     CALL PDFACTIV (WPARC,SIGW,NACT,SMAX,BOX)
                   ENDIF
 
                   ! convert CDNC to # cm-3
@@ -1908,16 +1906,14 @@ CONTAINS
 !    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 !
 !    ! Variables to interface with Nenes routines
-!    ! These are declared double precision as they are in those routines.
-!    ! Can be changed to IFS style.
-!    DOUBLE PRECISION TPI(NSOL-1), DPGI(NSOL-1), SIGI(NSOL-1), AKKI(NSOL-1), &
-!                   & TPARC, PPARC, WPARC, SG(NSOL-1), NACT, SMAX
+!    REAL(KIND=JPRB)    :: TPI(NSOL-1), DPGI(NSOL-1), SIGI(NSOL-1), AKKI(NSOL-1)
+!    REAL(KIND=JPRB)    :: TPARC, PPARC, WPARC, SG(NSOL-1), NACT, SMAX
 !
-!    DOUBLE PRECISION, PARAMETER :: A = 2.25_JPRB ! Default FHH adsorption parameters (in the case of FHH-AT)
-!    DOUBLE PRECISION, PARAMETER :: B = 1.20_JPRB ! See Kumar et al., (2011) ACP
-!    DOUBLE PRECISION, PARAMETER :: ACCOM = 1.0_JPRB ! Accommodation coefficient
+!    REAL(KIND=JPRB), PARAMETER :: A = 2.25_JPRB ! Default FHH adsorption parameters (in the case of FHH-AT)
+!    REAL(KIND=JPRB), PARAMETER :: B = 1.20_JPRB ! See Kumar et al., (2011) ACP
+!    REAL(KIND=JPRB), PARAMETER :: ACCOM = 1.0_JPRB ! Accommodation coefficient
 !
-!    INTEGER MODEI(NSOL-1)
+!    INTEGER(KIND=JPIM) :: MODEI(NSOL-1)
 !
 !    !--- executable procedure
 !    IF (LHOOK) CALL DR_HOOK('YOE_AER_ACTIV.AER_ACTIV_MORALES_NENES_FULL_OLDPDF',0,ZHOOK_HANDLE)
@@ -2528,72 +2524,70 @@ CONTAINS
 !  END SUBROUTINE AER_ACTIV_MENON
 
   SUBROUTINE GET_HAMM7_AERO_PROP(KIDIA, KFDIA, KLON, KTDIA, KLEV, KSTGLO, LMODE, LBULK, &
-                             & PAPH,     PGELAM,  PGEMU, PXTM1, KTRAC,                &
-                             & PDRYRSOL, PAERONUM, &
-                             & PSO4MASS, PBCMASS, POMMASS, PSSMASS, PDUMASS,   &
-                             & PSO4BULK, PBCBULK, POMBULK, PSSBULK, PDUBULK,   &
-                             & PNO3MASS, PMSAMASS)
+                               & PAPH,     PGELAM,  PGEMU, PXTM1, KTRAC,                &
+                               & PDRYRSOL, PAERONUM, &
+                               & PSO4MASS, PBCMASS, POMMASS, PSSMASS, PDUMASS,   &
+                               & PSO4BULK, PBCBULK, POMBULK, PSSBULK, PDUBULK,   &
+                               & PNO3MASS, PMSAMASS)
 
     !---inherited functions, types, variables and constants
     USE YOMCST,              ONLY: RPI 
     USE TM5M7_DATA,          ONLY: NSOL
 
-    !<--eehol: add tracer variables for tracer indices to reduce hardcoding
+    !---aerosols variables and indices
     USE MO_HAM, ONLY:     &
-         sizeclass,       & ! aerosol classes in HAM
-         aerocomp           ! aerosol compounds by size class in HAM
-    USE mo_ham_m7ctl,     ONLY: inucs,  iaits,  iaccs,  icoas,   &
-                              iaiti,  iacci,  icoai,           &
-                              iso4ns, iso4ks, iso4as, iso4cs,  &
-                              ibcks,  ibcas,  ibccs,  ibcki,   &
-                              iocks,  iocas,  ioccs,  iocki,   &
-                              issas,  isscs,                   &
-                              iduas,  iducs,  iduai,  iduci
-    !-->eehol
-    !USE YOERAD,              ONLY: LTM5AER, LCMIP6_PI_AEROSOLS, NRADFR
+         SIZECLASS,       & ! Aerosol classes in HAM
+         AEROCOMP           ! Aerosol compounds by size class in HAM
+    USE MO_HAM_M7CTL,     ONLY: INUCS,  IAITS,  IACCS,  ICOAS,   &
+                                IAITI,  IACCI,  ICOAI,           &
+                                ISO4NS, ISO4KS, ISO4AS, ISO4CS,  &
+                                IBCKS,  IBCAS,  IBCCS,  IBCKI,   &
+                                IOCKS,  IOCAS,  IOCCS,  IOCKI,   &
+                                ISSAS,  ISSCS,                   &
+                                IDUAS,  IDUCS,  IDUAI,  IDUCI
+
+    !USE YOERAD,              ONLY: LCMIP6_PI_AEROSOLS, NRADFR
     !USE YOE_AERO_M7_DATA 
-    !USE CPLNG,               ONLY: CPLNG_FLD, CPLNG_IDX, LEV_IDX_TM5, &
-    !                             & NLEV_TM5, NLEV_TM5_AER 
     !USE YOE_PI_AERO         
     !USE YOMCT3,              ONLY: NSTEP
 
     IMPLICIT NONE
 
     !---subroutine interface
-    !   *GET_HAMM7_AERO_PROP* is called here before the activation calculations
+    !   *GET_HAMM7_AERO_PROP* is called from AER_ACTIV before the activation calculations
     !   
     !   INPUT:
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KIDIA   ! beginning of horizontal block
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KFDIA   ! end of horizontal block
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KLON    ! horizontal dimension
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KTDIA   ! highest level with liquid cloud
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KLEV    ! number of model vertical levels
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KSTGLO  ! offset of horizontal block in coupling arrays
-    INTEGER(KIND=JPIM), INTENT(IN)         :: KTRAC   ! number of tracers
+    INTEGER(KIND=JPIM), INTENT(IN) :: KIDIA   ! beginning of horizontal block
+    INTEGER(KIND=JPIM), INTENT(IN) :: KFDIA   ! end of horizontal block
+    INTEGER(KIND=JPIM), INTENT(IN) :: KLON    ! horizontal dimension
+    INTEGER(KIND=JPIM), INTENT(IN) :: KTDIA   ! highest level with liquid cloud
+    INTEGER(KIND=JPIM), INTENT(IN) :: KLEV    ! number of model vertical levels
+    INTEGER(KIND=JPIM), INTENT(IN) :: KSTGLO  ! offset of horizontal block in coupling arrays
+    INTEGER(KIND=JPIM), INTENT(IN) :: KTRAC   ! number of tracers
 
-    LOGICAL, INTENT(IN) :: LMODE                      ! Per-mode data requested
-    LOGICAL, INTENT(IN) :: LBULK                      ! Bulk aerosol masses requested
+    LOGICAL, INTENT(IN) :: LMODE              ! Per-mode data requested
+    LOGICAL, INTENT(IN) :: LBULK              ! Bulk aerosol masses requested
     
-    REAL(KIND=JPRB), INTENT(IN)            :: PAPH(KLON,KLEV+1) ! half-level pressure
-    REAL(KIND=JPRB), INTENT(IN)            :: PGELAM(KLON)      ! longitude
-    REAL(KIND=JPRB), INTENT(IN)            :: PGEMU(KLON)       ! sine of latitude
-    REAL(KIND=JPRB), INTENT(IN)            :: PXTM1(KLON,KLEV,KTRAC)       ! sine of latitude
+    REAL(KIND=JPRB), INTENT(IN)    :: PAPH(KLON,KLEV+1)      ! half-level pressure
+    REAL(KIND=JPRB), INTENT(IN)    :: PGELAM(KLON)           ! longitude
+    REAL(KIND=JPRB), INTENT(IN)    :: PGEMU(KLON)            ! sine of latitude
+    REAL(KIND=JPRB), INTENT(IN)    :: PXTM1(KLON,KLEV,KTRAC) ! tracer mixing ratios
 
     !   OUTPUT:
-    REAL(KIND=JPRB), INTENT(OUT)           :: PDRYRSOL(KLON,KLEV,NSOL) ! [M]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PAERONUM(KLON,KLEV,NSOL) ! [#/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PSO4MASS(KLON,KLEV,NSOL) ! [KG(SO4)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PBCMASS(KLON,KLEV,NSOL)  ! [KG(BC)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: POMMASS(KLON,KLEV,NSOL)  ! [KG(OM)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PSSMASS(KLON,KLEV,NSOL)  ! [KG(SS)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PDUMASS(KLON,KLEV,NSOL)  ! [KG(DU)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PSO4BULK(KLON,KLEV)      ! [KG(SO4)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PBCBULK(KLON,KLEV)       ! [KG(BC)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: POMBULK(KLON,KLEV)       ! [KG(OM)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PSSBULK(KLON,KLEV)       ! [KG(SS)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PDUBULK(KLON,KLEV)       ! [KG(DU)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PNO3MASS(KLON,KLEV)      ! [KG(NO3)/KG(AIR)]
-    REAL(KIND=JPRB), INTENT(OUT)           :: PMSAMASS(KLON,KLEV)      ! [KG(MSA)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PDRYRSOL(KLON,KLEV,NSOL) ! [M]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PAERONUM(KLON,KLEV,NSOL) ! [#/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PSO4MASS(KLON,KLEV,NSOL) ! [KG(SO4)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PBCMASS(KLON,KLEV,NSOL)  ! [KG(BC)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: POMMASS(KLON,KLEV,NSOL)  ! [KG(OM)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PSSMASS(KLON,KLEV,NSOL)  ! [KG(SS)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PDUMASS(KLON,KLEV,NSOL)  ! [KG(DU)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PSO4BULK(KLON,KLEV)      ! [KG(SO4)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PBCBULK(KLON,KLEV)       ! [KG(BC)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: POMBULK(KLON,KLEV)       ! [KG(OM)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PSSBULK(KLON,KLEV)       ! [KG(SS)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PDUBULK(KLON,KLEV)       ! [KG(DU)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PNO3MASS(KLON,KLEV)      ! [KG(NO3)/KG(AIR)]
+    REAL(KIND=JPRB), INTENT(OUT)   :: PMSAMASS(KLON,KLEV)      ! [KG(MSA)/KG(AIR)]
 
     !---local data
     REAL(KIND=JPRB)    :: NSO4, NH2SO4, NNACL, NNA, NCL, NNA2SO4 ! Particle numbers [kmol/kg air]
@@ -2673,101 +2667,7 @@ CONTAINS
 !            PMSAMASS(KIDIA:KFDIA,:) = PI_AERO_PHY(KIDIA:KFDIA,:,IPIMMSA,IBL)
 !       END IF
 !    ELSE
-!
-!       IF (LTM5AER) THEN
-!          IF (ICPLSU2 == -1) THEN
-!             ICPLSU2 = CPLNG_IDX('A_SU2')
-!             ICPLSU3 = CPLNG_IDX('A_SU3')
-!             ICPLSU4 = CPLNG_IDX('A_SU4')
-!             ICPLBC2 = CPLNG_IDX('A_BC2')
-!             ICPLBC3 = CPLNG_IDX('A_BC3')
-!             ICPLBC4 = CPLNG_IDX('A_BC4')
-!             ICPLOM2 = CPLNG_IDX('A_OM2')
-!             ICPLOM3 = CPLNG_IDX('A_OM3')
-!             ICPLOM4 = CPLNG_IDX('A_OM4')
-!             ICPLSS3 = CPLNG_IDX('A_SS3')
-!             ICPLSS4 = CPLNG_IDX('A_SS4')
-!             ICPLDD3 = CPLNG_IDX('A_DD3')
-!             ICPLDD4 = CPLNG_IDX('A_DD4')
-!             ICPLNO3 = CPLNG_IDX('A_NO3')
-!             ICPLMSA = CPLNG_IDX('A_MSA') 
-!          END IF
-!          ! NO3 and MSA are not set in RADINTG
-!          IF (ICPLNO3 == -1) ICPLNO3 = CPLNG_IDX('A_NO3')
-!          IF (ICPLMSA == -1) ICPLMSA = CPLNG_IDX('A_MSA')
-!
-!          !---aerosol masses:
-!          DO JK=KTDIA,KLEV
-!
-!             ! Include offset in case upper levels have not been received from TM5
-!             IK = LEV_IDX_TM5(JK) - NLEV_TM5 + NLEV_TM5_AER
-!             IF (IK >= 1) THEN
-!                DO JL=KIDIA,KFDIA
-!                   IL = KSTGLO+JL-1
-!                   !---nucleation mode is ignored
-!
-!                   !---accumulation mode: SU, OM, BC
-!                   PSO4MASS(JL,JK,JP_AITS) = CPLNG_FLD(ICPLSU2)%D(IL,IK,1)                   
-!                   POMMASS(JL,JK,JP_AITS)  = CPLNG_FLD(ICPLOM2)%D(IL,IK,1) 
-!                   PBCMASS(JL,JK,JP_AITS)  = CPLNG_FLD(ICPLBC2)%D(IL,IK,1) 
-!
-!                   !---accumulation mode: SU, OM, BC, SS, DU
-!                   PSO4MASS(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLSU3)%D(IL,IK,1)  
-!                   POMMASS(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLOM3)%D(IL,IK,1) 
-!                   PBCMASS(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLBC3)%D(IL,IK,1) 
-!                   PSSMASS(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLSS3)%D(IL,IK,1) 
-!                   PDUMASS(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLDD3)%D(IL,IK,1) 
-!
-!                   !---coarse mode: SU, OM, BC, SS, DU
-!                   PSO4MASS(JL,JK,JP_COAS) = CPLNG_FLD(ICPLSU4)%D(IL,IK,1) 
-!                   POMMASS(JL,JK,JP_COAS) = CPLNG_FLD(ICPLOM4)%D(IL,IK,1) 
-!                   PBCMASS(JL,JK,JP_COAS) = CPLNG_FLD(ICPLBC4)%D(IL,IK,1) 
-!                   PSSMASS(JL,JK,JP_COAS) = CPLNG_FLD(ICPLSS4)%D(IL,IK,1) 
-!                   PDUMASS(JL,JK,JP_COAS) = CPLNG_FLD(ICPLDD4)%D(IL,IK,1) 
-!
-!                   !---nitrate and MSA
-!                   PNO3MASS(JL,JK)        = CPLNG_FLD(ICPLNO3)%D(IL,IK,1)
-!                   PMSAMASS(JL,JK)        = CPLNG_FLD(ICPLMSA)%D(IL,IK,1)
-!                END DO
-!             ELSE
-!                ! These levels have not been received from TM5
-!                ! and should be set to zero 
-!                PSO4MASS(KIDIA:KFDIA,JK,:) = 0._JPRB
-!                POMMASS(KIDIA:KFDIA,JK,:) = 0._JPRB
-!                PBCMASS(KIDIA:KFDIA,JK,:) = 0._JPRB
-!                PSSMASS(KIDIA:KFDIA,JK,:) = 0._JPRB
-!                PDUMASS(KIDIA:KFDIA,JK,:) = 0._JPRB
-!                PNO3MASS(KIDIA:KFDIA,JK)  = 0._JPRB
-!                PMSAMASS(KIDIA:KFDIA,JK)  = 0._JPRB
-!             END IF
-!
-!          END DO
-! 
-!          !---aerosol number and radius (if needed)
-!          IF (LMODE) THEN
-!             IF (ICPLN2 == -1) THEN
-!                ICPLN2=CPLNG_IDX('A_N2')
-!                ICPLN3=CPLNG_IDX('A_N3')
-!                ICPLN4=CPLNG_IDX('A_N4')
-!             END IF
-!             DO JK=KTDIA,KLEV
-!                ! Include offset in case upper levels have not been received from TM5
-!                IK = LEV_IDX_TM5(JK) - NLEV_TM5 + NLEV_TM5_AER
-!                IF (IK >= 1) THEN
-!                   DO JL=KIDIA,KFDIA
-!                      IL = KSTGLO+JL-1
-!                      PAERONUM(JL,JK,JP_AITS) = CPLNG_FLD(ICPLN2)%D(IL,IK,1)
-!                      PAERONUM(JL,JK,JP_ACCS) = CPLNG_FLD(ICPLN3)%D(IL,IK,1)
-!                      PAERONUM(JL,JK,JP_COAS) = CPLNG_FLD(ICPLN4)%D(IL,IK,1)
-!                   END DO
-!                ELSE
-!                   ! These levels have not been received from TM5
-!                   ! and should be set to zero
-!                   PAERONUM(KIDIA:KFDIA,JK,:) = TINY(0._JPRB)
-!                END IF
-!             END DO
-!          END IF
-!       END IF          ! ltm5aer
+!        [...]
 !    END IF             ! lcmip6_pi_aerosols
 !
 !    !---aerosol radius (if needed) for both interactive TM5 and preindustrial climatology
@@ -2837,7 +2737,8 @@ CONTAINS
 !       END DO
 !    END IF
     
-    !eehol: add separation of tracers NOTE: These PXTM1 indices need to go according to HAM indices and not OIFS!!
+    !---Aerosols masses and numbers
+    ! NOTE: PXTM1 indices need to go according to HAM indices and not OIFS!
     IF (LMODE) THEN
       DO JK=KTDIA,KLEV
          DO JL=KIDIA,KFDIA
@@ -2845,51 +2746,32 @@ CONTAINS
             !---nucleation mode is ignored
 
             !---Aitken soluble mode: SU, OM, BC
-            PSO4MASS(JL,JK,2) = PXTM1(JL,JK,aerocomp(iso4ks)%idt)  !SO4 Ait sol
-            POMMASS(JL,JK,2)  = PXTM1(JL,JK,aerocomp(iocks)%idt) !OC Ait sol
-            PBCMASS(JL,JK,2)  = PXTM1(JL,JK,aerocomp(ibcks)%idt)  !BC Ait sol
+            PSO4MASS(JL,JK,2) = PXTM1(JL,JK,AEROCOMP(ISO4KS)%IDT) !SO4 Ait sol
+            POMMASS(JL,JK,2)  = PXTM1(JL,JK,AEROCOMP(IOCKS)%IDT)  !OC Ait sol
+            PBCMASS(JL,JK,2)  = PXTM1(JL,JK,AEROCOMP(IBCKS)%IDT)  !BC Ait sol
             
-            !PSO4MASS(JL,JK,2) = PXTM1(JL,JK,5)  !SO4 Ait sol
-            !POMMASS(JL,JK,2)  = PXTM1(JL,JK,12) !OC Ait sol
-            !PBCMASS(JL,JK,2)  = PXTM1(JL,JK,8)  !BC Ait sol
-
             !---accumulation soluble mode: SU, OM, BC, SS, DU
-            PSO4MASS(JL,JK,3) = PXTM1(JL,JK,aerocomp(iso4as)%idt) !SO4 acc sol
-            POMMASS(JL,JK,3) = PXTM1(JL,JK,aerocomp(iocas)%idt) !OC acc sol
-            PBCMASS(JL,JK,3) = PXTM1(JL,JK,aerocomp(ibcas)%idt)  !BC acc sol
-            PSSMASS(JL,JK,3) = PXTM1(JL,JK,aerocomp(issas)%idt) !SS acc sol
-            PDUMASS(JL,JK,3) = PXTM1(JL,JK,aerocomp(iduas)%idt) !DU acc sol
+            PSO4MASS(JL,JK,3) = PXTM1(JL,JK,AEROCOMP(ISO4AS)%IDT) !SO4 acc sol
+            POMMASS(JL,JK,3)  = PXTM1(JL,JK,AEROCOMP(IOCAS)%IDT)  !OC acc sol
+            PBCMASS(JL,JK,3)  = PXTM1(JL,JK,AEROCOMP(IBCAS)%IDT)  !BC acc sol
+            PSSMASS(JL,JK,3)  = PXTM1(JL,JK,AEROCOMP(ISSAS)%IDT)  !SS acc sol
+            PDUMASS(JL,JK,3)  = PXTM1(JL,JK,AEROCOMP(IDUAS)%IDT)  !DU acc sol
             
-            !PSO4MASS(JL,JK,3) = PXTM1(JL,JK,6) !SO4 acc sol
-            !POMMASS(JL,JK,3) = PXTM1(JL,JK,13) !OC acc sol
-            !PBCMASS(JL,JK,3) = PXTM1(JL,JK,9)  !BC acc sol
-            !PSSMASS(JL,JK,3) = PXTM1(JL,JK,16) !SS acc sol
-            !PDUMASS(JL,JK,3) = PXTM1(JL,JK,18) !DU acc sol
-
             !---coarse soluble mode: SU, OM, BC, SS, DU
-            PSO4MASS(JL,JK,4) = PXTM1(JL,JK,aerocomp(iso4cs)%idt) !SO4 coa sol
-            POMMASS(JL,JK,4) = PXTM1(JL,JK,aerocomp(ioccs)%idt) !OC coa sol
-            PBCMASS(JL,JK,4) = PXTM1(JL,JK,aerocomp(ibccs)%idt) !BC coa sol
-            PSSMASS(JL,JK,4) = PXTM1(JL,JK,aerocomp(isscs)%idt) !SS coa sol
-            PDUMASS(JL,JK,4) = PXTM1(JL,JK,aerocomp(iducs)%idt) !DU coa sol
+            PSO4MASS(JL,JK,4) = PXTM1(JL,JK,AEROCOMP(ISO4CS)%IDT) !SO4 coa sol
+            POMMASS(JL,JK,4)  = PXTM1(JL,JK,AEROCOMP(IOCCS)%IDT)  !OC coa sol
+            PBCMASS(JL,JK,4)  = PXTM1(JL,JK,AEROCOMP(IBCCS)%IDT)  !BC coa sol
+            PSSMASS(JL,JK,4)  = PXTM1(JL,JK,AEROCOMP(ISSCS)%IDT)  !SS coa sol
+            PDUMASS(JL,JK,4)  = PXTM1(JL,JK,AEROCOMP(IDUCS)%IDT)  !DU coa sol
 
-            !PSO4MASS(JL,JK,4) = PXTM1(JL,JK,7) !SO4 coa sol
-            !POMMASS(JL,JK,4) = PXTM1(JL,JK,14) !OC coa sol
-            !PBCMASS(JL,JK,4) = PXTM1(JL,JK,10) !BC coa sol
-            !PSSMASS(JL,JK,4) = PXTM1(JL,JK,17) !SS coa sol
-            !PDUMASS(JL,JK,4) = PXTM1(JL,JK,19) !DU coa sol
+            !---Nitrate and MSA - TODO Currently not used in HAM... need to be added later!
+            PNO3MASS(JL,JK)   = 0._JPRB
+            PMSAMASS(JL,JK)   = 0._JPRB
 
-            !---nitrate and MSA eehol: Currently not used in HAM... need to be added later!
-            PNO3MASS(JL,JK)        = 0._JPRB !CPLNG_FLD(ICPLNO3)%D(IL,IK,1)
-            PMSAMASS(JL,JK)        = 0._JPRB !CPLNG_FLD(ICPLMSA)%D(IL,IK,1)
+            PAERONUM(JL,JK,2) = PXTM1(JL,JK,SIZECLASS(IAITS)%IDT_NO) !Ait sol
+            PAERONUM(JL,JK,3) = PXTM1(JL,JK,SIZECLASS(IACCS)%IDT_NO) !acc sol
+            PAERONUM(JL,JK,4) = PXTM1(JL,JK,SIZECLASS(ICOAS)%IDT_NO) !coa sol
 
-            PAERONUM(JL,JK,2) = PXTM1(JL,JK,sizeclass(iaits)%idt_no) !Ait sol
-            PAERONUM(JL,JK,3) = PXTM1(JL,JK,sizeclass(iaccs)%idt_no) !acc sol
-            PAERONUM(JL,JK,4) = PXTM1(JL,JK,sizeclass(icoas)%idt_no) !coa sol
-
-            !PAERONUM(JL,JK,2) = PXTM1(JL,JK,23) !Ait sol
-            !PAERONUM(JL,JK,3) = PXTM1(JL,JK,24) !acc sol
-            !PAERONUM(JL,JK,4) = PXTM1(JL,JK,25) !coa sol
          END DO
       END DO
     END IF
