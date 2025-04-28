@@ -55,7 +55,8 @@ CONTAINS
                      &  PAPH,    PAP,    PT,      PQ,      PQSAT,  &
                      &  PVERVEL, PA,     PL,      PI,              &
                      &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
-                     &  PGFL, YDMODEL, PCDNCACT, PICNC, PREFFL, PREFFI, PSMAX, PDRYRSOLU, PXTM1, KTRAC, PSIGMA_W) !,    PEXTRA, PEXTR2)
+                     &  PGFL, YDMODEL, PCDNCACT, PICNC, PREFFL, PREFFI, PSMAX, PDRYRSOLU, PXTM1, KTRAC, PSIGMA_W, &
+                     &  PFRACN )!,    PEXTRA, PEXTR2)
    
    ! *AER_ACTIV* is the interface to the cloud droplet activation scheme. 
    !  Four schemes are available, depending on the aerosol scheme used.
@@ -80,7 +81,8 @@ CONTAINS
    !                             & RLMIN, RAMIN, RTHOMO
    !USE MO_ACTIV,            ONLY: nw !eehol: to replace NACTPDF
    !USE YOE_AERO_M7_DATA,    ONLY: NSOL
-   USE TM5M7_DATA,          ONLY: NSOL
+   USE TM5M7_DATA,           ONLY: NSOL
+   USE MO_HAM,               ONLY: NCLASS
    !USE YOMCT3,              ONLY: NSTEP
    !USE YOMCT0,              ONLY: NFRPOS
    !USE YOMDYN,              ONLY: TSTEP
@@ -164,13 +166,14 @@ CONTAINS
    REAL(KIND=JPRB), INTENT(IN)    :: PXTM1(KLON,KLEV,KTRAC) ! tracer mixing ratios
    REAL(KIND=JPRB), INTENT(IN)    :: PSIGMA_W(KLON,KLEV)    ! sigma_w
 
-   REAL(KIND=JPRB), INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM) !YGFL%NDIM)
-   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV) ! cloud droplet number concentration [#/cm-3]
-   REAL(KIND=JPRB), INTENT(INOUT) :: PICNC(KLON,KLEV) ! ice crystal number concentration [#/cm-3]
-   REAL(KIND=JPRB), INTENT(INOUT) :: PREFFL(KLON,KLEV) ! liquid droplet effective radius [um]
-   REAL(KIND=JPRB), INTENT(INOUT) :: PREFFI(KLON,KLEV) ! ice effective radius [um]
-   REAL(KIND=JPRB), INTENT(INOUT) :: PSMAX(KLON,KLEV) ! maximum supersaturation [%]
-   
+   REAL(KIND=JPRB), INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM)
+   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV)      ! cloud droplet number concentration [#/cm-3]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PICNC(KLON,KLEV)         ! ice crystal number concentration [#/cm-3]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PREFFL(KLON,KLEV)        ! liquid droplet effective radius [um]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PREFFI(KLON,KLEV)        ! ice effective radius [um]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PSMAX(KLON,KLEV)         ! maximum supersaturation [%]
+   REAL(KIND=JPRB), INTENT(OUT)   :: PFRACN(KLON,KLEV,NCLASS) ! fraction of activated particles per mode
+
    !---extra diagnostics
    !REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXTRA(KLON,KLEVX,KFLDX) 
    !REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXTR2(KLON,KFLDX2) 
@@ -231,6 +234,9 @@ CONTAINS
    ASSOCIATE(YCDNC=>YGFL%YCDNC, YICNC=>YGFL%YICNC, YRE_LIQ=>YGFL%YRE_LIQ, YRE_ICE=>YGFL%YRE_ICE, &
       & LAERICESED=>YDECLDP%LAERICESED, LAERICEAUTO=>YDECLDP%LAERICEAUTO, &
       & RLMIN=>YDECLDP%RLMIN, RAMIN=>YDECLDP%RAMIN, RTHOMO=>YDECLDP%RTHOMO, RNICE=>YDECLDP%RNICE)
+
+   ! Init
+   PFRACN(KIDIA:KFDIA,:,:) = 0._JPRB  ! FIXME
 
    !---air density
    DO JK=1,KLEV

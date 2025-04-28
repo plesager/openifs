@@ -1044,8 +1044,8 @@ SELECT CASE (TRIM(AERO_SCHEME))
        END DO
     END DO
     
-    !eehol: integer to use M&N activation scheme or AR&G
-    IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes activation scheme
+    ! Cloud activation scheme
+    CLDACT: IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes
        
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!)
        ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB
@@ -1061,7 +1061,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
                     &  PVERVEL, ZAP,     PLP,      PIP,              &
                     &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                     &  PGFL, YDMODEL, ZCDNCACT, ZICNC, REFFL(1:KLON,1:KLEV,ZKROW), REFFI(1:KLON,1:KLEV,ZKROW), &
-                    &  ZSMAXMN, ZM6DRY, ZXTM1, KTRAC, ZSIGMA_W)
+                    &  ZSMAXMN, ZM6DRY, ZXTM1, KTRAC, ZSIGMA_W, ZFRACN)
 
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC
@@ -1073,7 +1073,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
        
-    ELSE IF (NCLOUDACT == 2) THEN !eehol: use AR&G scheme
+    ELSE IF (NCLOUDACT == 2) THEN ! AR&G scheme
 
        !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!!)
        ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((0.8_JPRB)**2) !eehol: this is converted back to sigma_w in mo_activ.F90
@@ -1214,7 +1214,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
        PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
 
-    END IF !eehol: end if for default or M&N or AR&G activation
+    END IF CLDACT
 
     CALL GSTATS(2502,1)
     
