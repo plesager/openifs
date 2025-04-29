@@ -2047,9 +2047,14 @@ DO jclass=1,nclass
             !--- Diffusive flux to single particle surface:
             !    (Elisabetta's thesis: fraction in equ. 2.26)
             
-            pcsi(jl,jk,jclass)=(4.0_dp * pi * zde2 * zm6rp ) /                      &
-                             ((4.0_dp * zde2) / (zvelb * zm6rp * caccso4(jclass)) +   &
-                             (zm6rp/(zm6rp+zf1))                              )
+!ORIGINAL-FORMULATION            pcsi(jl,jk,jclass)=(4.0_dp * pi * zde2 * zm6rp ) /                      &
+!ORIGINAL-FORMULATION                             ((4.0_dp * zde2) / (zvelb * zm6rp * caccso4(jclass)) +   &
+!ORIGINAL-FORMULATION                             (zm6rp/(zm6rp+zf1))                              )
+
+!NEW-FORMULATION
+            pcsi(jl,jk,jclass)=(4.0_dp * pi * zde2 * zm6rp * zvelb * zm6rp * caccso4(jclass) * (zm6rp+zf1)) / &
+                 ( 4.0_dp * zde2 * (zm6rp+zf1) + &
+                 zvelb * zm6rp * caccso4(jclass) * zm6rp )
             
             !--- Total diffusive flux to all particles in the respective mode:
             !    (per concentration of gas phase sulfate)

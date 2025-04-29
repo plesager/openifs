@@ -4,6 +4,7 @@ MODULE mo_kind
   ! removed commented-out code
   USE parkind1, ONLY: dp => JPRB !TeMi 
   USE parkind1, ONLY: wp => JPRB !eehol
+  USE parkind1, ONLY: JPRD
   IMPLICIT NONE
   ! <-- thk
 END MODULE mo_kind

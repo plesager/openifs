@@ -176,13 +176,13 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   
   INTEGER :: it,jl,jk,jc,jn,jt,jspec,jclass,ilevp1
   
-  REAL(dp):: ztmst, zqtmst, zqs, zq_amb
+  REAL(dp):: ztmst, zqtmst, zqs !NOT-USED-AND-BROKEN-IN-SP-[PLS]: zq_amb
   
   REAL(dp):: zfac,     zqfac,            &
              zfacm,    zqfacm,           &
              zfacc,    zqfacc,           &
-             zfacn,    zqfacn,           &
-             zeps,     zaclc
+             zfacn,    zqfacn     !,           &
+!NOT-USED-AND-BROKEN-IN-SP-[PLS]             zeps,     zaclc
 
   REAL(dp) :: zfac_vmr                     ! Conversion of vmr to molecules cm-3   
 #ifdef HAMMOZ
@@ -238,7 +238,7 @@ INTEGER:: KIDIA
   ztmst      = time_step_len
   zqtmst     = 1._dp/time_step_len
   
-  zeps       = 1.E-10_dp
+!NOT-USED-AND-BROKEN-IN-SP-[PLS]  zeps       = 1.E-10_dp
   
   ilevp1     = klev+1
   
@@ -298,9 +298,9 @@ INTEGER:: KIDIA
       !<--eehol
       zqs = pqs(jl,jk) !eehol: read zqs from input sat. spec. hum
       
-      zaclc = MIN(paclc(jl,jk),1.0_dp-zeps)
-      
-      zq_amb = MAX( 0.0_dp , (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
+!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zaclc = MIN(paclc(jl,jk),1.0_dp-zeps)
+!NOT-USED-AND-BROKEN-IN-SP-[PLS]      
+!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zq_amb = MAX( 0.0_dp , (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
 
       !zrh(jl,jk) = zq_amb/zqs
       zrh(jl,jk) = pq(jl,jk)/zqs !changed to same as OIFS

@@ -37,7 +37,9 @@ MODULE mo_netcdf
   PUBLIC :: nf_inq_dimid       ! mo_io
   PUBLIC :: nf_inq_dimlen      !
   PUBLIC :: nf_get_var_double  !
+  PUBLIC :: nf_get_var_real    !
   PUBLIC :: nf_get_vara_double !
+  PUBLIC :: nf_get_vara_real   !
   PUBLIC :: nf_get_att_int     !
   PUBLIC :: nf_global          ! mo_io
   PUBLIC :: nf_double          ! mo_io

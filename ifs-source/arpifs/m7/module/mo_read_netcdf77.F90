@@ -17,15 +17,15 @@ MODULE mo_read_netcdf77
   ! J.S. Rast, MPI, May 2005, change all netcdf routines to fortran 77 calls
   ! D.O'Donnell, MPI-M, Feb 2008, added read 4-D variable
 
-  USE mo_kind,      ONLY: dp
+  USE mo_kind,      ONLY: dp, JPRD
   USE mo_exception, ONLY: finish  
   USE mo_netcdf,    ONLY: nf_check, nf_max_var_dims, nf_open, nf__open,  &
                           nf_close, chunksize, nf_nowrite,               &
                           nf_inq_dimlen, nf_inq_dimid, nf_inq_varid,     &
                           nf_get_vara_double, nf_inq_varndims,           &
                           nf_inq_nvars, nf_inq_vardimid, nf_inq_varname, &
-                          nf_get_var_double
-
+                          nf_get_var_double, &
+                          nf_get_vara_real, nf_get_var_real
   IMPLICIT NONE
 
   PRIVATE
@@ -86,7 +86,11 @@ CONTAINS
 ! inquire variable and number of dimensions
     ierr=nf_inq_varid(zncid, TRIM(varname), znvar)
     IF (ierr == 0) THEN
-       CALL nf_check(nf_get_var_double(zncid, znvar, var), fname=TRIM(file_name))
+      IF(dp==JPRD)THEN
+        CALL nf_check(nf_get_var_double(zncid, znvar, var), fname=TRIM(file_name))
+      ELSE
+        CALL nf_check(nf_get_var_real(zncid, znvar, var), fname=TRIM(file_name))
+      ENDIF
     ELSE
        CALL finish('read_var_nf77_0d:', &
                'variable '//TRIM(varname)//' not found in '//TRIM(file_name))
@@ -151,7 +155,11 @@ CONTAINS
           CALL finish('read_var_nf77_1d:', &
                'wrong number of dimension of variable '//TRIM(varname))
        END IF
-       CALL nf_check(nf_get_vara_double(zncid, znvar, (/1/), (/zdims/), varptr), fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, znvar, (/1/), (/zdims/), varptr), fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, znvar, (/1/), (/zdims/), varptr), fname=TRIM(file_name))
+       ENDIF
     ELSE
        CALL finish('read_var_nf77_1d:', &
                'variable '//TRIM(varname)//' not found in '//TRIM(file_name))
@@ -243,7 +251,11 @@ CONTAINS
        ALLOCATE(zin(zdims(zorder(1)), zdims(zorder(2))))
        zcountvar(1)=zdims(zorder(1))
        zcountvar(2)=zdims(zorder(2))
-       CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1/), zcountvar, zin), fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, zvarid, (/1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ENDIF
        CALL nf_check(nf_close(zncid), fname=TRIM(file_name))
        IF (ALL(zorder == (/ 1, 2 /))) THEN
          varptr = zin         
@@ -353,7 +365,11 @@ CONTAINS
        zcountvar(1)=zdims(zorder(1))
        zcountvar(2)=zdims(zorder(2))
        zcountvar(3)=zdims(zorder(3))
-       CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, zvarid, (/1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ENDIF
        CALL nf_check(nf_close(zncid), fname=TRIM(file_name))
        IF (ALL(zorder == (/ 1, 2, 3 /))) THEN
          varptr = zin         
@@ -477,7 +493,11 @@ CONTAINS
        zcountvar(2)=zdims(zorder(2))
        zcountvar(3)=zdims(zorder(3))
        zcountvar(4)=zdims(zorder(4))
-       CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, zvarid, (/1,1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, zvarid, (/1,1,1,1/), zcountvar, zin), fname=TRIM(file_name))
+       ENDIF
        CALL nf_check(nf_close(zncid), fname=TRIM(file_name))
        IF (ALL(zorder == (/ 1, 2, 3, 4 /))) THEN
          varptr = zin         
@@ -614,7 +634,11 @@ CONTAINS
           zcountvar(1)=zcount(zorder(1))
           zcountvar(2)=zcount(zorder(2))
           zcountvar(3)=zcount(zorder(3))
-          CALL nf_check(nf_get_vara_double(zncid, ivar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+          IF(dp==JPRD)THEN
+            CALL nf_check(nf_get_vara_double(zncid, ivar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+          ELSE
+            CALL nf_check(nf_get_vara_real(zncid, ivar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+          ENDIF
 !          zinre=RESHAPE(zin, zdims, order=zorder)
           varptr = varptr + RESHAPE(RESHAPE(zin, zdims, order=zorder),zdims(1:2))
           IF (ASSOCIATED(zin)) DEALLOCATE(zin)
@@ -700,7 +724,11 @@ CONTAINS
                'wrong number of dimension of variable '//TRIM(varname))
        END IF
        ALLOCATE(zin(1))
-       CALL nf_check(nf_get_vara_double(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       ENDIF
        varptr = zin(1)
        IF (ASSOCIATED(zin)) DEALLOCATE(zin)
     ELSE
@@ -799,7 +827,11 @@ CONTAINS
                'wrong number of dimension of variable '//TRIM(varname))
        END IF
        ALLOCATE(zin(zdims(1), zdims(2)))
-       CALL nf_check(nf_get_vara_double(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, znvar, zstart, zcount, zin),fname=TRIM(file_name))
+       ENDIF
        varptr = zin(:,1)
        IF (ASSOCIATED(zin)) DEALLOCATE(zin)
     ELSE
@@ -923,7 +955,11 @@ CONTAINS
        zcountvar(1)=zcount(zorder(1))
        zcountvar(2)=zcount(zorder(2))
        zcountvar(3)=zcount(zorder(3))
-       CALL nf_check(nf_get_vara_double(zncid, znvar, zstartvar, zcountvar, zin), fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, znvar, zstartvar, zcountvar, zin), fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, znvar, zstartvar, zcountvar, zin), fname=TRIM(file_name))
+       ENDIF
        varptr = RESHAPE(RESHAPE(zin, zdims, order=zorder),zdims(1:2))
        IF (ASSOCIATED(zin)) DEALLOCATE(zin)
     ELSE
@@ -1065,7 +1101,11 @@ CONTAINS
        zcountvar(2)=zcount(zorder(2))
        zcountvar(3)=zcount(zorder(3))
        zcountvar(4)=zcount(zorder(4))
-       CALL nf_check(nf_get_vara_double(zncid, znvar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+       IF(dp==JPRD)THEN
+         CALL nf_check(nf_get_vara_double(zncid, znvar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+       ELSE
+         CALL nf_check(nf_get_vara_real(zncid, znvar, zstartvar, zcountvar, zin),fname=TRIM(file_name))
+       ENDIF
        varptr = RESHAPE(RESHAPE(zin, zdims, order=zorder),zdims(1:3))
        IF (ASSOCIATED(zin)) DEALLOCATE(zin)
     ELSE
