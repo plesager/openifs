@@ -319,16 +319,14 @@ TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: DENS_MODE
 REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
 REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
-REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV)
+REAL(KIND=JPRB) :: ZQLWP2(KLON,KLEV)
 REAL(KIND=JPRB) :: ZTMPA, ZTEMP, ZDPOG, ZQIWP, ZPODT
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
 
-REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14
-REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=1.0_JPRB      !eehol: minimum CDNC (can be changed but for now 1 cm-3)
-REAL(KIND=JPRB), PARAMETER :: ZTUNPAR=0.8164965_JPRB  !eehol: tuning parameter for sigma_w derived from TKE (square root of 2/3 (isotropy assumption))
+REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
 
 ! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: j_yaerom, JMMD, JSCAV, JSW, JSPEC
 ! [RCHG -> var. non used ] INTEGER(KIND=JPIM) :: IAER, IEX3D, IEX3DP
@@ -1257,43 +1255,44 @@ ENDDO
 
     ! liquid effective radius
 
-    DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-      IF ( PAP(JL,JK) >=0.001_JPRB ) THEN
-        ZTEMP=1.0_JPRB/PAP(JL,JK)
-        ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))
-
-!-- cloud and ice water path in kg m-2
-        ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)!!!!jira 592
-        ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
-!-- cloud and ice water content in g m-3
-        ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
-        ZIP(JL,JK)=PIP(JL,JK)*ZPODT*ZTEMP
-        ZLP(JL,JK)=PLP(JL,JK)*ZPODT*ZTEMP
-      ELSE
-        ZQIWP = 0._JPRB
-        ZQLWP(JL,JK) = 0._JPRB
-        ZLP(JL,JK) = 0._JPRB
-        ZIP(JL,JK) = 0._JPRB
-      ENDIF
-    END DO
-   END DO
+!NOT-USED         DO JK=1,KLEV
+!NOT-USED         DO JL=KIDIA,KFDIA
+!NOT-USED           IF ( PAP(JL,JK) >=0.001_JPRB ) THEN
+!NOT-USED             ZTEMP=1.0_JPRB/PAP(JL,JK)
+!NOT-USED             ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))
+!NOT-USED     
+!NOT-USED     !-- cloud and ice water path in kg m-2
+!NOT-USED             ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)!!!!jira 592
+!NOT-USED             ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
+!NOT-USED     !-- cloud and ice water content in g m-3
+!NOT-USED             ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
+!NOT-USED             ZIP(JL,JK)=PIP(JL,JK)*ZPODT*ZTEMP
+!NOT-USED             ZLP(JL,JK)=PLP(JL,JK)*ZPODT*ZTEMP
+!NOT-USED           ELSE
+!NOT-USED             ZQIWP = 0._JPRB
+!NOT-USED             ZQLWP(JL,JK) = 0._JPRB
+!NOT-USED             ZLP(JL,JK) = 0._JPRB
+!NOT-USED             ZIP(JL,JK) = 0._JPRB
+!NOT-USED           ENDIF
+!NOT-USED         END DO
+!NOT-USED         END DO
 
     DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
         ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
         LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
         LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-        ! ZQLWP2(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
+        ZQLWP2(JL,JK) = PLP(JL,JK)  !/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
 
-        ! effective radius calculated similarly as in radlswr.F90
+        ! effective radius (in um) calculated similarly as in radlswr.F90 
         ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),10._JPRB)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
-
+        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
     END DO
-   END DO
+    END DO
+
     ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
-    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV)*1.E+6_JPRB,4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV), 4._JPRB, LLIQCLD(KIDIA:KFDIA,1:KLEV))
+
     CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
          &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
          &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
