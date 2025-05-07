@@ -258,7 +258,7 @@ REAL(KIND=JPRB)    :: ZCOTRA(KLON,KLEV,3) ! 3 traceurs contrails, parametrisatio
 REAL(KIND=JPRB)    :: ZEMIS(KLON,KLEV,3) ! 3 especes emises par l'aviation, parametrisation à implementer
 REAL(KIND=JPRB)    :: ZAREAD_NAT(KLON,KLEV),ZAREAD_ICE(KLON,KLEV),ZAREAD_SUL(KLON,KLEV)
 REAL(KIND=JPRB)    :: ZSO4_LPROD(KLON,KLEV)
-REAL(KIND=JPRB)    :: ZTSO2(KLON,KLEV), ZTSO4(KLON,KLEV), ZTSO4_AQ(KLON,KLEV), ZITSO2(KLON,KLEV)
+REAL(KIND=JPRB)    :: ZTSO2(KLON,KLEV), ZTSO4_GAS(KLON,KLEV), ZTSO4_AQ(KLON,KLEV), ZITSO2(KLON,KLEV)
 REAL(KIND=JPRB)    :: ZSO2(KLON,KLEV), ZFSO2(KLON,KLEV), ZFSO4_AQ(KLON,KLEV), ZFSO4(KLON,KLEV)
 LOGICAL :: LLCHECK_METEO, LLTENDUPDT
 !------------------------------------------------------------------------
@@ -831,7 +831,7 @@ SELECT CASE (TRIM(CHEM_SCHEME))
     DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
         !ZTSO2(JL,JK)    = PTENC(JL,JK,ISSO2)
-        !ZTSO4(JL,JK)    = PTENC(JL,JK,ISSO4)
+        !ZTSO4_GAS(JL,JK)    = PTENC(JL,JK,ISSO4)
         !ZTSO4_AQ(JL,JK) = PTENC(JL,JK,ISSO4_ACS)! liquid phase
         !ZSO2(JL,JK)     = PAEROP(JL,JK,ISSO2)
         ZSO2(JL,JK)     = ZCON(JL,JK,ISSO2)  ! SO2 concentration
@@ -846,7 +846,7 @@ SELECT CASE (TRIM(CHEM_SCHEME))
                       & PGFL(:,:, YGFL%YAEROCLIM(1)%MP),                      &
                       & PGFL(:,:,YGFL%YAEROCLIM(2)%MP),                       &
                       & PGFL(:,:,YGFL%YAEROCLIM(3)%MP) ,                      &
-                      & ZTSO2 , ZTSO4(:,:), ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDELP)
+                      & ZTSO2 , ZTSO4_GAS, ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDELP)
 
     DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
@@ -854,11 +854,11 @@ SELECT CASE (TRIM(CHEM_SCHEME))
         !PTENC(JL,JK,ISSO2) = PTENC(JL,JK,ISSO2)+ZTSO2(JL,JK)
         !ZTENC1(JL,JK,ISSO2) = ZTENC1(JL,JK,ISSO2)+ZTSO2(JL,JK)
         ZTENC1(JL,JK,ISSO2) = ZTSO2(JL,JK)
-        !! ZTSO4 
-        !PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4(JL,Jk)
+        !! ZTSO4_GAS 
+        !PTENC(JL,JK,ISSO4)=PTENC(JL,JK,ISSO4)+ZTSO4_GAS(JL,Jk)
         !! SO4 formed in clouds is applied to Accumulati 
         !PTENC(JL,JK,ISSO4_ACS)=PTENC(JL,JK,ISSO4_ACS)+ZTSO4_AQ(JL,JK)
-        PCHEM2AER(JL,JK,1) = ZTSO4(JL,Jk)
+        PCHEM2AER(JL,JK,1) = ZTSO4_GAS(JL,Jk)
         PCHEM2AER(JL,JK,2) = ZTSO4_AQ(JL,JK)
       END DO
     END DO
