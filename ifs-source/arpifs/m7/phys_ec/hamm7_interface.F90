@@ -319,7 +319,7 @@ TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: DENS_MODE
 REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
 REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
-REAL(KIND=JPRB) :: ZQLWP2(KLON,KLEV)
+REAL(KIND=JPRB) :: ZQLWP2
 REAL(KIND=JPRB) :: ZTMPA, ZTEMP, ZDPOG, ZQIWP, ZPODT
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
@@ -1247,47 +1247,29 @@ ENDDO
     !--> End store CDNC and ICNC
 
     !-----------------------------------------------------------------
-    !--> Calculation for effective radii and put to PGFL fields
+    !--> Calculation of effective radii and put to PGFL fields
 
     ! put default values for effective radii
     reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
     reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
 
     ! liquid effective radius
-
-!NOT-USED         DO JK=1,KLEV
-!NOT-USED         DO JL=KIDIA,KFDIA
-!NOT-USED           IF ( PAP(JL,JK) >=0.001_JPRB ) THEN
-!NOT-USED             ZTEMP=1.0_JPRB/PAP(JL,JK)
-!NOT-USED             ZDPOG=1.0/RG*(PRS1(JL,JK)-PRS1(JL,JK-1))
-!NOT-USED     
-!NOT-USED     !-- cloud and ice water path in kg m-2
-!NOT-USED             ZQIWP        =MAX(0._JPRB,ZDPOG*PIP(JL,JK)*ZTEMP)!!!!jira 592
-!NOT-USED             ZQLWP(JL,JK) =MAX(0._JPRB,ZDPOG*PLP(JL,JK)*ZTEMP)
-!NOT-USED     !-- cloud and ice water content in g m-3
-!NOT-USED             ZPODT=1.0/RD*PRSF1(JL,JK)/PTP(JL,JK)
-!NOT-USED             ZIP(JL,JK)=PIP(JL,JK)*ZPODT*ZTEMP
-!NOT-USED             ZLP(JL,JK)=PLP(JL,JK)*ZPODT*ZTEMP
-!NOT-USED           ELSE
-!NOT-USED             ZQIWP = 0._JPRB
-!NOT-USED             ZQLWP(JL,JK) = 0._JPRB
-!NOT-USED             ZLP(JL,JK) = 0._JPRB
-!NOT-USED             ZIP(JL,JK) = 0._JPRB
-!NOT-USED           ENDIF
-!NOT-USED         END DO
-!NOT-USED         END DO
-
     DO JK=1,KLEV
       DO JL=KIDIA,KFDIA
-        ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
-        LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
-        LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-        ZQLWP2(JL,JK) = PLP(JL,JK)  !/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwp
-
-        ! effective radius (in um) calculated similarly as in radlswr.F90 
-        ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-        ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
-    END DO
+        IF ( ZAP(JL,JK) >=0.001_JPRB ) THEN
+          ZTMPA = 1.0_JPRB/ZAP(JL,JK)
+          LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
+          LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
+          ZQLWP2 = MAX(0._JPRB, PLP(JL,JK)*ZTMPA)         ! lwp
+          
+          ! effective radius (in um) calculated similarly as in radlswr.F90 
+          ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
+          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
+        ELSE
+          LLIQCLD(JL,JK) = .FALSE.
+          LICECLD(JL,JK) = .FALSE.
+        END IF
+      END DO
     END DO
 
     ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
@@ -1304,7 +1286,7 @@ ENDDO
     PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
     PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
 
-    !<-- End calculation for effective radii
+    !<-- End calculation of effective radii
     !-----------------------------------------------------------------
 
     !--- Mass conserving correction of negative tracer values:
