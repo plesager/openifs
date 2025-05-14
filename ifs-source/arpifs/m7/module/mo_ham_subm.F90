@@ -58,7 +58,8 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
                         pt,     pq,   pqs,                       &
                         pxtm1,  pxtte,                    &
                         pm6rp,  pm6dry, prhop,  pww,                    &
-                        paclc,  pgrvolm1, ppbl,zout3)
+                        paclc,  pgrvolm1, ppbl, zout3, &
+                        pforest,pout_dnuc)
   !
   ! Authors:
   ! --------
@@ -152,6 +153,8 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   REAL(dp), OPTIONAL :: paclc   (kbdim,klev)       ! cloud cover [0,1]
   REAL(dp), OPTIONAL :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
   REAL(dp), OPTIONAL :: ppbl    (kbdim)            ! Planetary boundary layer top level
+  REAL(dp), OPTIONAL :: pforest    (kbdim)            ! Planetary boundary layer top level
+  REAL(dp), OPTIONAL :: pout_dnuc(kbdim,klev,4)
 
   REAL(dp), OPTIONAL :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [m]
                         pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [m]
@@ -487,7 +490,7 @@ INTEGER:: KIDIA
              zm6rp,   zm6dry,  zrhop,   zww,  &  ! Aerosol properties
              zipr,    paclc,                  &  ! Ionization rate, cloud cover
              zdz,     pgrvolm1,               &  ! Layer thickness, grid box volume 
-             ppbl    , zout3                             ) ! Planetary boundary layer top level
+             ppbl,    zout3,   pforest, pout_dnuc   ) ! Planetary boundary layer top level, zout, forest fraction
 
 
 #ifdef HAMMOZ

@@ -250,9 +250,10 @@ SELECT CASE (TRIM(AERO_SCHEME))
       &  ZTAUS_AER , ZTAUA_AER, ZPMAER,                                         &
       !VH
       &  PSURF%PSD_XA, PAUX%PVERVEL, AUXL%ZCCNL, AUXL%ZCCNO, PSURF%PAHFSTI, PSURF%PSD_VF(:,YSD_VF%YCI%MP), GEMSL%ZAZ0M, FLUX%PFTLHEV, &
-      &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU) !,ZTSO2,ZTSO4,ZTSO4_AQ,ZFSO2,ZFSO4 ,ZFSO4_AQ&
+      &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU,PSURF%PSD_VD(:,YDSURF%YSD_VD%YBLH%MP)) !,ZTSO2,ZTSO4,ZTSO4_AQ,ZFSO2,ZFSO4 ,ZFSO4_AQ&
     !&) ! u-wind,v-wind,low veg. cover, high veg. cover, sine of latitude
 
+      !write(1022,*) YCDNC%MP9_PH,PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YCDNC%MP9_PH)
 
     ! FIXME Better than 1:14 is to define a variable with value 14 with a meaningful name (RCHG)
     !       Note that %M7AODLW has 16 wavelenghts (see phys_radi/suecrad.F90, PLS)

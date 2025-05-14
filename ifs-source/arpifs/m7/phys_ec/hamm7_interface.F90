@@ -14,7 +14,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  !eehol: added here vertical velocity, CCN over land, CCN over ocean
- & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU)
+ & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU, PBLH)
  !, PTSO2, PTSO4, PTSO4_AQ, PFSO2,PFSO4,PFSO4_AQ&
  !  u-wind, v-wind, low veg. cover, high veg. cover, sine of latitude
 
@@ -259,6 +259,7 @@ REAL(KIND=JPRB),INTENT(OUT)   :: PPMAER(KLON,KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB),INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM), PPRAERS(KLON)
 ! Simple sulfur scheme variables:
 REAL(KIND=JPRB),INTENT(INOUT)   :: PSO2DD(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
 
 !REAL(KIND=JPRB), INTENT(INOUT) :: PFSO2(KLON)  , PFSO4(KLON), PFSO4_AQ(KLON)
 !REAL(KIND=JPRB), INTENT(INOUT) :: PTSO2(KLON, KLEV)  , PTSO4(KLON, KLEV), PTSO4_AQ(KLON, KLEV)
@@ -436,8 +437,8 @@ REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON)
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
-REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass))
- 
+INTEGER,parameter::n_nuc_diag=4
+REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass)),zout_dnuc(KLON,KLEV,n_nuc_diag) 
 REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
 REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
@@ -483,6 +484,10 @@ REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND)
 REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
 
 REAL(KIND=JPRB) :: ZCHEM2AER(KLON,KLEV,6) ! to overwrite PCHEM2AER (or we could set the latter to inout intent)
+! Boundary layer height index calculation
+REAL(KIND=JPRB) :: ZBLHIDX(KLON)   ! index
+LOGICAL         :: LBLHFOUND(KLON) ! logical if boundary layer height is found  
+REAL(KIND=JPRB) :: ZRG             ! 1/RG
 
 !-----------------------------------------------------------------------
 
@@ -574,6 +579,9 @@ ASSOCIATE( &
 !*         0.     PROGNOSTIC AEROSOLS - FINAL COMPUTATIONS
 !                 ----------------------------------------
 
+
+LBLHFOUND(:) = .FALSE.
+
 ZAHFSM  = 0._JPRB
 ZEPSCOV = 1.E-03_JPRB
 ZEPSWAT = 1.E-18_JPRB
@@ -601,6 +609,7 @@ ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 ZOUT(KIDIA:KFDIA,:)    = 0._JPRB
 ZOUT2(KIDIA:KFDIA,:)   = 0._JPRB
 ZOUT3(KIDIA:KFDIA,:,:) = 0._JPRB
+ZOUT_dnuc(KIDIA:KFDIA,:,:) = 0._JPRB
 ! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
 ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
 ZXTEMS(KIDIA:KFDIA,:) = 0._JPRB ! surface emissions as zero for input
@@ -634,6 +643,8 @@ ZCEN(KIDIA:KFDIA,:,:) = 0._JPRB
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
 ZCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)=PCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)
+
+ZRG=1/RG
 
 ! computation of tropopause level 
 CALL TROPLEV(KLON,KIDIA,KFDIA,KLEV,.FALSE.,PTP,PQP,PRSF1,IKLEVTROP)
@@ -812,6 +823,23 @@ DO JK=1,KLEV
     ZAP(JL,JK)=MIN(1.0_JPRB,MAX(0.0_JPRB,PAP(JL,JK))) !add threshold for cloud cover
   ENDDO
 ENDDO
+ZBLHIDX(KIDIA:KFDIA)=1
+! Find top level index of bounrary layer
+DO JK=1,KLEV
+  DO JL=KIDIA,KFDIA
+    ! check the PBL height against the grid point height from surface
+    ! PGEOH used here as it is the layer interface geopotential, and when divided by gravitation constat gives height
+    ! 
+    IF (PBLH(JL)>(((PGEOH(JL,JK)-PGEOH(JL,KLEV))*ZRG)) .and. .not. LBLHFOUND(JL)) THEN
+      ZBLHIDX(JL)=JK-1
+      LBLHFOUND(JL)=.TRUE.
+    !   write(1212,*)PBLH(JL),PAPHIF(JL,JK),JL,JK-1
+    ! else
+    !   write(1212,*)PBLH(JL),PAPHIF(JL,JK),JL,ZBLHIDX(JL)
+
+    END IF
+  ENDDO 
+ENDDO
 
 ! TB apparently unnecessary in current implementation, but ISSO4_C still needed for chem_inext in the code.
 ! needs to be reviewed if it can be removed. 
@@ -974,7 +1002,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
          & ZM6RP, ZM6DRY,             & !mean mode actual radius [m], dry radius for soluble modes [m] 
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
-         & ZPBL,  ZOUT3)                !boundary layer top level, outputs
+         & ZBLHIDX,  ZOUT3,PCVH, zout_dnuc)                !boundary layer top level, outputs, high vegetation
     
     CALL GSTATS(2501,1)
 
@@ -1817,15 +1845,20 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(17)%MP) = WDEPOUT_IC_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(18)%MP) = WDEPOUT_BC_2D(KIDIA:KFDIA,KAERO(JN))
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(5)%MP)  = PAERSRC(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(5)%MP)  = PAERSRC(KIDIA:KFDIA,KAERO(JN)) - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
   END DO
-
+  PGFL(KIDIA:KFDIA,NACTAERO+2,YAEROUT(5)%MP)  = ZBLHIDX(KIDIA:KFDIA)
+  PGFL(KIDIA:KFDIA,NACTAERO+3,YAEROUT(5)%MP)  = PBLH(KIDIA:KFDIA)
+  PGFL(KIDIA:KFDIA,NACTAERO+4,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,137)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
+  PGFL(KIDIA:KFDIA,NACTAERO+5,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,136)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
+  PGFL(KIDIA:KFDIA,NACTAERO+6,YAEROUT(5)%MP)  = ((PGEOH(KIDIA:KFDIA,135)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG)
   DO JN=1,NACTAERO   !ktrac
     ZTMP=0.0_JPRB
     DO JK=1,KLEV
       ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PCEN(KIDIA:KFDIA,JK,KAERO(JN))
     END DO
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(9)%MP)  = ZTMP(KIDIA:KFDIA)
+    !PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(9)%MP)  = ZTMP(KIDIA:KFDIA)
+    PGFL(KIDIA:KFDIA,KAERO(JN),YGFL%YAEROUT(9)%MP)= - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
   END DO
 
   DO JN=1,NACTAERO   !ktrac
@@ -1910,17 +1943,24 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
 
   PGFL(KIDIA:KFDIA,KLEV,YAEROUT(19)%MP)   = ZXTTE(KIDIA:KFDIA,KLEV,3)      ! tendency SS CS ham after update surface
   PGFL(KIDIA:KFDIA,KLEV-1,YAEROUT(20)%MP) = ZTENCIH(KIDIA:KFDIA,KLEV,17)   ! tendency SS CS ham before update surface
-  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(21)%MP) = ZXTMD1(KIDIA:KFDIA,1:KLEV,17)  ! mix rat SS CS ham before update
+  DO JK=1,KLEV
+    ! height of level from the surface. 
+    PGFL(KIDIA:KFDIA,JK,YAEROUT(21)%MP) = (PGEOH(KIDIA:KFDIA,JK)-PGEOH(KIDIA:KFDIA,KLEV))*ZRG
+  END DO
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(22)%MP) = ZOUT_dnuc(KIDIA:KFDIA,1:KLEV,1)
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(23)%MP) = ZOUT_dnuc(KIDIA:KFDIA,1:KLEV,2)
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(24)%MP) = ZOUT_dnuc(KIDIA:KFDIA,1:KLEV,3)
+  PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(25)%MP) = ZOUT_dnuc(KIDIA:KFDIA,1:KLEV,4)
 
 
   ! It is not clear when NACTERO and when NTRAC 
   DO JN=1,NACTAERO
-    PGFL(KIDIA:KFDIA,JN,YAEROUT(22)%MP)=DDEPOUT(KIDIA:KFDIA,KLEV,KAERO(JN))
+    !PGFL(KIDIA:KFDIA,JN,YAEROUT(22)%MP)=DDEPOUT(KIDIA:KFDIA,KLEV,KAERO(JN))
     PGFL(KIDIA:KFDIA, JN, YAEROUT(28)%MP) = PAERSRC(KIDIA:KFDIA,KAERO(JN)) ! Emissions per specie
   END DO
   DO JN=1,NTRAC
-    PGFL(KIDIA:KFDIA,JN,YAEROUT(23)%MP)=WDEPOUT(KIDIA:KFDIA,KLEV,JN)
-    PGFL(KIDIA:KFDIA,JN,YAEROUT(24)%MP)=SEDOUT(KIDIA:KFDIA,KLEV,JN)
+    !PGFL(KIDIA:KFDIA,JN,YAEROUT(23)%MP)=WDEPOUT(KIDIA:KFDIA,KLEV,JN)
+    !PGFL(KIDIA:KFDIA,JN,YAEROUT(24)%MP)=SEDOUT(KIDIA:KFDIA,KLEV,JN)
     PGFL(KIDIA:KFDIA,JN,YAEROUT(39)%MP)=ZXTEMS(KIDIA:KFDIA,JN)
   END DO
   DO JN=1,SUBM_NGASSPEC

@@ -343,7 +343,8 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
               paerml, paernl,              &
               pm6rp,  pm6dry,  prhop, pww, &
               pipr,   paclc,               &
-              pdz,    pgrvol, ppbl,zout3)
+              pdz,    pgrvol, ppbl,        &
+              zout3, pforest, pout_dnuc)
   !
   ! Authors:
   ! ---------
@@ -458,6 +459,9 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
              pdz(kbdim,klev),            & ! layer thickness for diagnostics [m]
              pgrvol(kbdim,klev),         & ! grid box volume for diagnostics [m-3]
              ppbl(kbdim)                   ! Planetary boundary layer top level
+REAL(dp), OPTIONAL :: pforest    (kbdim)   ! forest fraction
+REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,4)
+
   !
   ! Local variables:
   !
@@ -592,7 +596,8 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
   
   IF (nsnucl+nonucl.gt.0) CALL m7_nuck(kproma,  kbdim,  klev,   krow,          &
                                        papp1,   ptp1,   prhp1,  paclc,   pipr, &
-                                       pso4g,   zcs,    zanew,  za4delt, pdz, ppbl)
+                                       pso4g,   zcs,    zanew,  za4delt, pdz, ppbl, &
+                                       pforest, pout_dnuc)
 #ifdef HAMMOZ
   !>>dod timers
   IF (ltimer) THEN
@@ -2258,7 +2263,7 @@ END SUBROUTINE m7_prod_cond
 SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
                    papp1,   ptp1,   prhp1,  paclc,   pipr, &
                    ph2so4,  pcs,    panew,  pa4delt, pdz,  &
-                   ppbl)
+                   ppbl, pforest, pout_dnuc)
   ! 
   ! Authors:
   ! --------
@@ -2349,7 +2354,10 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
                                          ! to the nucleation mode due to H2SO4 nucleation over a timestep
   REAL(dp):: pdz(kbdim,klev)             ! Layer thickness dz for diagnostics [m]
   REAL(dp):: ppbl(kbdim)                 ! Planetary boundary layer top level
-  
+
+  REAL(dp), OPTIONAL :: pforest(kbdim)   ! forest fraction
+  REAL(dp),OPTIONAL  :: pout_dnuc(kbdim,klev,4)   ! nucleation diagnostics
+
   !
   ! Local variables:
   !
@@ -2368,7 +2376,6 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   
   REAL(dp):: znucrate                    ! Total nucleation (particle formation) rate
   REAL(dp):: zsnucloss                   ! Total H2SO4(g) loss due to nucleation
-  
   ! Initialisations
   
   ztmst = time_step_len
@@ -2415,12 +2422,20 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   ELSEIF (nonucl == 2) THEN
     CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,forest(:,krow),ppbl,zonrate,zons)
   ELSE
-#endif  
     zons(1:kproma,:)    = 0.0_dp
     zonrate(1:kproma,:) = 0.0_dp
-#ifdef HAMMOZ
   END IF
-#endif
+#else
+   ! when not in HAMMOZ forest fraction as parameter (pforest) and not module variable
+   IF (nonucl == 1) THEN
+    CALL nucl_activation(kproma,kbdim,klev,zh2so4_cf0,pforest(1:kproma),ppbl,zonrate,zons)
+  ELSEIF (nonucl == 2) THEN
+    CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,pforest(1:kproma),ppbl,zonrate,zons)
+  ELSE
+    zons(1:kproma,:)    = 0.0_dp
+    zonrate(1:kproma,:) = 0.0_dp
+  END If
+#endif  
   DO jk = 1, klev
     DO jl = 1, kproma
       
@@ -2457,6 +2472,21 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
         ! convert [molec. cm-3] to [kg(S04) m-2]:
         d_nuc_so4(jl,krow) = d_nuc_so4(jl,krow) &
          + pa4delt(jl,jk,1)*mw_so4*1.E+03_dp/avo*pdz(jl,jk)*zqtmst*delta_time
+         
+#else
+   !diagnostics:
+   ! 1: NS-mass from nucleatiom
+   ! 2: NS-number from nucleatiom
+   ! 3: original N/s  from H2SO4/H2O nucleatiom
+   ! 4: original N/s from organic nucleatiom
+   pout_dnuc(jl,jk,1) =  &
+   + pa4delt(jl,jk,1)*mw_so4*1.E+03_dp/avo*pdz(jl,jk)
+   pout_dnuc(jl,jk,2) =  &
+   + panew(jl,jk)*1.E+03_dp
+   pout_dnuc(jl,jk,3) =  &
+   + zsnrate(jl,jk) *1.E+03_dp
+   pout_dnuc(jl,jk,4) =  &
+   + zonrate(jl,jk)*1.E+03_dp
 #endif
       END IF
     
