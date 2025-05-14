@@ -1,4 +1,4 @@
- SUBROUTINE TM5M7_INIT(YDGEOMETRY, YRCOMPO, YGFL, YDERAD)
+SUBROUTINE TM5M7_INIT(YDGEOMETRY, YDCHEM, YGFL, YDERAD)
 
 !**   DESCRIPTION 
 !     ----------
@@ -28,10 +28,9 @@ USE GEOMETRY_MOD,   ONLY : GEOMETRY
 USE PARKIND1,       ONLY : JPRB, JPIM
 USE YOMHOOK,        ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN,         ONLY : NULOUT
-!USE YOMCOMPO , ONLY : YRCOMPO
-USE YOMCOMPO,       ONLY : TCOMPO
-USE YOM_YGFL,       ONLY : TYPE_GFLD!YGFL
-USE TM5_PHOTOLYSIS, ONLY : PHOTOLYSIS_INI, NBANDS_TROP,LMID,LMID_GRIDA,WAVE,WAV_GRID,WAV_GRIDA,LL_TM5_PHOTO_INI
+USE MODEL_CHEM_MOD, ONLY : MODEL_CHEM_TYPE
+USE YOM_YGFL,       ONLY : TYPE_GFLD
+USE TM5_PHOTOLYSIS, ONLY : PHOTOLYSIS_INI, NBANDS_TROP, LMID, LMID_GRIDA, WAVE, WAV_GRID, WAV_GRIDA
 USE TM5M7_DATA,     ONLY : ISO4 ,  INH4 ,  INO3_A ,  IACS_N ,  ISO4ACS ,  IBCACS , IPOMACS ,  ISSACS ,  IDUACS , &
                          & ISOANUS ,  ISOAAIS ,  ISOAACS ,  ISOACOS ,  ISOAAII ,  IH2OPART ,IAII_N ,  IBCAII , &
                          & IPOMAII ,  IACI_N ,   IDUACI ,  IAIS_N ,  ISO4AIS ,  IBCAIS ,  IPOMAIS , ICOI_N , &
@@ -48,10 +47,11 @@ USE YOERAD   , ONLY : TERAD!YRERAD
 
 IMPLICIT NONE
 
-TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
-TYPE(TCOMPO)      ,INTENT(IN)    :: YRCOMPO
-TYPE(TYPE_GFLD)   ,INTENT(IN)    :: YGFL
-TYPE(TERAD),INTENT(IN) :: YDERAD
+TYPE(GEOMETRY),       INTENT(IN) :: YDGEOMETRY
+TYPE(MODEL_CHEM_TYPE),INTENT(IN) :: YDCHEM
+TYPE(TYPE_GFLD),      INTENT(IN) :: YGFL
+TYPE(TERAD),          INTENT(IN) :: YDERAD
+
 !-----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
 !              ---------------
@@ -70,11 +70,13 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('TM5M7_INIT',0,ZHOOK_HANDLE)
 ASSOCIATE(&
-    & NACTAERO    => YGFL%NACTAERO, YAERO    => YGFL%YAERO,    &
-    & NAERO       => YGFL%NAERO,    LAERCHEM => YGFL%LAERCHEM, &
-    & AERO_SCHEME => YRCOMPO%AERO_SCHEME )
+     & NACTAERO    => YGFL%NACTAERO, YAERO    => YGFL%YAERO,    &
+     & NAERO       => YGFL%NAERO,    LAERCHEM => YGFL%LAERCHEM, &
+     & AERO_SCHEME => YDCHEM%YRCOMPO%AERO_SCHEME,               &
+     & CHEM_SCHEME => YDCHEM%YRCHEM%CHEM_SCHEME,                & 
+     & NAEROOPT    => YDERAD%NAEROOPT )
 
- 
+
 !*             Init aerosol scheme 
 !              ---------------
 
@@ -93,49 +95,44 @@ SELECT CASE (TRIM(AERO_SCHEME))
     ! Initialize various dust properties
     CALL TM5M7_SRC_DUST_INIT
 
-    !IF(.not.LAERCHEM)THEN
-      ! Initialize optics:
-      ! Make sure that 'WAVE' is already initialized (in tm5_init.F90)
-      !IF (.NOT. LL_TM5_PHOTO_INI) THEN
-      !   if (.NOT. LAERCHEM)THEN
-      !      call PHOTOLYSIS_INI
-      !   ELSE
-      !      CALL ABOR1('tm5-based photolysis not yet initialized!!')
-      !   END if
-     
-      !ENDIF
-    !END IF
+    ! Define wavelengths (only if using TM5 code to calculate aerosols properties)
+    IF (NAEROOPT == 1) THEN
+      
+      IF (CHEM_SCHEME == "SimChem") THEN
+        CALL PHOTOLYSIS_INI
+      ENDIF
+      
+      nwdep = nbands_trop + count(lmid.ne.lmid_gridA)
+      wav_grid  = 0
+      wav_gridA = 0
+      allocate(photo_wavelengths(nwdep))
 
-    ! Define wavelengths for optics calculations
-    nwdep = nbands_trop + count(lmid.ne.lmid_gridA)
-    wav_grid  = 0
-    wav_gridA = 0
-    allocate(photo_wavelengths(nwdep))
+      JL=1
+      do JI=1,nbands_trop
+        if (lmid(JI)==lmid_gridA(JI)) then
+          photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
+          wav_grid(JI) = JL
+          wav_gridA(JI) = JL
+          JL=JL+1   
+        else
+          photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
+          photo_wavelengths(JL+1) = wave(lmid_gridA(JI))*1.e4 ! cm to um
+          wav_grid(JI) = JL
+          wav_gridA(JI) = JL+1
+          JL=JL+2
+        endif
+      enddo
+      allocate(wdep(nwdep))
+      wdep(:)%wl = photo_wavelengths
+      wdep(:)%split = .false.
+      wdep(:)%insitu = .false.
 
-    JL=1
-    do JI=1,nbands_trop
-      if (lmid(JI)==lmid_gridA(JI)) then
-        photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
-        wav_grid(JI) = JL
-        wav_gridA(JI) = JL
-        JL=JL+1   
-      else
-        photo_wavelengths(JL) = wave(lmid(JI))*1.e4 ! cm to um
-        photo_wavelengths(JL+1) = wave(lmid_gridA(JI))*1.e4 ! cm to um
-        wav_grid(JI) = JL
-        wav_gridA(JI) = JL+1
-        JL=JL+2
-      endif
-    enddo
-    allocate(wdep(nwdep))
-    wdep(:)%wl = photo_wavelengths
-    wdep(:)%split = .false.
-    wdep(:)%insitu = .false.
+      CALL TM5M7_OPTICS_INIT(NWDEP,WDEP)
 
-    CALL TM5M7_OPTICS_INIT(NWDEP,WDEP)
+      if (allocated(photo_wavelengths)) deallocate(photo_wavelengths)
+      if (allocated(wdep)) deallocate(wdep)
 
-    if (allocated(photo_wavelengths)) deallocate(photo_wavelengths)
-    if (allocated(wdep)) deallocate(wdep)
+    ENDIF
 
     ! A.Laakso: Taken from ecearth_optics (TM5-ECEARTH3) 
     ! HAM aerosol optics are using these too
