@@ -223,7 +223,7 @@ END TYPE TYPE_GFL_NAML
 ! │  14-Feb-2019  P Bechtold  - add turbulence diagnostics EDR Parameter       │
 ! │  20-Feb-2019  F. Vana     - WENO quintic interpolation                     │
 ! │  11-Sep-2020  F. Vana     - SLAVEPP in TL/AD                               │
-! │  01-Apr-2024  Wu Lianghai - NTRAC and NCHEM_FLX (for hamm7 ?)              │
+! │  01-Apr-2024  Wu Lianghai - NCHEM_FLX (for hamm7 ?)                        │
 ! │                                                                            │
 ! ╰────────────────────────────────────────────────────────────────────────────╯
 
@@ -259,7 +259,6 @@ INTEGER(KIND=JPIM) :: NGFL_EXT
 INTEGER(KIND=JPIM) :: NGFL_FORC
 INTEGER(KIND=JPIM) :: NGFL_EZDIAG
 INTEGER(KIND=JPIM) :: NGHG
-INTEGER(KIND=JPIM) :: NTRAC       ! Added for M7
 INTEGER(KIND=JPIM) :: NGHG_ASSIM
 INTEGER(KIND=JPIM) :: NAERO
 INTEGER(KIND=JPIM) :: NACTAERO
@@ -376,8 +375,6 @@ TYPE(TYPE_GFL_COMP),POINTER  :: YQVA        => NULL() ! total humidity variation
 TYPE(TYPE_GFL_COMP),POINTER  :: YGHG(:)     => NULL() ! Greenhouse Gases
 TYPE(TYPE_GFL_COMP),POINTER  :: YCHEM(:)    => NULL() ! Chemistry
 TYPE(TYPE_GFL_COMP),POINTER  :: YAERO(:)    => NULL() ! Aerosols
-
-TYPE(TYPE_GFL_COMP),POINTER  :: YTRAC(:)    => NULL() ! tracers for diagnostics, due to M7
 
 
 TYPE(TYPE_GFL_COMP),POINTER  :: YLRCH4      => NULL() ! CH4 loss rate (instantaneous field)
@@ -503,14 +500,11 @@ TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
 TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
 TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
 
-
-!-->eehol: added these
 ! water and ice cloud variables when using online aerosols
 TYPE(TYPE_GFL_NAML)  :: YCDNC_NL         ! Cloud droplet number concentration
 TYPE(TYPE_GFL_NAML)  :: YICNC_NL         ! Ice crystal number concentration
 TYPE(TYPE_GFL_NAML)  :: YRE_LIQ_NL       ! Effective radius of liquid water droplets
 TYPE(TYPE_GFL_NAML)  :: YRE_ICE_NL       ! Effective radius of ice crystals
-!-->eehol
 
 END TYPE TYPE_GFLD
 

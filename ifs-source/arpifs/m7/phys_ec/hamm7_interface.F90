@@ -538,15 +538,15 @@ ASSOCIATE( &
 
  ASSOCIATE( &
          ! --- YGFL ------------------------------------------------
-         & NACTAERO => YGFL%NACTAERO, NAERO     => YGFL%NAERO,     &
-         & NGHG     => YGFL%NGHG,     NCHEM     => YGFL%NCHEM,     &
-         & ZTRAC    => YGFL%NTRAC,    NDIM      => YGFL%NDIM,      &
-         & YAEROUT  => YGFL%YAEROUT,  YR        => YGFL%YR,        &
-         & YS       => YGFL%YS,       YCHEM     => YGFL%YCHEM,     &
-         & YAERO    => YGFL%YAERO,    YGHG      => YGFL%YGHG,      &
-         & YTRAC    => YGFL%YTRAC,    YAEROCLIM => YGFL%YAEROCLIM, &
-         & YCDNC    => YGFL%YCDNC,    YICNC     => YGFL%YICNC,     &
-         & YRE_LIQ  => YGFL%YRE_LIQ,  YRE_ICE   => YGFL%YRE_ICE,   &
+         & NACTAERO  => YGFL%NACTAERO, NAERO    => YGFL%NAERO,     &
+         & NGHG      => YGFL%NGHG,     NCHEM    => YGFL%NCHEM,     &
+         & NDIM      => YGFL%NDIM,                                 &
+         & YAEROUT   => YGFL%YAEROUT,  YR       => YGFL%YR,        &
+         & YS        => YGFL%YS,       YCHEM    => YGFL%YCHEM,     &
+         & YAERO     => YGFL%YAERO,    YGHG     => YGFL%YGHG,      &
+         & YAEROCLIM => YGFL%YAEROCLIM,                            &
+         & YCDNC     => YGFL%YCDNC,    YICNC    => YGFL%YICNC,     &
+         & YRE_LIQ   => YGFL%YRE_LIQ,  YRE_ICE  => YGFL%YRE_ICE,   &
          !included CDNC, ICNC, liq and ice eff rad
          & NAERO_WVL_DIAG => YGFL%NAERO_WVL_DIAG,                  &
          & LAERCHEM       => YGFL%LAERCHEM,                        &
@@ -676,15 +676,6 @@ DO JEXT=1,NGHG
   DO JK=1,KLEV
     DO JL=KIDIA,KFDIA
       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YGHG(JEXT)%MP9_PH)
-    ENDDO
-  ENDDO
-ENDDO
-
-DO JEXT=1,ZTRAC
-  ITRC=ITRC+1
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-       ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YTRAC(JEXT)%MP9_PH)
     ENDDO
   ENDDO
 ENDDO
