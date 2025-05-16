@@ -161,11 +161,12 @@ ELSE
 
       CASE ("SimChem")
 
-        WRITE(*,*)"SimChem:what need to be initialize here? Lianghai"
+        ! TO BE DONE IN TM5M7_INIT IF NEEDED:
+        !CALL PHOTOLYSIS_INI
 
       CASE DEFAULT
 
-       CALL ABOR1(" NO KNOWN CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
+        CALL ABOR1(" NO KNOWN CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
 
     END SELECT
 

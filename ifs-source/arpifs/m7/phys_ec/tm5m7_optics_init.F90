@@ -342,11 +342,6 @@ CONTAINS
 
   END SUBROUTINE LOAD_TM5M7_OPTICS_DATA_1D
 
-END SUBROUTINE TM5M7_OPTICS_INIT
-
-
-
-
   !--------------------------------------------------------------------------
   !                    TM5                                                  !
   !--------------------------------------------------------------------------
@@ -529,3 +524,5 @@ END SUBROUTINE TM5M7_OPTICS_INIT
 
   IF (LHOOK) CALL DR_HOOK('TM5M7_OPTICS_WAVELEN_INIT',1,ZHOOK_HANDLE)
   END SUBROUTINE TM5M7_OPTICS_WAVELEN_INIT
+
+END SUBROUTINE TM5M7_OPTICS_INIT
