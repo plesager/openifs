@@ -460,7 +460,7 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
              pgrvol(kbdim,klev),         & ! grid box volume for diagnostics [m-3]
              ppbl(kbdim)                   ! Planetary boundary layer top level
 REAL(dp), OPTIONAL :: pforest    (kbdim)   ! forest fraction
-REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,4)
+REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,5)
 
   !
   ! Local variables:
@@ -2361,7 +2361,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   REAL(dp):: ppbl(kbdim)                 ! Planetary boundary layer top level
 
   REAL(dp), OPTIONAL :: pforest(kbdim)   ! forest fraction
-  REAL(dp),OPTIONAL  :: pout_dnuc(kbdim,klev,4)   ! nucleation diagnostics
+  REAL(dp),OPTIONAL  :: pout_dnuc(kbdim,klev,5)   ! nucleation diagnostics
 
   !
   ! Local variables:
@@ -2480,18 +2480,21 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
          
 #else
    !diagnostics:
-   ! 1: NS-mass from nucleatiom
-   ! 2: NS-number from nucleatiom
-   ! 3: original N/s  from H2SO4/H2O nucleatiom
-   ! 4: original N/s from organic nucleatiom
+   ! 1: NS-mass production kg/s from nucleatiom (limited by amount of SO4)
+   ! 2: NS-number production rate #/s from nucleatiom (limited by amount of SO4 vs original #/s)
+   ! 3: original #/s  from H2SO4/H2O nucleatiom
+   ! 4: original #/s from organic nucleatiom
+   ! 5: original #/s sum from organic and vehkamäki nucleation schemes
    pout_dnuc(jl,jk,1) =  &
-   + pa4delt(jl,jk,1)*mw_so4*1.E+03_dp/avo*pdz(jl,jk)
+   + pa4delt(jl,jk,1)*mw_so4*1.E+03_dp/avo*pdz(jl,jk)*zqtmst
    pout_dnuc(jl,jk,2) =  &
-   + panew(jl,jk)*1.E+03_dp
+   + panew(jl,jk)*1.E+06_dp*zqtmst
    pout_dnuc(jl,jk,3) =  &
-   + zsnrate(jl,jk) *1.E+03_dp
+   + zsnrate(jl,jk) *1.E+06_dp
    pout_dnuc(jl,jk,4) =  &
-   + zonrate(jl,jk)*1.E+03_dp
+   + zonrate(jl,jk)*1.E+06_dp
+   pout_dnuc(jl,jk,5) =  (zsnrate(jl,jk) &
+   + zonrate(jl,jk))*1.E+06_dp
 #endif
       END IF
     
