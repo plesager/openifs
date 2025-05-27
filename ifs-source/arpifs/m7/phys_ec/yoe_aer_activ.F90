@@ -205,6 +205,11 @@ CONTAINS
    REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)                    ! liquid droplet effective radius [um]
    REAL(KIND=JPRB) :: ZRE_ICE(KLON,KLEV)                    ! ice crystal effective radius [um]
    REAL(KIND=JPRB) :: ZSMAX(KLON,KLEV)                      ! maximum supersaturation [%]
+   REAL(KIND=JPRB) :: ZNACT_TOT                             ! variables for modewise activated fraction calculations
+   REAL(KIND=JPRB) :: ZNACT_AS(KLON,KLEV)
+   REAL(KIND=JPRB) :: ZNACT_CS(KLON,KLEV)
+   REAL(KIND=JPRB) :: ZNACT_KS(KLON,KLEV)                   ! variables for modewise activated fraction calculations
+   REAL(KIND=JPRB) :: ZFRAC_KS,ZFRAC_AS,ZFRAC_CS            ! variables for modewise activated fraction calculations
 
    !variables for liquid droplet eff rad calculations
    REAL(KIND=JPRB) :: ZQLWC(KLON,KLEV) !tresholded LWC [kg/kg]
@@ -236,7 +241,7 @@ CONTAINS
       & RLMIN=>YDECLDP%RLMIN, RAMIN=>YDECLDP%RAMIN, RTHOMO=>YDECLDP%RTHOMO, RNICE=>YDECLDP%RNICE)
 
    ! Init
-   PFRACN(KIDIA:KFDIA,:,:) = 0._JPRB  ! FIXME
+   PFRACN(KIDIA:KFDIA,:,:) = 0._JPRB
 
    !---air density
    DO JK=1,KLEV
@@ -418,7 +423,44 @@ CONTAINS
       CALL ICE_CLOUD_PROP(KIDIA, KFDIA, KLON, KLEV, PT, ZRHO, PI, PA, PAP, &
                        &  PQSAT, ZSO4BULK, ZBCBULK, ZDUBULK, PGFL, YDMODEL, ZRE_ICE, ZICNC)        
    END IF
-      
+
+
+   !eehol: calculate modewise fraction of activated particles
+   !assume only KS, AS, CS modes to be activated
+   DO JK=1,KLEV
+     DO JL=KIDIA,KFDIA
+       ZNACT_TOT = 1.0E6_JPRB * ZCDNC(JL,JK) / ZRHO(JL,JK) !calculate total number of activated particles in #/kg
+       IF ( ZAERONUM(JL,JK,4) > 1.E-9_JPRB ) THEN
+         ZFRAC_CS = MAX(ZNACT_TOT,0._JPRB) / ZAERONUM(JL,JK,4)
+       ELSE
+         ZFRAC_CS = 0._JPRB
+       ENDIF
+       PFRACN(JL,JK,4) = MAX(0._JPRB,MIN(ZFRAC_CS,1._JPRB)) !threshold between 0 and 1
+       ZNACT_CS(JL,JK) = ZAERONUM(JL,JK,4) * PFRACN(JL,JK,4) !calculate activated number for CS mode
+
+       IF ( ZAERONUM(JL,JK,3) > 1.E-9_JPRB ) THEN
+         ZFRAC_AS = MAX(ZNACT_TOT - ZNACT_CS(JL,JK),0._JPRB) / ZAERONUM(JL,JK,3)
+       ELSE
+         ZFRAC_AS = 0._JPRB
+       ENDIF
+       PFRACN(JL,JK,3) = MAX(0._JPRB,MIN(ZFRAC_AS, 1._JPRB)) !threshold between 0 and 1
+       ZNACT_AS(JL,JK) = ZAERONUM(JL,JK,3) * PFRACN(JL,JK,3) !calculate activated number for AS mode
+
+       IF ( ZAERONUM(JL,JK,2) > 1.E-9_JPRB ) THEN
+         ZFRAC_KS = MAX((ZNACT_TOT - ZNACT_CS(JL,JK) - ZNACT_AS(JL,JK)),0._JPRB) / ZAERONUM(JL,JK,2)
+       ELSE
+         ZFRAC_KS = 0._JPRB
+       ENDIF
+       PFRACN(JL,JK,2) = MAX(0._JPRB,MIN(ZFRAC_KS, 1._JPRB)) !threshold between 0 and 1
+       ZNACT_KS(JL,JK) = ZAERONUM(JL,JK,2) * PFRACN(JL,JK,2) !calculate activated number for KS mode
+
+       PFRACN(JL,JK,2) = MERGE(PFRACN(JL,JK,2),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+       PFRACN(JL,JK,3) = MERGE(PFRACN(JL,JK,3),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+       PFRACN(JL,JK,4) = MERGE(PFRACN(JL,JK,4),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+     END DO
+   END DO
+         
+            
    !eehol: diagnostics:
    !--CDNC
    !PCDNCACT(KIDIA:KFDIA,:) = 1.0E6_JPRB*PGFL(KIDIA:KFDIA,:,YCDNC%MP9_PH) !eehol: output CDNC [#/m3]

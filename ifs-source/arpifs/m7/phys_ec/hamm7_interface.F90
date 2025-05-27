@@ -393,6 +393,9 @@ REAL(KIND=JPRB) :: ZNACT(KLON,KLEV,nclass) !number of activated particles per mo
 REAL(KIND=JPRB) :: ZFRACN(KLON,KLEV,nclass) !fraction of activated particles per mode
 REAL(KIND=JPRB) :: ZCDNCACT(KLON,KLEV)     !number of activated particles [m-3]
 REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)! liquid effective radius
+REAL(KIND=JPRB) :: ZNACT_AS(KLON,KLEV),ZNACT_CS(KLON,KLEV),ZNACT_KS(KLON,KLEV) ! variables for modewise activated fraction calculations
+REAL(KIND=JPRB) :: ZFRAC_KS,ZFRAC_AS,ZFRAC_CS  ! variables for modewise activated fraction calculation
+REAL(KIND=JPRB) :: ZNACT_TOT  ! variables for modewise activated fraction calculation
 ! variables for HAM-M7 wet deposition
 REAL(KIND=JPRB) :: ZXTP1(KLON,KLEV,ntrac)  !updated tracer mass/number mixing ratio
 REAL(KIND=JPRB) :: ZXTP1C(KLON,KLEV,ntrac) !in-cloud tracer mass/number mixing ratio
@@ -1062,7 +1065,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
                     &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                     &  PGFL, YDMODEL, ZCDNCACT, ZICNC, REFFL(1:KLON,1:KLEV,ZKROW), REFFI(1:KLON,1:KLEV,ZKROW), &
                     &  ZSMAXMN, ZM6DRY, ZXTM1, KTRAC, ZSIGMA_W, ZFRACN)
-
+       
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
@@ -1122,7 +1125,11 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
        !<-- End activation for HAM-M7
        !-----------------------------------------------------------------
-
+      
+       ! treshold fraction of activated particles to gridcells with only liquid clouds
+       DO JCLASS = 1,NCLASS
+          ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS) = MERGE(ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS),0._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+       ENDDO
        ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
        ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*RNICE,LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
@@ -1133,7 +1140,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
        PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), ZMIN_CDNC*1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
        PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), 0.027_JPRB) ! no conversion needed: already in #/cm3, just max of default value (RNICE in sucldp.F90) and icnc
        !--> End store CDNC and ICNC
-       
+
        !-----------------------------------------------------------------
        !--> Calculation for effective radii and put to PGFL fields
        
@@ -1166,7 +1173,9 @@ SELECT CASE (TRIM(AERO_SCHEME))
        !-----------------------------------------------------------------
        
     ELSE !eehol: default values if neither activation is used
-       
+      
+       ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !init
+
        DO JL = KIDIA,KFDIA !eehol: add CDNC over land and over ocean as default values
           IF ( PLSM(JL) < 0.5_JPRB ) THEN !over ocean
              ZCDNCACT(JL,1:KLEV) = RCCNSEA*1.0E6_JPRB !from 1/cm3 to 1/m3
@@ -1175,6 +1184,41 @@ SELECT CASE (TRIM(AERO_SCHEME))
           END IF
        END DO
        
+       !calculate modewise fraction of activated particles
+       !assume only KS, AS, CS modes to be activated
+       DO JK=1,KLEV
+          DO JL=KIDIA,KFDIA
+            ZNACT_TOT = ZCDNCACT(JL,JK) / ZRHO(JL,JK) !calculate total number of activated particles in #/kg
+            IF ( ZXTM1(JL,JK,SIZECLASS(4)%IDT_NO) > 1.E-9_JPRB ) THEN
+              ZFRAC_CS = MAX(ZNACT_TOT,0._JPRB) / ZXTM1(JL,JK,SIZECLASS(4)%IDT_NO)
+            ELSE
+              ZFRAC_CS = 0._JPRB
+            ENDIF
+            ZFRACN(JL,JK,4) = MAX(0._JPRB,MIN(ZFRAC_CS,1._JPRB)) !threshold between 0 and 1
+            ZNACT_CS(JL,JK) = ZXTM1(JL,JK,SIZECLASS(4)%IDT_NO) * ZFRACN(JL,JK,4) !calculate activated number for CS mode
+
+            IF ( ZXTM1(JL,JK,SIZECLASS(3)%IDT_NO) > 1.E-9_JPRB ) THEN
+              ZFRAC_AS = MAX(ZNACT_TOT - ZNACT_CS(JL,JK),0._JPRB) / ZXTM1(JL,JK,SIZECLASS(3)%IDT_NO)
+            ELSE
+              ZFRAC_AS = 0._JPRB
+            ENDIF
+            ZFRACN(JL,JK,3) = MAX(0._JPRB,MIN(ZFRAC_AS, 1._JPRB)) !threshold between 0 and 1
+            ZNACT_AS(JL,JK) = ZXTM1(JL,JK,SIZECLASS(3)%IDT_NO) * ZFRACN(JL,JK,3) !calculate activated number for AS mode
+
+            IF ( ZXTM1(JL,JK,SIZECLASS(2)%IDT_NO) > 1.E-9_JPRB ) THEN
+              ZFRAC_KS = MAX((ZNACT_TOT - ZNACT_CS(JL,JK) - ZNACT_AS(JL,JK)),0._JPRB) / ZXTM1(JL,JK,SIZECLASS(2)%IDT_NO)
+            ELSE
+              ZFRAC_KS = 0._JPRB
+            ENDIF
+            ZFRACN(JL,JK,2) = MAX(0._JPRB,MIN(ZFRAC_KS, 1._JPRB)) !threshold between 0 and 1
+            ZNACT_KS(JL,JK) = ZXTM1(JL,JK,SIZECLASS(2)%IDT_NO) * ZFRACN(JL,JK,2) !calculate activated number for KS mode
+
+            ZFRACN(JL,JK,2) = MERGE(ZFRACN(JL,JK,2),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+            ZFRACN(JL,JK,3) = MERGE(ZFRACN(JL,JK,3),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+            ZFRACN(JL,JK,4) = MERGE(ZFRACN(JL,JK,4),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+          END DO
+       END DO
+
        ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
        ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*RNICE,LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
