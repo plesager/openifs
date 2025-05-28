@@ -188,7 +188,7 @@ USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface ca
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
 
-USE YOE_AER_ACTIV,           ONLY: AER_ACTIV !eehol use M&N activation scheme
+USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
 
 ! [RCHG -> non used] USE MO_SPECIES,              ONLY: speclist !SO2 wetdep for simple sulfur scheme
 ! [RCHG -> non used] USE mo_ham_species,          ONLY: id_so2 !SO2 wetdep for simple sulfur scheme
@@ -576,12 +576,12 @@ ASSOCIATE( &
          & LAERVISI       => YRERAD%LAERVISI,                      &
          & NTSW           => YRERAD%NTSW,                          &
          & RNS            => YRERAD%RNS,                           &
-         & RSIGAIR        => YRERAD%RSIGAIR,                       & !!! YAERCLIM is now become YAEROCLIM
+         & RSIGAIR        => YRERAD%RSIGAIR,                       &
          & NRADFR         => YRERAD%NRADFR,                        & !FREQUENCY OF FULL RADIATION COMPUTATIONS
          & NAEROOPT       => YRERAD%NAEROOPT,                      &
-         & NCLOUDACT      => YRERAD%NCLOUDACT,                     & !eehol: integer to switch activation scheme (0=default,1=Morales&Nenes, 2=Abdul-Razzak&Ghan)
-         & RCCNSEA        => YRERAD%RCCNSEA,                       & !eehol: default ccn value over sea
-         & RCCNLND        => YRERAD%RCCNLND,                       & !eehol: default ccn value over land
+         & NCLOUDACT      => YRERAD%NCLOUDACT,                     & ! integer to switch activation scheme (0=default,1=Morales&Nenes, 2=Abdul-Razzak&Ghan)
+         & RCCNSEA        => YRERAD%RCCNSEA,                       & ! default ccn value over sea
+         & RCCNLND        => YRERAD%RCCNLND,                       & ! default ccn value over land
          ! --- OTHERS ----------------------------------------------
          & YDAERM7        => YDPHYAER%YREAEROPT,                   & ! use this to transfer AOD, SSA and ASY to rad scheme
          & NWLID          => YREAERLID%NWLID,                      &
@@ -832,8 +832,8 @@ END SELECT
 !calculate ICNC
 ZICNC(KIDIA:KFDIA,1:KLEV) = 0._JPRB
 ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
-!Put tracer mixing ratios and tendencies to from OIFS to HAM
-!initialize to zero
+
+! Initialize "from-OIFS-to-HAM" tracer mixing ratios and tendencies
 ZXTM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTE(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTEM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
@@ -966,7 +966,7 @@ ENDDO
     ENDDO
     ! End allocate variables for aerosol processes
 
-    ZWPDF(KIDIA:KFDIA,1:KLEV,:) = 0.0_JPRB !eehol: init zwpdf to zero
+    ZWPDF(KIDIA:KFDIA,1:KLEV,:) = 0.0_JPRB
     
     !-----------------------------------------------------------------
     ! Submodel interface call (HAM aerosol microphysics)
@@ -1336,16 +1336,13 @@ ENDDO
           END DO
         END DO
 
-        !ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = ZMRATEPS_str(KIDIA:KFDIA,1:KLEV) !?
         ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = PSP(KIDIA:KFDIA,1:KLEV) !?
 
         ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
 
-        ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
-        ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud ice water content (modified in wetdep)
-
-        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB  ! temporary variable for cloud ice water content (modified in wetdep)
-
+        ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud water content (modified in wetdep)
+        ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud ice water content (modified in wetdep)
+        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB               ! temporary variable for cloud ice water content (modified in wetdep)
         ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
 
         IF (TRIM(CHEM_SCHEME)=="SimChem")THEN

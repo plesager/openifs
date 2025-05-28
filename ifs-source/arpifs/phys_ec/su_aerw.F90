@@ -412,7 +412,7 @@ ELSE
   LUVINDX  =.FALSE.
   LAERNITRATE = .FALSE.
   LDRYDEPVEL_DYN=.FALSE.
-  
+
   REPSCAER=1.E-20_JPRB ! minimum value for AOD
 
   !-- minimum oceanic production of DMS
