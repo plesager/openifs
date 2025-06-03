@@ -214,7 +214,6 @@ REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 #include "surf_inq.h"
 
 #include "tm5m7_src_ss.intfb.h"
-!#include "tm5m7_src_ss_lhw.intfb.h"
 #include "tm5m7_src_dust.intfb.h"
 !#include "satur.intfb.h"
 !#include "aer_volce.intfb.h"

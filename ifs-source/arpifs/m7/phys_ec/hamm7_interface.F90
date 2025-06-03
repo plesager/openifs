@@ -443,8 +443,8 @@ REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON)
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
-INTEGER,parameter::n_nuc_diag=5
-REAL(KIND=JPRB) :: ZOUT(KLON,ntrac),ZOUT2(KLON,14),zout3(KLON,KLEV,2*(naerocomp+nclass)),zout_dnuc(KLON,KLEV,n_nuc_diag) 
+INTEGER, PARAMETER :: N_NUC_DIAG=5
+REAL(KIND=JPRB) :: ZOUT(KLON,NTRAC), ZOUT2(KLON,14), ZOUT3(KLON,KLEV,2*(NAEROCOMP+NCLASS)), ZOUT_DNUC(KLON,KLEV,N_NUC_DIAG) 
 REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
 REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
@@ -1995,7 +1995,8 @@ ENDDO
 !    ENDDO
 
 
-! RCHG -> TODO explain here LIFSMIN and LIFSTRAJ ---
+! LIFSMIN (T if running minimisation) and LIFSTRAJ (T if running high
+! resolution trajectory integration) are both assimilation flags
 IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! input for HAM-M7
   PGFL(KIDIA:KFDIA,1,YAEROUT(1)%MP)=PAOD(KIDIA:KFDIA,10) ! 533nm??
