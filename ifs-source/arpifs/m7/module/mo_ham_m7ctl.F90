@@ -87,13 +87,13 @@ MODULE mo_ham_m7ctl
                                     ! nwater = 0 Jacobson et al., JGR 1996
                                     !        = 1 Kappa-Koehler theory based approach (Petters and Kreidenweis, ACP 2007)
   
-  INTEGER :: nsnucl     = 1!eehol: nucleation off for M7 originally: 2         ! Choice of the H2SO4/H2O nucleation scheme:
+  INTEGER :: nsnucl     = 1         ! Choice of the H2SO4/H2O nucleation scheme:
                                     ! 
                                     ! nsnucl = 0 off
                                     !        = 1 Vehkamaeki et al., JGR 2002
                                     !        = 2 Kazil and Lovejoy, ACP 2007
   
-  INTEGER :: nonucl     = 1!eehol: organic nucleation off for M7 originally 1         ! Choice of the organic nucleation scheme:
+  INTEGER :: nonucl     = 1         ! Choice of the organic nucleation scheme:
                                     ! 
                                     ! nonucl = 0 off
                                     !        = 1 Activation nucleation, Kulmala et al., ACP 2006
@@ -231,8 +231,8 @@ MODULE mo_ham_m7ctl
   !
   REAL(dp), PARAMETER :: dh2so4  = 1.841_dp,      & ! Density          H2SO4  [g cm-3]
                      ddust   = 2.650_dp,      & ! Density          du     [g cm-3]
-                     dbc     = 2._dp,         & ! Density          bc     [g cm-3]
-                     doc     = 2._dp,         & ! Density          oc     [g cm-3]
+                     dbc     = 1.8_dp,        & ! Density          bc     [g cm-3]
+                     doc     = 1.3_dp,        & ! Density          oc     [g cm-3]
                      dnacl   = 2.165_dp,      & ! Density          NaCl   [g cm-3]
                      dna2so4 = 2.68_dp,       & ! Density          Na2SO4 [g cm-3]
                      dnahso4 = 2.435_dp,      & ! Density          NaHSO4 [g cm-3]
