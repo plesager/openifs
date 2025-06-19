@@ -1120,17 +1120,14 @@ IF (LUSEKF_REF) CALL UPDATE_FIELDS(YDPHY2, 2,KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, 
 !*         5a.     get the aerosols to pass down to the cloud schemes
 !                  ------------------------------------------------------
 
-IF (NAERCLD > 0 .OR. NCLOUDACT > 0) THEN
-  SELECT CASE (TRIM(AERO_SCHEME))
-  CASE ("hamm7")
+IF (NAERCLD > 0) THEN
+  IF ( NACTAERO /= 0 .AND. TRIM(AERO_SCHEME) == "hamm7") THEN
     ! To avoid modification within cloud_layer.F90
     AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH) ! liquid cloud condensation nuclei
-    AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH) ! ice number concentration (cf. CCN) 
-  CASE ("aer")
+    AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH) ! ice number concentration (cf. CCN)
+  ELSE
     CALL AER_CLOUD_LAYER(YDMODEL,KDIM,PAUX,STATE_T0,PDIAG,GEMSL,AUXL)
-  CASE DEFAULT
-    CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME) )
-  END SELECT
+  ENDIF
 ELSE
   ! routine is by-passed
   AUXL%ZLCRIT_AER(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
