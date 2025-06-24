@@ -13,10 +13,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW,                              &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
- !eehol: added here vertical velocity, CCN over land, CCN over ocean
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU, PBLH)
- !, PTSO2, PTSO4, PTSO4_AQ, PFSO2,PFSO4,PFSO4_AQ&
- !  u-wind, v-wind, low veg. cover, high veg. cover, sine of latitude
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 30-APR-2024) │
@@ -169,9 +166,6 @@ USE YOE_AERODIAG, ONLY: JPAERO_WVL_AOD, JPAERO_WVL_AODABS, JPAERO_WVL_AODFM,   &
                       & JPAERO_WVL_SSA, JPAERO_WVL_ASSIMETRY
 USE YOMLUN,       ONLY: NULOUT
 
-! [RCHG -> var non used ]  USE YOMCST,       ONLY: RMSO2, RMSO4, RMD, RNAVO
-! [RCHG -> var non used ]  USE YOESRTCOP,    ONLY: RSASWA, RSASWB, RSFUA0, RSFUA1
-
 ! HAM-M7
 USE MO_HAM,                  ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
 USE OIFS_TO_HAM,             ONLY: ind_oifs_ham
@@ -190,13 +184,10 @@ USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
 
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
 
-! [RCHG -> non used] USE MO_SPECIES,              ONLY: speclist !SO2 wetdep for simple sulfur scheme
-! [RCHG -> non used] USE mo_ham_species,          ONLY: id_so2 !SO2 wetdep for simple sulfur scheme
-! [RCHG -> non used] USE YOMMP0,                  ONLY : MYPROC, NPROC
- 
 USE TM5M7_OPTICS_DATA,       ONLY : NWDEP, NASWBAND, ASWBAND !,WDEP, AER_TAU, AER_SSA,AER_ASYM,AER_TAU_LW
 USE TM5_PHOTOLYSIS,          ONLY : NBANDS_TROP, WAV_GRID, WAV_GRIDA
 USE TM5M7_EMIS_DATA,         ONLY : VKARMAN ! von karman constant for dry deposition
+USE TM5_CHEM_MODULE,         ONLY : NCHEM2AER
 !-----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -223,7 +214,7 @@ REAL(KIND=JPRB),INTENT(IN)    :: PGELAT(KLON)    , PGELAM(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PFRTI(KLON,KTILES)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERWS(KLON), PAERGUST(KLON), PAERUST(KLON), PAERMAP(KLON,5)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERSRC(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
-REAL(KIND=JPRB),INTENT(IN)    :: PCHEM2AER(KLON,KLEV,6)
+REAL(KIND=JPRB),INTENT(IN)    :: PCHEM2AER(KLON,KLEV,NCHEM2AER)
 REAL(KIND=JPRB),INTENT(IN)    :: PAERFLX(KLON,12,9), PAERLIF(KLON,9), PCLAERS(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PLSM(KLON)  , PSNS(KLON)    , PWND(KLON)   , PWS1(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PTSPHY
@@ -262,9 +253,6 @@ REAL(KIND=JPRB),INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM), P
 ! Simple sulfur scheme variables:
 REAL(KIND=JPRB),INTENT(INOUT)   :: PSO2DD(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
-
-!REAL(KIND=JPRB), INTENT(INOUT) :: PFSO2(KLON)  , PFSO4(KLON), PFSO4_AQ(KLON)
-!REAL(KIND=JPRB), INTENT(INOUT) :: PTSO2(KLON, KLEV)  , PTSO4(KLON, KLEV), PTSO4_AQ(KLON, KLEV)
 
 
 !*   0.5    LOCAL VARIABLES
@@ -328,36 +316,7 @@ LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
 
-! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: j_yaerom, JMMD, JSCAV, JSW, JSPEC
-! [RCHG -> var. non used ] INTEGER(KIND=JPIM) :: IAER, IEX3D, IEX3DP
-! [RCHG -> vas. non used ] INTEGER(KIND=JPIM) :: IEXTR2,ISHIFT1, IKPAER, IKP, ISTO, IWHERE
-! [RCHG -> var. non used ] INTEGER(KIND=JPIM) :: NSO4SCHEME
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZLAT, ZLON
-! [RCHG -> non used ] REAL(KIND=JPRB) :: BETAB(KLON,KLEV), ZBETAI(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZCLDWAT(KLON,KLEV), ZDUM(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZBCPHI(KLON,KLEV), ZBCPHO(KLON,KLEV) 
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZOMPHI(KLON,KLEV) , ZOMPHO(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTBCPHI(KLON,KLEV),ZTBCPHO(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTOMPHI(KLON,KLEV), ZTOMPHO(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZITBCPHO(KLON,KLEV),ZITOMPHO(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZAIRDM(KLON), ZRHCL(KLON,KLEV)   
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTAERI(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZAERWET(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
-! REAL(KIND=JPRB) :: ZAERNL(KLON,KLEV,NMOD)
-! REAL(KIND=JPRB) :: ZAERML(KLON,KLEV,NAERMOD)
-! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: JMOD
-! [RCHG -> var non used ] INTEGER(KIND=JPIM) :: JAERCLASS
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTENV(KLON)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZGDT
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZVISICL, ZVISIPR, ZVISCAE, ZVISPAE 
-!REAL(KIND=JPRB) :: PAER_TAU(KLON,KLEV,14), PAER_SSA(KLON,KLEV,14),PAER_ASYM(KLON,KLEV,14)
-!REAL(KIND=JPRB), ALLOCATABLE ::    ZAERSRC(:,:),  ZAERNGT(:,:) , ZAERSCC(:,:)  
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZQRWP, ZQSWP, ZQIWP, ZRANGE, ZRELRA, ZSIGAIR, ZSNOICE
-! [RCHG -> non used ] REAL(KIND=JPRB) :: Z1CLD, ZCFLIRA, ZCFSNIC, ZDENSVIS, ZDESIC, ZCLWAT, ZLIQRAI, ZNS
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZVISCON, ZVISRAY
-! [RCHG -> non used ] REAL(KIND=JPRB) :: pmrateps(KLON,KLEV),pmrater(KLON,KLEV),pfevapr(KLON,KLEV)
-! [RCHG -> non used ] REAL(KIND=JPRB) :: pfsubls(KLON,KLEV),pmsnowacl(KLON,KLEV)
-! [RCHG -> non used ]    INTEGER(KIND=JPIM) ::KTOP
+!REAL(KIND=JPRB), ALLOCATABLE ::    ZAERSRC(:,:),  ZAERSCC(:,:)  
 ! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZAEROUT1(KLON,KLEV),ZAEROUT2(KLON,KLEV),ZAEROUT3(KLON,KLEV),ZAEROUT4(KLON,KLEV),ZAEROUT5(KLON,KLEV)
 
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
@@ -441,28 +400,19 @@ LOGICAL         :: ZLOLAND(KLON) !logical land mask
 REAL(KIND=JPRB) :: ZXTEMS(KLON,ntrac) !surface emissions modified by dry deposition
 REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON) !rough. len. wat., wat. frac., snow cov. frac., wet skin frac., veg. ratio
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
-REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM drydep (updated with tend)
+REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,NTRAC) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
 INTEGER, PARAMETER :: N_NUC_DIAG=5
-REAL(KIND=JPRB) :: ZOUT(KLON,NTRAC), ZOUT2(KLON,14), ZOUT3(KLON,KLEV,2*(NAEROCOMP+NCLASS)), ZOUT_DNUC(KLON,KLEV,N_NUC_DIAG) 
+REAL(KIND=JPRB) :: ZOUT3(KLON,KLEV,2*(NAEROCOMP+NCLASS)), ZOUT_DNUC(KLON,KLEV,N_NUC_DIAG)  
 REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
 REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB) :: SEDOUT_2D(KLON,KTRAC)
 
-REAL(KIND=JPRB) :: DDEPOUT_2D(KLON,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT_2D(KLON,KTRAC)
-
 REAL(KIND=JPRB) :: WDEPOUT_IC_2D(KLON,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT_BC_2D(KLON,KTRAC)
 
-REAL(KIND=JPRB) :: M7TEND_OUT(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: M7TEND_IN(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: ZAVERAGEP(KLON,KLEV,(NCLASS+NAEROCOMP))
-REAL(KIND=JPRB) :: ZM7KAPPA(KLON,KLEV,(NCLASS+NAEROCOMP))
-REAL(KIND=JPRB) :: ZH2SO4CS(KLON,KLEV,(NCLASS+NAEROCOMP))
-REAL(KIND=JPRB) :: ZM7PRODCOND(KLON,KLEV,(NCLASS+NAEROCOMP))
-REAL(KIND=JPRB) :: ZVDA(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZSEDIFLUX(KLON,KLEV,NTRAC)
 REAL(KIND=JPRB) :: ZSEDIFLUXSURF(KLON,NTRAC)  
 REAL(KIND=JPRB) :: ZDDEPFLUX(KLON,NTRAC)
@@ -476,20 +426,9 @@ INTEGER(KIND=JPIM) :: INWAVL, ITWAVL(20)
 REAL(KIND=JPRB)    :: PRS1D(KLON,KLEV)
 INTEGER(KIND=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
 
-! [RCHG -> non used ] REAL(KIND=JPRB) :: ZTENCI(KLON,KLEV,KTRAC) !for OIFS tendencies
-! [RCHG -> non used ]  INTEGER(kind=JPIM)::ZISO4 ! temporary tracer index of gas-phase SO4 (retrieved from chemistry module)
-! [RCHG -> non used ] REAL(KIND=JPRB):: zza(KLON,klev)
-! [RCHG -> non used ]  REAL(KIND=JPRB)::zhenry_so2(2),zheneff(KLON,klev),ze3(KLON,klev), zqtp1(KLON,KLEV)
-! [RCHG -> non used ] INTEGER(KIND=JPIM) :: IWHAT 
-! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST1(KLON,KLEV), TEST2(KLON,KLEV)
-! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST3(KLON,KLEV), TEST4(KLON,KLEV)
-! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST5(KLON,KLEV), TEST6(KLON,KLEV)
-! [RCHG -> non used]  REAL(KIND=JPRB) :: TEST7(KLON,KLEV), TEST8(KLON,KLEV)
-
 REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND), PASY(KLON,NASWBAND),PFAOD(KLON,NASWBAND)
 REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
 
-REAL(KIND=JPRB) :: ZCHEM2AER(KLON,KLEV,6) ! to overwrite PCHEM2AER (or we could set the latter to inout intent)
 ! Boundary layer height index calculation
 REAL(KIND=JPRB) :: ZBLHIDX(KLON)   ! index
 LOGICAL         :: LBLHFOUND(KLON) ! logical if boundary layer height is found  
@@ -508,7 +447,6 @@ REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_
 
 #include "abor1.intfb.h"
 #include "surf_inq.h"
-#include "aer_so2so4_v2.intfb.h"
 #include "satur.intfb.h"
 #include "aer_negat.intfb.h"
 #include "tm5m7_optics_aop_get.intfb.h"
@@ -516,7 +454,6 @@ REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_
 #include "chem_inext.intfb.h"
 #include "m7_simple_sulfur_drydep.intfb.h"
 #include "ice_effective_radius.intfb.h"
-!#include "m7.intfb.h"
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('HAMM7_INTERFACE',0,ZHOOK_HANDLE)
@@ -625,8 +562,6 @@ ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 !ZAEROUT4(KIDIA:KFDIA,:) =0._JPRB
 !ZAEROUT5(KIDIA:KFDIA,:) =0._JPRB
 
-ZOUT(KIDIA:KFDIA,:)    = 0._JPRB
-ZOUT2(KIDIA:KFDIA,:)   = 0._JPRB
 ZOUT3(KIDIA:KFDIA,:,:) = 0._JPRB
 ZOUT_dnuc(KIDIA:KFDIA,:,:) = 0._JPRB
 ! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
@@ -634,8 +569,6 @@ ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
 ZXTEMS(KIDIA:KFDIA,:) = 0._JPRB ! surface emissions as zero for input
 ZXTMD1(KIDIA:KFDIA,:,:) = 0._JPRB 
 
-M7TEND_IN(KIDIA:KFDIA,:,:)   = 0._JPRB ! unused 2024-07-11
-M7TEND_OUT(KIDIA:KFDIA,:,:)  = 0._JPRB ! unused 2024-07-11
 SEDOUT(KIDIA:KFDIA,:,:)      = 0._JPRB
 DDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
 WDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
@@ -643,25 +576,21 @@ ZSEDIFLUX(KIDIA:KFDIA,:,:)   = 0._JPRB
 ZSEDIFLUXSURF(KIDIA:KFDIA,:) = 0._JPRB
 ZDDEPFLUX(KIDIA:KFDIA,:)     = 0._JPRB
 ZDDEPFLUX_SO2(KIDIA:KFDIA)   = 0._JPRB
-ZVDA(KIDIA:KFDIA,:)          = 0._JPRB ! unused 2024-07-11
 SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
-DDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB ! unused 2024-07-11
 WDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB
 WDEPOUT_IC_2D(KIDIA:KFDIA,:) = 0._JPRB
 WDEPOUT_BC_2D(KIDIA:KFDIA,:) = 0._JPRB
+ZMRATEPR_cov(KIDIA:KFDIA,:) = 0._JPRB
+ZMRATEPS_cov(KIDIA:KFDIA,:) = 0._JPRB
+ZFEVAPR_cov(KIDIA:KFDIA,:) = 0._JPRB ! 
+ZFSUBLS_cov(KIDIA:KFDIA,:) = 0._JPRB
+ZTAERO(KIDIA:KFDIA,:,:)    = 0._JPRB
 
-ZAVERAGEP(KIDIA:KFDIA,:,:)   = 0.0_JPRB ! unused 2024-07-11
-ZM7KAPPA(KIDIA:KFDIA,:,:)    = 0.0_JPRB ! unused 2024-07-11
-ZH2SO4CS(KIDIA:KFDIA,:,:)    = 0.0_JPRB ! unused 2024-07-11
-ZM7PRODCOND(KIDIA:KFDIA,:,:) = 0.0_JPRB ! unused 2024-07-11
+ZCDNCACT(KIDIA:KFDIA,:) = 0._JPRB     !number of activated particles [m-3]
+ZCEN(KIDIA:KFDIA,:,:)   = 0._JPRB
 
-ZTAERO(KIDIA:KFDIA,:,:)      = 0._JPRB
-
-ZCEN(KIDIA:KFDIA,:,:) = 0._JPRB
-
+ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !fraction of activated particles per mode
 !ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
-
-ZCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)=PCHEM2AER(KIDIA:KFDIA,1:KLEV,1:6)
 
 ZRG=1/RG
 
@@ -733,8 +662,6 @@ ZM6RP(KIDIA:KFDIA,:,:)  = 0.0_JPRB
 ZM6DRY(KIDIA:KFDIA,:,:) = 0.0_JPRB
 ZRHOP(KIDIA:KFDIA,:,:)  = 0.0_JPRB
 ZWW(KIDIA:KFDIA,:,:)    = 0.0_JPRB
-!ZAERML(KIDIA:KFDIA,:,:)=0.0_JPRB
-!ZAERNL(KIDIA:KFDIA,:,:)=0.0_JPRB
 
 IF (LCHEM_DIA) THEN
   ZTAERO0(KIDIA:KFDIA,1:KLEV,1:NACTAERO) =  ZTAEROK(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
@@ -800,7 +727,7 @@ ENDDO
 
 !THIS-IS-NEVER-USED   ! TB apparently unnecessary in current implementation, but ISSO4_C still needed for chem_inext in the code.
 !THIS-IS-NEVER-USED   ! needs to be reviewed if it can be removed. 
-!THIS-IS-NEVER-USED   IF(LAERCHEM .AND. NCHEM>0 .AND. TRIM(CHEM_SCHEME)=="tm5") THEN
+!THIS-IS-NEVER-USED   IF (TRIM(CHEM_SCHEME)=="tm5") THEN
 !THIS-IS-NEVER-USED     DO JT=1,NCHEM
 !THIS-IS-NEVER-USED       IF(TRIM(YCHEM(JT)%CNAME)== 'SO4' ) THEN
 !THIS-IS-NEVER-USED         ISSO4_C=KCHEM(JT)
@@ -808,7 +735,7 @@ ENDDO
 !THIS-IS-NEVER-USED       ENDIF
 !THIS-IS-NEVER-USED     ENDDO
 !THIS-IS-NEVER-USED     ZSO4G(KIDIA:KFDIA,1:KLEV)=ZCEN(KIDIA:KFDIA,1:KLEV,ISSO4_C)
-!THIS-IS-NEVER-USED   ELSE IF(LAERCHEM .AND. NCHEM>0 .AND. TRIM(CHEM_SCHEME)=="SimChem") THEN
+!THIS-IS-NEVER-USED   ELSE IF (TRIM(CHEM_SCHEME)=="SimChem") THEN
 !THIS-IS-NEVER-USED     ZSO4G(KIDIA:KFDIA,1:KLEV)=0._JPRB
 !THIS-IS-NEVER-USED   ELSE
 !THIS-IS-NEVER-USED     CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) ) 
@@ -861,11 +788,7 @@ DO JMASS=1,naerocomp
       
       !ADD SO4 from wet chemistry to tendencies
       if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
-        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,2)
-      end if
-
-      if(trim(YAERO(JO)%CNAME)=='SO4') then   
-        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+ZCHEM2AER(JL,JK,1)
+        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+PCHEM2AER(JL,JK,2)!!! need to be verrified, Lianghai
       end if
       !if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4') then!!! add SO4 into tendency, ugly loop for now,Lianghai
       !  ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,1)
@@ -875,42 +798,42 @@ DO JMASS=1,naerocomp
   END DO
 END DO
 
-!!gas
-!DO JGAS=1,subm_ngasspec
-!  JO=ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
-!  JH=ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
-!          !WRITE(*,*)"JO",JO
-!          !WRITE(*,*)"JH",JH
-!          !WRITE(*,*)"YCHEM(JO)%CNAME",YCHEM(JO)%CNAME
-!  DO JK=1,KLEV
-!    DO JL=KIDIA,KFDIA
-!      IF (TRIM(CHEM_SCHEME)=="tm5") THEN
-!        ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
-!        IF(TRIM(YCHEM(JO)%CNAME)=='SO4')THEN ! Add SO4 from wet chemistry to tendencies
-!          ZXTTE(JL,JK,JH) = ZCHEM2AER(JL,JK,1)
-!        ELSE
-!          ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
-!        END IF
-!      ELSE IF (TRIM(CHEM_SCHEME)=="SimChem") THEN
-!        ZXTM1(JL,JK,JH)   = ZCEN(JL,JK,KAERO(JO))
-!        IF (TRIM(YAERO(JO)%CNAME)=='SO4')THEN
-!          ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
-!          !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
-!        END IF
-!        !IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
-!        !  ZXTTE(JL,JK,JH)   = PTENC(JL,JK,KAERO(JO))
-!        !  ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))          
-!        !ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
-!        !  ZXTTE(JL,JK,JH)   = ZCHEM2AER(JL,JK,1)! + PTENC(JL,JK,KAERO(JO)) 
-!        !  !ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
-!        !END IF
-!      ELSE
-!          CALL ABOR1(" M7: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
-!      END IF
-!    END DO
-!  END DO
-!END DO
-
+!gas
+DO JGAS=1,subm_ngasspec
+  DO JK=1,KLEV
+    DO JL=KIDIA,KFDIA
+      JO = ind_oifs_ham%ind_gas_OIFS(JGAS) ! JO -> index context OIFS
+      JH = ind_oifs_ham%ind_gas_HAM(JGAS)  ! JH -> index context HAM
+      
+      ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
+      ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
+      
+      !IF(TRIM(YCHEM(JO)%CNAME)=='H2SO4')THEN
+      !   ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KCHEM(JO))
+      !   !ZSO4_PROD(JL,JK) = PCHEM2AER(JL,JK,1)*time_step_len!PTENC(JL,JK,KCHEM(ind_gas_OIFS(JGAS)))*time_step_len
+      !   !ZSO4_PROD_TEST(JL,JK) = PTENC(JL,JK,KCHEM(JO))*time_step_len
+      !ELSE
+      !   ZXTTE(JL,JK,JH) = PTENC(JL,JK,KCHEM(JO))
+      !END IF
+      
+      !add for diagnostics
+      !ZSO4_PROD(JL,JK) = PTENC(JL,JK,KCHEM(JO))*time_step_len
+      !ZSO4_CONC(JL,JK) = ZCEN(JL,JK,KCHEM(JO)) 
+      !         ELSE !simple sulfur scheme
+      !            IF(TRIM(YAERO(JO)%CNAME)=='SO2')THEN
+      !               ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KAERO(JO))
+      !               ! 
+      !               ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
+      !               ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
+      !
+      !            ELSE IF (TRIM(YAERO(JO)%CNAME)=='SO4_gas')THEN
+      !               ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KAERO(JO))
+      !               ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
+      !               ZXTTEM1(JL,JK,JH) = PTENC(JL,JK,KAERO(JO)) 
+      !            END IF
+    END DO
+  END DO
+END DO
 
 ! RCHG -> This will produce segmentation fault if CDNC are not in the namelist 
 !         we need to test these things and do a CALL ABORT1() 
@@ -939,7 +862,7 @@ DO JL=KIDIA,KFDIA
   ENDDO
 ENDDO
  
-! --> calling the correct microphysics scheme
+! --> calling the microphysics scheme
  
 !THIS-IS-NOT-NEEDED   SELECT CASE (TRIM(AERO_SCHEME))
 !THIS-IS-NOT-NEEDED   
@@ -1346,7 +1269,10 @@ ENDDO
         ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
 
         IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
-          CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,ZXTM1,ZRHO,ZLP,ZLFRAC_SO2)
+          ! We need to revisit this subroutine, it can crash. Commented out for now.
+          ! Moreover, from the perspective of aligning SimChem and TM5 schemes, 
+          !  this step should be (or probably has already been) handled on the chemistry side.
+          !LHW CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,ZXTM1,ZRHO,ZLP,ZLFRAC_SO2)
         END IF
 
         !Double call to wet deposition. One for convective case and one for stratiform case.
@@ -1372,6 +1298,7 @@ ENDDO
         LSTRAT = .FALSE. !False for convective case
         IF (.NOT. LSTRAT) THEN
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
+                
 
           CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = FALSE for conv. case
                   ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
@@ -1467,14 +1394,14 @@ ENDDO
     IF (LAERSEDIM) THEN
       IF ( ANY(trlist%ti(:)%nsedi > 0) ) THEN
 
-        ZTENCIH(KIDIA:KFDIA,1:KLEV,1:ntrac)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:ntrac)     
+        ZTENCIH(KIDIA:KFDIA,1:KLEV,1:NTRAC)=ZXTTE(KIDIA:KFDIA,1:KLEV,1:NTRAC)
 
         CALL SEDI_INTERFACE(KLON, KFDIA, KLEV, ZKROW,   &
              PTP, ZQP, PRSF1, PRS1, & ! temperature, specific humidity, pressure at full level, pressure at half level
              ZM6RP, ZRHOP, & ! mean mode actual radius [m], mean mode particle density [kg m-3]
              ZXTM1, ZXTTE, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
 
-        SEDOUT(KIDIA:KFDIA, 1:KLEV,:)=(ZTENCIH(KIDIA:KFDIA, 1:KLEV,:)-ZXTTE(KIDIA:KFDIA, 1:KLEV,:))
+        SEDOUT(KIDIA:KFDIA, 1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA, 1:KLEV,1:NTRAC) - ZXTTE(KIDIA:KFDIA, 1:KLEV,1:NTRAC)
         DO JK=1,KLEV
           DO JCLASS=1,NCLASS
             SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS)))=SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))) + ZSEDIFLUX(KIDIA:KFDIA, JK,ind_oifs_ham%ind_class_HAM(JCLASS))
@@ -1575,12 +1502,17 @@ ENDDO
             & ZAZ0L, ZAZ0W, ZAZ0I, ZCDNL, ZCDNW, ZCDNI, ZDDEPFLUX, ZVDEP)     !ZCDNL and ZCDNW used for ustar and aerodyn. resist.
            
         IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
-          CALL M7_SIMPLE_SULFUR_DRYDEP(YDMODEL, KIDIA,KFDIA, KLON, KLEV, &
-               Zxtm1, PCFLX(:,KAERO(1):KAERO(NACTAERO)),  &
-               ZDP, PGEOH, ZRHO, ZXTTE, PTSPHY,&
-               PSO2DD, PGELAM, &
-               ZFAERO, ZXTP1, ZDDEPFLUX_SO2)
-          ZDDEPFLUX(KIDIA:KFDIA,2)=ZDDEPFLUX_SO2(KIDIA:KFDIA)
+          ! Here inconsistent array dimensions have been fixed but
+          ! still commented this out. Because from the perspective of
+          ! aligning SimChem and TM5, I think this removal step should
+          ! be (or probably has already been) handled on the chemistry
+          ! side. Lianghai
+!          CALL M7_SIMPLE_SULFUR_DRYDEP(YDMODEL, KIDIA,KFDIA, KLON, KLEV, &
+!               ZXTM1(:,:,KAERO(1):KAERO(NACTAERO)), PCFLX(:,KAERO(1):KAERO(NACTAERO)),  &
+!               ZDP, PGEOH, ZRHO, ZXTTE(:,:,KAERO(1):KAERO(NACTAERO)), PTSPHY,&
+!               PSO2DD, PGELAM, &
+!               ZFAERO(:,:,KAERO(1):KAERO(NACTAERO), ZXTP1(:,:,KAERO(1):KAERO(NACTAERO), ZDDEPFLUX_SO2)
+!          ZDDEPFLUX(KIDIA:KFDIA,2)=ZDDEPFLUX_SO2(KIDIA:KFDIA)
         END IF
         
         !--> modify tendency at surface according to changes in surface emissions
@@ -1614,15 +1546,16 @@ ENDDO
       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_mass_HAM(JMASS))
     END DO
     !gas
-    !IF(LAERCHEM) THEN
-    !  DO JGAS=1,SUBM_NGASSPEC
-    !    PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
-    !  END DO
+    IF(LAERCHEM ) THEN
+      DO JGAS=1,SUBM_NGASSPEC
+        PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
+      END DO    
+    END IF
     !!ELSE
     !!  DO JGAS=1,SUBM_NGASSPEC
     !!    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_gas_HAM(JGAS))
     !!  END DO
-    !END IF
+    !!END IF
 
     ! RCHG -> not sure best way to solve here. I commented to avoid segmentation fault 
     !         but it may be avoided with other more specific flag. Anyway something was 
@@ -2143,38 +2076,31 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
 
   ! It is not clear when NACTERO and when NTRAC 
   DO JN=1,NACTAERO
-    !PGFL(KIDIA:KFDIA,JN,YAEROUT(22)%MP)=DDEPOUT(KIDIA:KFDIA,KLEV,KAERO(JN))
-    PGFL(KIDIA:KFDIA, JN, YAEROUT(28)%MP) = PAERSRC(KIDIA:KFDIA,KAERO(JN)) ! Emissions per specie
+    PGFL(KIDIA:KFDIA, JN, YAEROUT(22)%MP) = DDEPOUT(KIDIA:KFDIA,KLEV,KAERO(JN))
+    PGFL(KIDIA:KFDIA, JN, YAEROUT(27)%MP) = PAERSRC(KIDIA:KFDIA,KAERO(JN)) ! Emissions per specie
   END DO
   DO JN=1,NTRAC
     !PGFL(KIDIA:KFDIA,JN,YAEROUT(23)%MP)=WDEPOUT(KIDIA:KFDIA,KLEV,JN)
     !PGFL(KIDIA:KFDIA,JN,YAEROUT(24)%MP)=SEDOUT(KIDIA:KFDIA,KLEV,JN)
     PGFL(KIDIA:KFDIA,JN,YAEROUT(39)%MP)=ZXTEMS(KIDIA:KFDIA,JN)
   END DO
-  !DO JN=1,SUBM_NGASSPEC
-  !  PGFL(KIDIA:KFDIA,JN,YAEROUT(25)%MP)=zxtm1(KIDIA:KFDIA,KLEV,ind_oifs_ham%ind_gas_HAM(JN))
-  !END DO
+  DO JN=1,SUBM_NGASSPEC
+    PGFL(KIDIA:KFDIA,JN,YAEROUT(25)%MP)=zxtm1(KIDIA:KFDIA,KLEV,ind_oifs_ham%ind_gas_HAM(JN))
+  END DO
 
   !PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(26)%MP)=ZSEDIFLUX(KIDIA:KFDIA,1:KLEV,25)
 
-  !IF (LAERCHEM)THEN
-    !DO JGAS=1,SUBM_NGASSPEC
-      !ZXTM1(JL,JK,ind_gas_HAM(JGAS)) = MAX(0._JPRB,ZCEN(JL,JK,KCHEM(ind_gas_OIFS(JGAS)))) !eehol: remove negative values
-      !PGFL(KIDIA:KFDIA,JN,YAEROUT(28+JGAS)%MP)=ZCEN(JL,JK,KCHEM(ind_gas_OIFS(JGAS)))
-      !PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(28+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-    !END DO
-    !ELSE
-    !   DO JGAS=1,subm_ngasspec
-    !       PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(28+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_gas_OIFS(JGAS)))
-    !   ENDDO  
-  !ENDIF
+  DO JGAS=1,SUBM_NGASSPEC
+    !ZXTM1(JL,JK,ind_oifs_ham%ind_gas_HAM(JGAS)) = MAX(0._JPRB,ZCEN(JL,JK,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))) !eehol: remove negative values
+    PGFL(KIDIA:KFDIA,JGAS,YAEROUT(28+JGAS)%MP)=ZCEN(JL,JK,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
+    PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(29+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
+  END DO
 
   DO IMODE=1,NMOD
     PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(30+IMODE)%MP)=RW_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV) ! m
   ENDDO
 
-  !IF (.NOT.LAERCHEM) THEN
-  !IF (LAERCHEM .AND. TRIM(CHEM_SCHEME)=="SimChem")THEN
+  !IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
   !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(40)%MP)   = ZFSO2(KIDIA:KFDIA)           ! tendency SS CS ham after update surface
   !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(41)%MP)   = ZFSO4(KIDIA:KFDIA)           ! tendency SS CS ham after update surfac
   !  PGFL(KIDIA:KFDIA,KLEV,YAEROUT(42)%MP)   = ZFSO4_AQ(KIDIA:KFDIA)        ! tendency SS CS ham after update surface

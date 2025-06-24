@@ -233,7 +233,7 @@ CONTAINS
 
       IF ((FDPCL*FDPCM).LE.0._JPRB) THEN
 
-        IF (ABS(FDPCM).LE.10E-8_JPRB) THEN
+        IF (ABS(FDPCM).LE.10.E-8_JPRB) THEN
           EXIT
         ELSE
           DPCL = DPCL
@@ -242,7 +242,7 @@ CONTAINS
 
       ELSE IF ((FDPCL*FDPCM).GE.0._JPRB) THEN
 
-        IF (ABS(FDPCM).LE.10E-8_JPRB) THEN
+        IF (ABS(FDPCM).LE.10.E-8_JPRB) THEN
           EXIT
         ELSE
           DPCL = DPCM
@@ -291,7 +291,7 @@ CONTAINS
       !
       ! *** Case where updraft is very small
       !
-      IF (WPARC.LE.1E-6_JPRB) THEN
+      IF (WPARC.LE.1.0E-6_JPRB) THEN
         SMAX  = 0.0_JPRB
         NACT  = 0.0_JPRB
         RETURN
@@ -322,7 +322,7 @@ CONTAINS
         WPI  = WLO + SCAL*(1.0_JPRB+XGS(i))                          ! Updraft
 
         ! Catch very small velocities using the same cutoff as above
-        IF (WPI.LE.1E-6_JPRB) THEN
+        IF (WPI.LE.1.0E-6_JPRB) THEN
           SMAXI = 0.0_JPRB
           NACTI = 0.0_JPRB
         ELSE
@@ -515,7 +515,7 @@ CONTAINS
     ! ** Population Splitting -- Modified by Ricardo Morales 2014
 
     DESCR  = 1._JPRB - (16._JPRB/9._JPRB)*ALFA*WPARCEL*BET2*(AKOH/SPAR**2)**2
-    IF (DESCR.LE.0.0_JPRB) THEN
+    IF (DESCR.LT.EPSILON(0.0_JPRB)) THEN
       CRIT2  = .TRUE.             
       scrit  = ((16._JPRB/9._JPRB)*ALFA*WPARCEL*BET2*(AKOH**2))**(0.25_JPRB)            ! Scrit - (only for DELTA < 0 )
       RATIO  = (2.0E+7_JPRB/3.0_JPRB)*AKOH*(SPAR**(-0.3824_JPRB)-scrit**(-0.3824_JPRB)) ! Computing sp1 and sp2 (sp1 = sp2)
@@ -539,8 +539,8 @@ CONTAINS
     SUMFHH    = 0.0_JPRB   !Contribution of FHH integral
 
     DO J = 1, BOX%NMD
+      IF (SG(J).GT.EPSILON(1.0_JPRB)) THEN !eehol: do not calculate if SG=0 or less
 
-      IF (SG(J).GT.0.0_JPRB) THEN !eehol: do not calculate if SG=0 or less
         IF (BOX%MODE(J).EQ.1) THEN          ! Kohler modes
 
           DLGSG  = LOG(SIG(J))                            !ln(sigmai)

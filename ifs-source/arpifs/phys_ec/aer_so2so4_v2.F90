@@ -306,12 +306,8 @@ JPTS = INT(PTSPHY/ZPTSCHEM)
 
 ! Split PCHEMSULF1 array
 
-!! Initialise tendencies (necessary when using sub-timesteps for chemistry,
-!!  since the total tendency will be the sum of "sub-tendencies".
-!! PLS: This was commented in 43r3, which seems logical since (case of INTENT(INOUT)) these
-!!      arrays are filled before calling the AER_SO2SO4_V2 in both hamm7_interface.F90 and aer_phy3.F90. 
-!!      Tommi had an issue: when these were intent(out), these initialisations were needed
-!! TODO: review when we test the latest implementation of the sulfur scheme. Things depend on the code outside this routine.
+! Initialise tendencies (necessary when using sub-timesteps for chemistry,
+!  since the total tendency will be the sum of "sub-tendencies"). These arrays could be declared "intent(out)" then
 PTSO2(KIDIA:KFDIA,:) = 0._JPRB
 PTSO4(KIDIA:KFDIA,:) = 0._JPRB
 PTSO4_AQ(KIDIA:KFDIA,:) = 0._JPRB

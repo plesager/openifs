@@ -119,7 +119,7 @@ REAL(KIND=JPRB) :: ZSNM(KDIM%KLON)
 #include "aer_wind.intfb.h"
 #include "aer_phy2.intfb.h"
 #include "tm5m7_phy2.intfb.h"
-#include "simple_sulfur_src.intfb.h"
+!#include "simple_sulfur_src.intfb.h"
 #include "abor1.intfb.h"
 
 

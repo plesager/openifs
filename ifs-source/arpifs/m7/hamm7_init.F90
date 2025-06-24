@@ -51,19 +51,11 @@ USE PARKIND1, ONLY : JPRB
 USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMRIP,   ONLY : TRIP
 USE YOM_YGFL, ONLY : TYPE_GFLD   ! Gives type for YGFL
-
-!!!!TEMPORARY
 Use YOMMP0,   ONLY : MYPROC
-!!!!TEMPORARY
-
 
 ! --- M7 modules --------------------------------------------------------------
-! --> thk: bug fix
 USE MO_TIME_CONTROL, ONLY: init_mo_time_control
-! <-- thk
-
 USE MO_SPECIES,      ONLY: speclist            ! tracer species in HAM
-
 USE MO_HAM, ONLY:     &
      sizeclass,       & ! aerosol classes in HAM
      nclass,          & ! number of aerosol classes in HAM
@@ -129,6 +121,7 @@ INTEGER ::                                   &         ! looping indices
  &  kt, znclass, znaerocomp, zsubm_ngasspec, zcloudind ! eehol: indices for OIFS to HAM
 
 CHARACTER(len=64) :: int_str, int_str_ham              ! eehol: integer as string
+LOGICAL, PARAMETER :: LLDEBUG=.FALSE.                  ! Debug flag
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE                      ! return status
 
@@ -198,11 +191,6 @@ ASSOCIATE(&
 ! AC-experiments/ctrl/Table/bins_hamm7ver1.csv and compare the names you get 
 ! in the files.
 
-
-! RCHG -> this nested loop aims to indentify corresponding indices of OPENIFS vs HAM
-!         data structures. If the several files stored "fort.N" are just for testing
-!         purposes we may add a LLDEBUG flag to activate/deactive the savings. FIXME.
-
 ! aerosol tracers
 LABEL_IFS_AERO: DO j_yaero = 1,NAERO
 
@@ -223,7 +211,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
          kt = sizeclass(j_class)%idt_no
          ind_oifs_ham%ind_class_OIFS(j_class) = j_yaero !eehol: take indices for sizeclass to a vector for OIFS
          ind_oifs_ham%ind_class_HAM(j_class) = kt !eehol: take indices for sizeclass to a vector for HAM
-         IF (MYPROC == 1) THEN
+         IF (LLDEBUG .AND. MYPROC == 1) THEN
             WRITE(int_str,*) j_yaero
             WRITE(int_str_ham,*) kt !sizeclass(j_class)%idt_no
             WRITE(2000+MYPROC,'(a)') 'sizeclass: '//TRIM(YAERO(j_yaero)%CNAME)
@@ -260,7 +248,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
          kt = aerocomp(j_mass)%idt
          ind_oifs_ham%ind_mass_OIFS(j_mass) = j_yaero !eehol: take indices for masses to a vector for OIFS
          ind_oifs_ham%ind_mass_HAM(j_mass) = kt !eehol: take indices for masses to a vector for HAM
-         IF (MYPROC == 1) THEN
+         IF (LLDEBUG .AND. MYPROC == 1) THEN
             WRITE(int_str,*) j_yaero
             WRITE(int_str_ham,*) kt
             WRITE(2000+MYPROC,'(a)') 'mass: '//TRIM(YAERO(j_yaero)%CNAME)
@@ -283,7 +271,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
          ind_oifs_ham%ind_mass_OIFS(j_mass) = j_yaero !eehol: take indices for masses to a vector for OIFS
          ind_oifs_ham%ind_mass_HAM(j_mass) = kt !eehol: take indices for masses to a vector for HAM
 
-         IF (MYPROC == 1) THEN
+         IF (LLDEBUG .AND. MYPROC == 1) THEN
             WRITE(int_str,*) j_yaero
             WRITE(int_str_ham,*) kt
             WRITE(2000+MYPROC,'(a)') 'mass: '//TRIM(YAERO(j_yaero)%CNAME)
@@ -310,7 +298,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
          kt = j_cloud
          ind_oifs_ham%ind_cloud_OIFS(j_cloud-idt_cdnc+1) = j_yaero !eehol: take indices for sizeclass to a vector for OIFS
          ind_oifs_ham%ind_cloud_HAM(j_cloud-idt_cdnc+1) = kt !eehol: take indices for sizeclass to a vector for HAM
-         IF (MYPROC == 1) THEN
+         IF (LLDEBUG .AND. MYPROC == 1) THEN
             WRITE(int_str,*) j_yaero
             WRITE(int_str_ham,*) kt !sizeclass(j_class)%idt_no
             WRITE(2000+MYPROC,'(a)') 'cloud class: '//TRIM(YAERO(j_yaero)%CNAME)
@@ -327,7 +315,7 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
    END DO LABEL_CLOUD
 
    ! If we end up here, the tracer is not a sizeclass or mass
-   IF (MYPROC == 1) THEN
+   IF (LLDEBUG .AND. MYPROC == 1) THEN
       WRITE(2000+MYPROC,'(a)') 'neither mass nor sizeclass in HAM: '//TRIM(YAERO(j_yaero)%CNAME)
    END IF
 
@@ -337,7 +325,7 @@ END DO LABEL_IFS_AERO
 ! chemistry tracers in HAM do not have separate metadata, because there is only one 
 ! tracer per species. Therefore we have to check the HAM species metadata and
 ! make sure that the metadata actually describes a gas.
-IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
+IF (LAERCHEM.AND.(TRIM(CHEM_SCHEME)=="tm5".OR.TRIM(CHEM_SCHEME)=="SimChem"))THEN
    LABEL_IFS_CHEM: DO j_ychem = 1,NCHEM
 
    ! looping over the gas phase tracers in HAM
@@ -356,7 +344,7 @@ IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
 
             ! turn wetdep off for gases if LAERCHEM=.true.
             trlist%ti(kt)%nwetdep=0
-            IF (MYPROC == 1) THEN
+            IF (LLDEBUG .AND. MYPROC == 1) THEN
                WRITE(int_str,*) j_ychem
                WRITE(int_str_ham,*) kt
                WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
@@ -373,9 +361,11 @@ IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
             CYCLE LABEL_IFS_CHEM
 
          END IF
-         ! sulfuric acid is special, because in HAM it is tagges as H2SO4, while in IFS it
-         ! is called SO4 -- hard-coding for now
-         IF ( (TRIM(YCHEM(j_ychem)%CNAME) == 'SO4') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+         ! sulfuric acid is special, because in HAM it is tagged as H2SO4, while in IFS it
+         ! is called SO4 ('tm5' case) 'H2SO4' or ('SimChem' case )
+         IF ( (TRIM(speclist(j_spec)%shortname) == 'H2SO4') .AND. &
+              & ( ( TRIM(YCHEM(j_ychem)%CNAME) == 'H2SO4' .AND. TRIM(CHEM_SCHEME)=="SimChem" ) &
+              & .OR. ( TRIM(YCHEM(j_ychem)%CNAME) == 'SO4' .AND. TRIM(CHEM_SCHEME)=="tm5" )  ) ) THEN
             ! In case of a match, we set the tracer index in the HAM meta data to the
             ! according IFS-index and write a note into the logfile
             kt = speclist(j_spec)%idt
@@ -384,7 +374,7 @@ IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
             ! turn wetdep off for SO4 if LAERCHEM=.true.
             trlist%ti(kt)%nwetdep=0
 
-            IF (MYPROC == 1) THEN
+            IF (LLDEBUG .AND. MYPROC == 1) THEN
                WRITE(int_str,*) j_ychem
                WRITE(int_str_ham,*) kt
                WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
@@ -392,7 +382,7 @@ IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
                WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
                WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
                WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
-               WRITE(7000+MYPROC,'(a)') 'wetdep',trlist%ti(kt)%nwetdep
+               WRITE(7000+MYPROC,'(a)') 'wetdep=',trlist%ti(kt)%nwetdep
             END IF
 
             ! once the tracer is identified we can check the next one
@@ -402,90 +392,88 @@ IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="tm5")THEN
    END DO LABEL_GAS
 
    ! If we end up here, the tracer is not a sizeclass or mass
-   IF (MYPROC == 1) THEN
+   IF (LLDEBUG .AND. MYPROC == 1) THEN
       WRITE(2000+MYPROC,'(a)') 'not a gas in HAM: '//TRIM(YCHEM(j_ychem)%CNAME)
    END IF
+
    END DO LABEL_IFS_CHEM
-ELSE IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="SimChem") THEN
-   Write(9191,*)'simple SO4 in development'
-
-   LABEL_IFS_CHEM_SO4: DO j_ychem = 1,NAERO
-
-   ! looping over the gas phase tracers in HAM
-   LABEL_GAS_SO4: DO j_gas = 1,subm_ngasspec
-      j_spec = subm_gasspec(j_gas)
-      ! If the species does not exist in gas form in HAM, we don't consider it further
-      IF ((speclist(j_spec)%nphase == GAS) .OR. (speclist(j_spec)%nphase == GAS_OR_AEROSOL)) THEN
-         IF(MYPROC==1)THEN
-            write(4001,*)TRIM(YAERO(j_ychem)%CNAME),TRIM(speclist(j_spec)%shortname)
-         END IF
-         IF (TRIM(YAERO(j_ychem)%CNAME) == TRIM(speclist(j_spec)%shortname)) THEN
-            ! In case of a match, we set the tracer index in the HAM meta data to the
-            ! according IFS-index and write a note into the logfile
-            !speclist(j_spec)%idt = j_ychem
-            kt = speclist(j_spec)%idt
-            ind_oifs_ham%ind_gas_OIFS(j_gas) = j_ychem !eehol: take indices for gases to a vector for OIFS
-            ind_oifs_ham%ind_gas_HAM(j_gas) = kt !eehol: take indices for gases to a vector for HAM
-            ! turn wetdep on for gases if LAERCHEM=.false.
-            trlist%ti(kt)%nwetdep=1
-            IF (MYPROC == 1) THEN
-               WRITE(int_str,*) j_ychem
-               WRITE(int_str_ham,*) kt
-               WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
-               WRITE(7000+MYPROC,'(a)') 'OIFS gas: '//TRIM(YCHEM(j_ychem)%CNAME)
-               WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
-               WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
-               WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
-            END IF
-            ! once the tracer is identified we can check the next one
-            CYCLE LABEL_IFS_CHEM_SO4
-         END IF
-
-         ! sulfuric acid is special, because in HAM it is tagges as H2SO4, while in IFS it
-         ! is called SO4 -- hard-coding for now
-         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
-         !WRITE(*,*)"j_spec:",j_spec
-         !WRITE(*,*)"j_ychem:",j_ychem
-         !WRITE(*,*)"YAERO(j_ychem)%CNAME:",YAERO(j_ychem)%CNAME
-         !WRITE(*,*)"speclist(j_spec)%shortname:",speclist(j_spec)%shortname
-         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
-         IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
-            ! In case of a match, we set the tracer index in the HAM meta data to the
-            ! according IFS-index and write a note into the logfile
-            kt = speclist(j_spec)%idt
-            ind_oifs_ham%ind_gas_OIFS(j_gas) = j_ychem !eehol: take indices for gases to a vector for OIFS
-            ind_oifs_ham%ind_gas_HAM(j_gas) = kt !eehol: take indices for gases to a vector for HAM
-            ! turn wetdep on for gases if LAERCHEM=.false.
-            trlist%ti(kt)%nwetdep=1
-            IF (MYPROC == 1) THEN
-               WRITE(int_str,*) j_ychem
-               WRITE(int_str_ham,*) kt
-               WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
-               WRITE(7000+MYPROC,'(a)') 'OIFS gas: '//TRIM(YCHEM(j_ychem)%CNAME)
-               WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
-               WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
-               WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
-            END IF
-
-            ! once the tracer is identified we can check the next one
-            CYCLE LABEL_IFS_CHEM_SO4
-         END IF
-      END IF
-   END DO LABEL_GAS_SO4
-   END DO LABEL_IFS_CHEM_SO4
-
-   ! If we end up here, the tracer is not a sizeclass or mass
-   IF (MYPROC == 1) THEN
-      WRITE(2000+MYPROC,'(a)') 'not a gas in HAM: '//TRIM(YCHEM(j_ychem)%CNAME)
-   END IF
-
- ELSE
-   ! Note that We are also checking that LAERCHEM should always be true with M7 (and could probably be ignored: it was used to indicate that chem_scheme='tm5'). Redundant...
+ 
+!ELSE IF (LAERCHEM.AND.TRIM(CHEM_SCHEME)=="SimChem") THEN
+!   Write(9191,*)'simple SO4 in development'
+!
+!   LABEL_IFS_CHEM_SO4: DO j_ychem = 1,NAERO
+!
+!   ! looping over the gas phase tracers in HAM
+!   LABEL_GAS_SO4: DO j_gas = 1,subm_ngasspec
+!      j_spec = subm_gasspec(j_gas)
+!      ! If the species does not exist in gas form in HAM, we don't consider it further
+!      IF ((speclist(j_spec)%nphase == GAS) .OR. (speclist(j_spec)%nphase == GAS_OR_AEROSOL)) THEN
+!         IF(MYPROC==1)THEN
+!            write(4001,*)TRIM(YAERO(j_ychem)%CNAME),TRIM(speclist(j_spec)%shortname)
+!         END IF
+!         IF (TRIM(YAERO(j_ychem)%CNAME) == TRIM(speclist(j_spec)%shortname)) THEN
+!            ! In case of a match, we set the tracer index in the HAM meta data to the
+!            ! according IFS-index and write a note into the logfile
+!            !speclist(j_spec)%idt = j_ychem
+!            kt = speclist(j_spec)%idt
+!            ind_oifs_ham%ind_gas_OIFS(j_gas) = j_ychem !eehol: take indices for gases to a vector for OIFS
+!            ind_oifs_ham%ind_gas_HAM(j_gas) = kt !eehol: take indices for gases to a vector for HAM
+!            ! turn wetdep on for gases if LAERCHEM=.false.
+!            trlist%ti(kt)%nwetdep=1
+!            IF (LLDEBUG .AND. MYPROC == 1) THEN
+!               WRITE(int_str,*) j_ychem
+!               WRITE(int_str_ham,*) kt
+!               WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
+!               WRITE(7000+MYPROC,'(a)') 'OIFS gas: '//TRIM(YCHEM(j_ychem)%CNAME)
+!               WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
+!               WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
+!               WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
+!            END IF
+!            ! once the tracer is identified we can check the next one
+!            CYCLE LABEL_IFS_CHEM_SO4
+!         END IF
+!
+!         ! sulfuric acid is special, because in HAM it is tagges as H2SO4, while in IFS it
+!         ! is called SO4 -- hard-coding for now
+!         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+!         !WRITE(*,*)"j_spec:",j_spec
+!         !WRITE(*,*)"j_ychem:",j_ychem
+!         !WRITE(*,*)"YAERO(j_ychem)%CNAME:",YAERO(j_ychem)%CNAME
+!         !WRITE(*,*)"speclist(j_spec)%shortname:",speclist(j_spec)%shortname
+!         !IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4_gas') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+!         IF ( (TRIM(YAERO(j_ychem)%CNAME) == 'SO4') .AND. (TRIM(speclist(j_spec)%shortname) == 'H2SO4') ) THEN
+!            ! In case of a match, we set the tracer index in the HAM meta data to the
+!            ! according IFS-index and write a note into the logfile
+!            kt = speclist(j_spec)%idt
+!            ind_oifs_ham%ind_gas_OIFS(j_gas) = j_ychem !eehol: take indices for gases to a vector for OIFS
+!            ind_oifs_ham%ind_gas_HAM(j_gas) = kt !eehol: take indices for gases to a vector for HAM
+!            ! turn wetdep on for gases if LAERCHEM=.false.
+!            trlist%ti(kt)%nwetdep=1
+!            IF (LLDEBUG .AND. MYPROC == 1) THEN
+!               WRITE(int_str,*) j_ychem
+!               WRITE(int_str_ham,*) kt
+!               WRITE(2000+MYPROC,'(a)') 'gas: '//TRIM(YCHEM(j_ychem)%CNAME)
+!               WRITE(7000+MYPROC,'(a)') 'OIFS gas: '//TRIM(YCHEM(j_ychem)%CNAME)
+!               WRITE(7000+MYPROC,'(a)') 'j_ychem ='//TRIM(int_str)
+!               WRITE(7000+MYPROC,'(a)') 'HAM gas: '//TRIM(trlist%ti(speclist(j_spec)%idt)%fullname)
+!               WRITE(7000+MYPROC,'(a)') 'gas idt_no ='//TRIM(int_str_ham)
+!            END IF
+!
+!            ! once the tracer is identified we can check the next one
+!            CYCLE LABEL_IFS_CHEM_SO4
+!         END IF
+!      END IF
+!   END DO LABEL_GAS_SO4
+!   END DO LABEL_IFS_CHEM_SO4
    
+ELSE
+   ! Note that here we are checking that:
+   ! - LAERCHEM is true (should always be the case with M7). It was used to distinguish between chem_scheme='tm5' and "no chemistry" in 43r3/AC with M7 activated (and still the case in 48r1 with AER!).
+   ! - CHEM_SCHEME is either 'tm5' or 'SimChem'
    CALL ABOR1(" hamm7_init: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
 END IF
 
-IF (MYPROC == 1) THEN
+IF (LLDEBUG .AND. MYPROC == 1) THEN
    WRITE(5001+MYPROC,*) 'HAM class idts =', ind_oifs_ham%ind_class_HAM(:)
    WRITE(5001+MYPROC,*) 'OIFS class idts =', ind_oifs_ham%ind_class_OIFS(:)
    WRITE(5001+MYPROC,*) 'HAM mass idts =', ind_oifs_ham%ind_mass_HAM(:)

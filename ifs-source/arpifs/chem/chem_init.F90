@@ -161,8 +161,7 @@ ELSE
 
       CASE ("SimChem")
 
-        ! TO BE DONE IN TM5M7_INIT IF NEEDED:
-        !CALL PHOTOLYSIS_INI
+        ! Nothing to do
 
       CASE DEFAULT
 

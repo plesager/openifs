@@ -38,7 +38,7 @@
 
 MODULE mo_ham_m7_nucl
   
-  USE mo_kind, ONLY: dp
+  USE mo_kind, ONLY: dp, JPRD
   USE mo_netcdf
   
   IMPLICIT NONE
@@ -97,7 +97,7 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
   !
   !   pxtrnucr = nucleation rate in [1/m3s]
   !   xrhoc    = density of the critical nucleus in kg/m^3
-  !   zrxc = ?
+  !   zrxc = ? Not used as of 2025-06-23 - Commented PLS
 
   !----------------------------------------------------
 
@@ -112,19 +112,17 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
   !----------------------------------------------------
   !
   
-  REAL(dp)::   ptp1(kbdim,klev), psatrat(kbdim,klev), &
-               pxtrnucr(kbdim,klev),  &
-               pmolecH2SO4(kbdim,klev), &            ! revisited, ok
-               pntot(kbdim,klev)
+  REAL(dp), intent(in) :: ptp1(kbdim,klev), psatrat(kbdim,klev)
+  REAL(dp), intent(in) :: pmolecH2SO4(kbdim,klev)
+  REAL(dp), intent(out) :: pxtrnucr(kbdim,klev)
+  REAL(dp), intent(out) :: pntot(kbdim,klev)
 
   !----------------------------------------------------  
   ! Local Arrays
   
-  REAL(dp)::   zrxc(kbdim) 
-
-  REAL(dp)::   zrhoa, zrh, zt, x, zjnuc, zrc, zxmole, zntot
-
-  REAL(dp)::   zlogrh, zlogrh2, zlogrh3, zlogrhoa, zlogrhoa2, zlogrhoa3, &
+  !PLS REAL(JPRD)::   zrxc(kbdim) 
+  REAL(JPRD)::   zrhoa, zrh, zt, x, zjnuc, zrc, zxmole, zntot
+  REAL(JPRD)::   zlogrh, zlogrh2, zlogrh3, zlogrhoa, zlogrhoa2, zlogrhoa3, &
                zix, zt2, zt3
 
   !--- 0) Initializations:
@@ -144,14 +142,14 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
 
         ! Calculate nucleation only for valid thermodynamic conditions:
 
-        zrhoa = max(pmolecH2SO4(jl,jk),1.E+4_dp)
-        zrhoa = min(zrhoa,1.E11_dp)
+        zrhoa = max(REAL(pmolecH2SO4(jl,jk), KIND=JPRD),1.E+4_JPRD)
+        zrhoa = min(zrhoa,1.E11_JPRD)
         
-        zrh   = max(psatrat(jl,jk),1.E-4_dp)
-        zrh   = min(zrh,1.0_dp)
+        zrh   = max(REAL(psatrat(jl,jk), KIND=JPRD),1.E-4_JPRD)
+        zrh   = min(zrh,1.0_JPRD)
         
-        zt    = max(ptp1(jl,jk),190.15_dp)
-        zt    = min(zt,300.15_dp)
+        zt    = max(REAL(ptp1(jl,jk), KIND=JPRD) ,190.15_JPRD)
+        zt    = min(zt,300.15_JPRD)
 
         zt2 = zt*zt
         zt3 = zt2*zt
@@ -166,148 +164,148 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
         zlogrhoa2 = zlogrhoa*zlogrhoa
         zlogrhoa3 = zlogrhoa2*zlogrhoa
 
-        x=0.7409967177282139_dp - 0.002663785665140117_dp*zt   &
-          + 0.002010478847383187_dp*zlogrh    &
-          - 0.0001832894131464668_dp*zt*zlogrh    &
-          + 0.001574072538464286_dp*zlogrh2        &
-          - 0.00001790589121766952_dp*zt*zlogrh2    &
-          + 0.0001844027436573778_dp*zlogrh3     &
-          -  1.503452308794887e-6_dp*zt*zlogrh3    &
-          - 0.003499978417957668_dp*zlogrhoa   &
-          + 0.0000504021689382576_dp*zt*zlogrhoa
+        x=0.7409967177282139_JPRD - 0.002663785665140117_JPRD*zt   &
+          + 0.002010478847383187_JPRD*zlogrh    &
+          - 0.0001832894131464668_JPRD*zt*zlogrh    &
+          + 0.001574072538464286_JPRD*zlogrh2        &
+          - 0.00001790589121766952_JPRD*zt*zlogrh2    &
+          + 0.0001844027436573778_JPRD*zlogrh3     &
+          -  1.503452308794887e-6_JPRD*zt*zlogrh3    &
+          - 0.003499978417957668_JPRD*zlogrhoa   &
+          + 0.0000504021689382576_JPRD*zt*zlogrhoa
 
         zxmole=x
 
-        zix = 1.0_dp/x
+        zix = 1.0_JPRD/x
 
         ! Equation (12) - nucleation rate in 1/cm3s
 
-        zjnuc=0.1430901615568665_dp + 2.219563673425199_dp*zt -   &
-              0.02739106114964264_dp*zt2 +     &
-              0.00007228107239317088_dp*zt3 + 5.91822263375044_dp*zix +     &
-              0.1174886643003278_dp*zlogrh + 0.4625315047693772_dp*zt*zlogrh -     &
-              0.01180591129059253_dp*zt2*zlogrh +     &
-              0.0000404196487152575_dp*zt3*zlogrh +    &
-              (15.79628615047088_dp*zlogrh)*zix -     &
-              0.215553951893509_dp*zlogrh2 -    &
-              0.0810269192332194_dp*zt*zlogrh2 +     &
-              0.001435808434184642_dp*zt2*zlogrh2 -    &
-              4.775796947178588e-6_dp*zt3*zlogrh2 -     &
-              (2.912974063702185_dp*zlogrh2)*zix -   &
-              3.588557942822751_dp*zlogrh3 +     &
-              0.04950795302831703_dp*zt*zlogrh3 -     &
-              0.0002138195118737068_dp*zt2*zlogrh3 +    &
-              3.108005107949533e-7_dp*zt3*zlogrh3 -     &
-              (0.02933332747098296_dp*zlogrh3)*zix +     &
-              1.145983818561277_dp*zlogrhoa -    &
-              0.6007956227856778_dp*zt*zlogrhoa +    &
-              0.00864244733283759_dp*zt2*zlogrhoa -    &
-              0.00002289467254710888_dp*zt3*zlogrhoa -    &
-              (8.44984513869014_dp*zlogrhoa)*zix +    &
-              2.158548369286559_dp*zlogrh*zlogrhoa +   &
-              0.0808121412840917_dp*zt*zlogrh*zlogrhoa -    &
-              0.0004073815255395214_dp*zt2*zlogrh*zlogrhoa -   &
-              4.019572560156515e-7_dp*zt3*zlogrh*zlogrhoa +    &
-              (0.7213255852557236_dp*zlogrh*zlogrhoa)*zix +    &
-              1.62409850488771_dp*zlogrh2*zlogrhoa -    &
-              0.01601062035325362_dp*zt*zlogrh2*zlogrhoa +   &
-              0.00003771238979714162_dp*zt2*zlogrh2*zlogrhoa +    &
-              3.217942606371182e-8_dp*zt3*zlogrh2*zlogrhoa -    &
-              (0.01132550810022116_dp*zlogrh2*zlogrhoa)*zix +    &
-              9.71681713056504_dp*zlogrhoa2 -    &
-              0.1150478558347306_dp*zt*zlogrhoa2 +    &
-              0.0001570982486038294_dp*zt2*zlogrhoa2 +    &
-              4.009144680125015e-7_dp*zt3*zlogrhoa2 +    &
-              (0.7118597859976135_dp*zlogrhoa2)*zix -    &
-              1.056105824379897_dp*zlogrh*zlogrhoa2 +    &
-              0.00903377584628419_dp*zt*zlogrh*zlogrhoa2 -    &
-              0.00001984167387090606_dp*zt2*zlogrh*zlogrhoa2 +    &
-              2.460478196482179e-8_dp*zt3*zlogrh*zlogrhoa2 -    &
-              (0.05790872906645181_dp*zlogrh*zlogrhoa2)*zix -    &
-              0.1487119673397459_dp*zlogrhoa3 +    &
-              0.002835082097822667_dp*zt*zlogrhoa3 -    &
-              9.24618825471694e-6_dp*zt2*zlogrhoa3 +    &
-              5.004267665960894e-9_dp*zt3*zlogrhoa3 -    &
-              (0.01270805101481648_dp*zlogrhoa3)*zix
+        zjnuc=0.1430901615568665_JPRD + 2.219563673425199_JPRD*zt -   &
+              0.02739106114964264_JPRD*zt2 +     &
+              0.00007228107239317088_JPRD*zt3 + 5.91822263375044_JPRD*zix +     &
+              0.1174886643003278_JPRD*zlogrh + 0.4625315047693772_JPRD*zt*zlogrh -     &
+              0.01180591129059253_JPRD*zt2*zlogrh +     &
+              0.0000404196487152575_JPRD*zt3*zlogrh +    &
+              (15.79628615047088_JPRD*zlogrh)*zix -     &
+              0.215553951893509_JPRD*zlogrh2 -    &
+              0.0810269192332194_JPRD*zt*zlogrh2 +     &
+              0.001435808434184642_JPRD*zt2*zlogrh2 -    &
+              4.775796947178588e-6_JPRD*zt3*zlogrh2 -     &
+              (2.912974063702185_JPRD*zlogrh2)*zix -   &
+              3.588557942822751_JPRD*zlogrh3 +     &
+              0.04950795302831703_JPRD*zt*zlogrh3 -     &
+              0.0002138195118737068_JPRD*zt2*zlogrh3 +    &
+              3.108005107949533e-7_JPRD*zt3*zlogrh3 -     &
+              (0.02933332747098296_JPRD*zlogrh3)*zix +     &
+              1.145983818561277_JPRD*zlogrhoa -    &
+              0.6007956227856778_JPRD*zt*zlogrhoa +    &
+              0.00864244733283759_JPRD*zt2*zlogrhoa -    &
+              0.00002289467254710888_JPRD*zt3*zlogrhoa -    &
+              (8.44984513869014_JPRD*zlogrhoa)*zix +    &
+              2.158548369286559_JPRD*zlogrh*zlogrhoa +   &
+              0.0808121412840917_JPRD*zt*zlogrh*zlogrhoa -    &
+              0.0004073815255395214_JPRD*zt2*zlogrh*zlogrhoa -   &
+              4.019572560156515e-7_JPRD*zt3*zlogrh*zlogrhoa +    &
+              (0.7213255852557236_JPRD*zlogrh*zlogrhoa)*zix +    &
+              1.62409850488771_JPRD*zlogrh2*zlogrhoa -    &
+              0.01601062035325362_JPRD*zt*zlogrh2*zlogrhoa +   &
+              0.00003771238979714162_JPRD*zt2*zlogrh2*zlogrhoa +    &
+              3.217942606371182e-8_JPRD*zt3*zlogrh2*zlogrhoa -    &
+              (0.01132550810022116_JPRD*zlogrh2*zlogrhoa)*zix +    &
+              9.71681713056504_JPRD*zlogrhoa2 -    &
+              0.1150478558347306_JPRD*zt*zlogrhoa2 +    &
+              0.0001570982486038294_JPRD*zt2*zlogrhoa2 +    &
+              4.009144680125015e-7_JPRD*zt3*zlogrhoa2 +    &
+              (0.7118597859976135_JPRD*zlogrhoa2)*zix -    &
+              1.056105824379897_JPRD*zlogrh*zlogrhoa2 +    &
+              0.00903377584628419_JPRD*zt*zlogrh*zlogrhoa2 -    &
+              0.00001984167387090606_JPRD*zt2*zlogrh*zlogrhoa2 +    &
+              2.460478196482179e-8_JPRD*zt3*zlogrh*zlogrhoa2 -    &
+              (0.05790872906645181_JPRD*zlogrh*zlogrhoa2)*zix -    &
+              0.1487119673397459_JPRD*zlogrhoa3 +    &
+              0.002835082097822667_JPRD*zt*zlogrhoa3 -    &
+              9.24618825471694e-6_JPRD*zt2*zlogrhoa3 +    &
+              5.004267665960894e-9_JPRD*zt3*zlogrhoa3 -    &
+              (0.01270805101481648_JPRD*zlogrhoa3)*zix
         
         zjnuc=EXP(zjnuc)      !   add. Eq. (12) [1/(cm^3s)]      
 
 
         ! Equation (13) - total number of molecules in the critical cluster
 
-        zntot=-0.002954125078716302_dp - 0.0976834264241286_dp*zt +   &
-               0.001024847927067835_dp*zt2 - 2.186459697726116e-6_dp*zt3 -    &
-               0.1017165718716887_dp*zix - 0.002050640345231486_dp*zlogrh -   &
-               0.007585041382707174_dp*zt*zlogrh +    &
-               0.0001926539658089536_dp*zt2*zlogrh -   &
-               6.70429719683894e-7_dp*zt3*zlogrh -    &
-               (0.2557744774673163_dp*zlogrh)*zix +   &
-               0.003223076552477191_dp*zlogrh2 +   &
-               0.000852636632240633_dp*zt*zlogrh2 -    &
-               0.00001547571354871789_dp*zt2*zlogrh2 +   &
-               5.666608424980593e-8_dp*zt3*zlogrh2 +    &
-               (0.03384437400744206_dp*zlogrh2)*zix +   &
-               0.04743226764572505_dp*zlogrh3 -    &
-               0.0006251042204583412_dp*zt*zlogrh3 +   &
-               2.650663328519478e-6_dp*zt2*zlogrh3 -    &
-               3.674710848763778e-9_dp*zt3*zlogrh3 -   &
-               (0.0002672510825259393_dp*zlogrh3)*zix -    &
-               0.01252108546759328_dp*zlogrhoa +   &
-               0.005806550506277202_dp*zt*zlogrhoa -    &
-               0.0001016735312443444_dp*zt2*zlogrhoa +   &
-               2.881946187214505e-7_dp*zt3*zlogrhoa +    &
-               (0.0942243379396279_dp*zlogrhoa)*zix -   &
-               0.0385459592773097_dp*zlogrh*zlogrhoa -   &
-               0.0006723156277391984_dp*zt*zlogrh*zlogrhoa +   &
-               2.602884877659698e-6_dp*zt2*zlogrh*zlogrhoa +    &
-               1.194163699688297e-8_dp*zt3*zlogrh*zlogrhoa -   &
-               (0.00851515345806281_dp*zlogrh*zlogrhoa)*zix -    &
-               0.01837488495738111_dp*zlogrh2*zlogrhoa +   &
-               0.0001720723574407498_dp*zt*zlogrh2*zlogrhoa -   &
-               3.717657974086814e-7_dp*zt2*zlogrh2*zlogrhoa -    &
-               5.148746022615196e-10_dp*zt3*zlogrh2*zlogrhoa +    &
-               (0.0002686602132926594_dp*zlogrh2*zlogrhoa)*zix -   &
-               0.06199739728812199_dp*zlogrhoa2 +    &
-               0.000906958053583576_dp*zt*zlogrhoa2 -   &
-               9.11727926129757e-7_dp*zt2*zlogrhoa2 -    &
-               5.367963396508457e-9_dp*zt3*zlogrhoa2 -   &
-               (0.007742343393937707_dp*zlogrhoa2)*zix +    &
-               0.0121827103101659_dp*zlogrh*zlogrhoa2 -   &
-               0.0001066499571188091_dp*zt*zlogrh*zlogrhoa2 +    &
-               2.534598655067518e-7_dp*zt2*zlogrh*zlogrhoa2 -    &
-               3.635186504599571e-10_dp*zt3*zlogrh*zlogrhoa2 +    &
-               (0.0006100650851863252_dp*zlogrh*zlogrhoa2)*zix +   &
-               0.0003201836700403512_dp*zlogrhoa3 -    &
-               0.0000174761713262546_dp*zt*zlogrhoa3 +   &
-               6.065037668052182e-8_dp*zt2*zlogrhoa3 -    &
-               1.421771723004557e-11_dp*zt3*zlogrhoa3 +   &
-               (0.0001357509859501723_dp*zlogrhoa3)*zix
+        zntot=-0.002954125078716302_JPRD - 0.0976834264241286_JPRD*zt +   &
+               0.001024847927067835_JPRD*zt2 - 2.186459697726116e-6_JPRD*zt3 -    &
+               0.1017165718716887_JPRD*zix - 0.002050640345231486_JPRD*zlogrh -   &
+               0.007585041382707174_JPRD*zt*zlogrh +    &
+               0.0001926539658089536_JPRD*zt2*zlogrh -   &
+               6.70429719683894e-7_JPRD*zt3*zlogrh -    &
+               (0.2557744774673163_JPRD*zlogrh)*zix +   &
+               0.003223076552477191_JPRD*zlogrh2 +   &
+               0.000852636632240633_JPRD*zt*zlogrh2 -    &
+               0.00001547571354871789_JPRD*zt2*zlogrh2 +   &
+               5.666608424980593e-8_JPRD*zt3*zlogrh2 +    &
+               (0.03384437400744206_JPRD*zlogrh2)*zix +   &
+               0.04743226764572505_JPRD*zlogrh3 -    &
+               0.0006251042204583412_JPRD*zt*zlogrh3 +   &
+               2.650663328519478e-6_JPRD*zt2*zlogrh3 -    &
+               3.674710848763778e-9_JPRD*zt3*zlogrh3 -   &
+               (0.0002672510825259393_JPRD*zlogrh3)*zix -    &
+               0.01252108546759328_JPRD*zlogrhoa +   &
+               0.005806550506277202_JPRD*zt*zlogrhoa -    &
+               0.0001016735312443444_JPRD*zt2*zlogrhoa +   &
+               2.881946187214505e-7_JPRD*zt3*zlogrhoa +    &
+               (0.0942243379396279_JPRD*zlogrhoa)*zix -   &
+               0.0385459592773097_JPRD*zlogrh*zlogrhoa -   &
+               0.0006723156277391984_JPRD*zt*zlogrh*zlogrhoa +   &
+               2.602884877659698e-6_JPRD*zt2*zlogrh*zlogrhoa +    &
+               1.194163699688297e-8_JPRD*zt3*zlogrh*zlogrhoa -   &
+               (0.00851515345806281_JPRD*zlogrh*zlogrhoa)*zix -    &
+               0.01837488495738111_JPRD*zlogrh2*zlogrhoa +   &
+               0.0001720723574407498_JPRD*zt*zlogrh2*zlogrhoa -   &
+               3.717657974086814e-7_JPRD*zt2*zlogrh2*zlogrhoa -    &
+               5.148746022615196e-10_JPRD*zt3*zlogrh2*zlogrhoa +    &
+               (0.0002686602132926594_JPRD*zlogrh2*zlogrhoa)*zix -   &
+               0.06199739728812199_JPRD*zlogrhoa2 +    &
+               0.000906958053583576_JPRD*zt*zlogrhoa2 -   &
+               9.11727926129757e-7_JPRD*zt2*zlogrhoa2 -    &
+               5.367963396508457e-9_JPRD*zt3*zlogrhoa2 -   &
+               (0.007742343393937707_JPRD*zlogrhoa2)*zix +    &
+               0.0121827103101659_JPRD*zlogrh*zlogrhoa2 -   &
+               0.0001066499571188091_JPRD*zt*zlogrh*zlogrhoa2 +    &
+               2.534598655067518e-7_JPRD*zt2*zlogrh*zlogrhoa2 -    &
+               3.635186504599571e-10_JPRD*zt3*zlogrh*zlogrhoa2 +    &
+               (0.0006100650851863252_JPRD*zlogrh*zlogrhoa2)*zix +   &
+               0.0003201836700403512_JPRD*zlogrhoa3 -    &
+               0.0000174761713262546_JPRD*zt*zlogrhoa3 +   &
+               6.065037668052182e-8_JPRD*zt2*zlogrhoa3 -    &
+               1.421771723004557e-11_JPRD*zt3*zlogrhoa3 +   &
+               (0.0001357509859501723_JPRD*zlogrhoa3)*zix
 
         zntot=EXP(zntot)  !  add. Eq. (13)
 
           
         ! Equation (14) - radius of the critical cluster in nm
 
-        zrc=EXP(-1.6524245_dp+0.42316402_dp*x+0.33466487_dp*LOG(zntot))    ! [nm]
+        !PLS  zrc=EXP(-1.6524245_JPRD+0.42316402_JPRD*x+0.33466487_JPRD*LOG(zntot))    ! [nm]
 
         ! Conversion [nm -> m]
 
-        zrxc(jl)=zrc*1e-9_dp
+        !PLS zrxc(jl)=zrc*1e-9_JPRD
 
         !----1.2) Limiter
 
-        IF(zjnuc<1.e-7_dp .OR. zntot<4.0_dp) zjnuc=0.0_dp
+        IF(zjnuc<1.e-7_JPRD .OR. zntot<4.0_JPRD) zjnuc=0.0_JPRD
 
         ! limitation to 1E+10 [1/cm3s]
       
-        zjnuc=MIN(zjnuc,1.e10_dp)
+        zjnuc=MIN(zjnuc,1.e10_JPRD)
 
-        pxtrnucr(jl,jk) = zjnuc
+        pxtrnucr(jl,jk) = REAL(zjnuc, KIND=dp)
 
         ! convert total number of molecules in the critical cluster
         ! to number of sulfate molecules:
 
-        pntot(jl,jk)=zntot*zxmole
+        pntot(jl,jk)=REAL(zntot*zxmole, KIND=dp)
 
       ENDDO ! kproma
       
