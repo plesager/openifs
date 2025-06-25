@@ -200,7 +200,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
     ! FIXME Better than 1:14 is to define a variable with value 14 with a
     !       meaningful name (RCHG)
-    DO JAER=1,14
+    DO JAER=1,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW
       DO JK=1,KDIM%KLEV
         DO JL=KDIM%KIDIA,KDIM%KFDIA
           GEMSL%ZAEROTAU(JL,JK,JAER) = YDAERM7%M7AOD( JL,JK,JAER,IBLK)
@@ -209,7 +209,13 @@ SELECT CASE (TRIM(AERO_SCHEME))
         ENDDO
       ENDDO
     ENDDO
-
+    DO JAER=1,16
+      DO JK=1,KDIM%KLEV
+        DO JL=KDIM%KIDIA,KDIM%KFDIA
+          GEMSL%ZAEROTAULW(JL,JK,JAER) = YDAERM7%M7AODLW(JL,JK,JAER,IBLK)
+        ENDDO
+      ENDDO
+    ENDDO
     ZTAUS_AER  = 0._JPRB
     ZTAUA_AER  = 0._JPRB
     ZPMAER     = 0._JPRB
@@ -253,19 +259,24 @@ SELECT CASE (TRIM(AERO_SCHEME))
       &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU,PSURF%PSD_VD(:,YDSURF%YSD_VD%YBLH%MP)) !,ZTSO2,ZTSO4,ZTSO4_AQ,ZFSO2,ZFSO4 ,ZFSO4_AQ&
     !&) ! u-wind,v-wind,low veg. cover, high veg. cover, sine of latitude
 
-    ! FIXME Better than 1:14 is to define a variable with value 14 with a meaningful name (RCHG)
-    !       Note that %M7AODLW has 16 wavelenghts (see phys_radi/suecrad.F90, PLS)
-    DO JAER=1,14
+    DO JAER=1,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW
        DO JK=1,KDIM%KLEV
          DO JL=KDIM%KIDIA,KDIM%KFDIA
             YDAERM7%M7AOD(JL,JK,JAER,IBLK)   = GEMSL%ZAEROTAU(JL,JK,JAER)
             YDAERM7%M7SSA(JL,JK,JAER,IBLK)   = GEMSL%ZAEROSSA(JL,JK,JAER)   !*GEMSL%ZAEROTAU(JL,JK,JAER)
             YDAERM7%M7ASYM(JL,JK,JAER,IBLK)  = GEMSL%ZAEROASY(JL,JK,JAER)   !*GEMSL%ZAEROSSA(JL,JK,JAER)*GEMSL%ZAEROTAU(JL,JK,JAER) 
-            YDAERM7%M7AODLW(JL,JK,JAER,IBLK) = GEMSL%ZAEROTAULW(JL,JK,JAER)
             !weighed values calculated in raddvr. 
          ENDDO
        ENDDO 
-     ENDDO 
+    ENDDO 
+    DO JAER=1,16 !FIXME this needs better variable
+       DO JK=1,KDIM%KLEV
+         DO JL=KDIM%KIDIA,KDIM%KFDIA
+            YDAERM7%M7AODLW(JL,JK,JAER,IBLK) = GEMSL%ZAEROTAULW(JL,JK,JAER)
+            !weighed values calculated in raddvr. 
+         ENDDO
+       ENDDO
+    ENDDO
 
    CASE ("aer")
 
