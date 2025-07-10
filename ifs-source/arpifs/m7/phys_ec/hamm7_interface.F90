@@ -265,6 +265,7 @@ INTEGER(KIND=JPIM) :: JCLASS, JTILE, JMASS, JGAS, JCLOUD ! local loop indice for
 INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS
 INTEGER(KIND=JPIM) :: IMODE 
 INTEGER(KIND=JPIM) :: IFLAG
+INTEGER(KIND=JPIM) :: KTOP                               ! cloud top index
 
 REAL(KIND=JPRB) :: ZAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZTAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
@@ -943,7 +944,20 @@ ENDDO
           ZQLWP(JL,JK) = MIN(MAX(ZQLWP(JL,JK),0.0_JPRB),RCLDMAX) ! treshold lwc
        END DO
     END DO
-    
+
+    !---find highest model level where there is cloud
+    KTOP = KLEV !eehol: add as default (basically if no cloud so KTOP is assigned to lowest level)
+    DO JK=1,KLEV
+       IF ( ANY(ZAP(KIDIA:KFDIA,JK) >=0.001_JPRB) ) THEN !eehol: if cloud fraction is larger than threshold
+          KTOP = JK
+          EXIT
+       ENDIF
+    END DO
+
+    ! Default values for effective radii
+    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
+    REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
+
     ! Cloud activation scheme
     CLDACT: IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes
        
@@ -1309,7 +1323,7 @@ ENDDO
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
                 
 
-          CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = FALSE for conv. case
+          CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, KTOP, ZKROW, LSTRAT, & ! ktop = cloud top level index, lstrat = FALSE for conv. case
                   ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                   ZLPU,  ZIP,                                        & ! cloud water content, cloud ice water content
                   ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
@@ -1357,7 +1371,7 @@ ENDDO
         ZDUM3D(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB ! dummy updraft mass flux for strat. case
 
         LSTRAT = .TRUE. !True for strat case, large scale
-        CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, 1, ZKROW, LSTRAT, & ! ktop = 1 (top level index), lstrat = TRUE for strat. case
+        CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, KTOP, ZKROW, LSTRAT, & ! ktop = cloud top level index, lstrat = TRUE for strat. case
                 ZDPG,  ZMRATEPR_STR, ZMRATEPS_STR, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                 ZLP,  ZIP,                                         & ! cloud water content, cloud ice water content
                 ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]

@@ -230,9 +230,7 @@ MODULE mo_ham_wetdep
              ztmp1(kbdim,klev),           ztmp2(kbdim,klev)
 
   !--- 0/ Initializations:
-
-  !CALL prep_ham_mode_init(kproma, kbdim, klev)
-
+  
   ztmst = time_step_len
 
   imod    = trlist%ti(kt)%mode
@@ -453,11 +451,10 @@ MODULE mo_ham_wetdep
 
      !--- Calculate fraction of below cloud scavenged tracer:
      ll1(1:kproma,:) = (paclc(1:kproma,:) < zmin)
+     
+     ztmp1(1:kproma,:) = -ztmst*MAX(sfrain(1:kproma,:,itrac_phase,imod),0._dp)
+     ztmp2(1:kproma,:) = -ztmst*MAX(sfsnow(1:kproma,:,itrac_phase,imod),0._dp)
 
-     !ztmp1(1:kproma,:) = -ztmst*MAX(sfrain(1:kproma,:,itrac_phase,imod),0._dp)
-     !ztmp2(1:kproma,:) = -ztmst*MAX(sfsnow(1:kproma,:,itrac_phase,imod),0._dp)
-     ztmp1(1:kproma,:) = -ztmst*MIN(MAX((1._dp)*sfrain(1:kproma,:,itrac_phase,imod),0._dp),1._dp) !eehol: test
-     ztmp2(1:kproma,:) = -ztmst*MIN(MAX((1._dp)*sfsnow(1:kproma,:,itrac_phase,imod),0._dp),1._dp) !eehol: test
 !SFnote: in the above two expressions, the MAX function is here only to rule out the cases where sfrain and/or
 !        sfsnow is/are equal to UNDEF, ie in cases where scavenging by rain and/or snow is not relevant.
 !        Initializing sfrain and sfsnow to 0 at the beginning would defeat the concept of having an UNDEF value,

@@ -463,66 +463,66 @@ CONTAINS
 
 ! ----------------------------------------------------------------------------------------
 
-    pscavcoef(1:kproma,:) = 0._dp
+   pscavcoef(1:kproma,:) = 0._dp !eehol: put scav coef to 0 for all levels but use ktop:klev slice from here on
 
-    lint1(1:kproma,:) = (X1(1:kproma,:) /= X2(1:kproma,:)) .AND. (Y1(1:kproma,:) == Y2(1:kproma,:))
-    lint2(1:kproma,:) = (X1(1:kproma,:) == X2(1:kproma,:)) .AND. (Y1(1:kproma,:) /= Y2(1:kproma,:))
-    lint3(1:kproma,:) = (X1(1:kproma,:) == X2(1:kproma,:)) .AND. (Y1(1:kproma,:) == Y2(1:kproma,:))
-    lint4(1:kproma,:) = (X1(1:kproma,:) /= X2(1:kproma,:)) .AND. (Y1(1:kproma,:) /= Y2(1:kproma,:))
+   lint1(1:kproma,ktop:klev) = (X1(1:kproma,ktop:klev) /= X2(1:kproma,ktop:klev)) .AND. (Y1(1:kproma,ktop:klev) == Y2(1:kproma,ktop:klev))
+   lint2(1:kproma,ktop:klev) = (X1(1:kproma,ktop:klev) == X2(1:kproma,ktop:klev)) .AND. (Y1(1:kproma,ktop:klev) /= Y2(1:kproma,ktop:klev))
+   lint3(1:kproma,ktop:klev) = (X1(1:kproma,ktop:klev) == X2(1:kproma,ktop:klev)) .AND. (Y1(1:kproma,ktop:klev) == Y2(1:kproma,ktop:klev))
+   lint4(1:kproma,ktop:klev) = (X1(1:kproma,ktop:klev) /= X2(1:kproma,ktop:klev)) .AND. (Y1(1:kproma,ktop:klev) /= Y2(1:kproma,ktop:klev))
 
 ! --- Interpolation in x direction only (rain rates) -------------------------------------
 
-    ztmp1(1:kproma,:) = MERGE( &
-                             X2(1:kproma,:)-X1(1:kproma,:), &
-                             1._dp, & !SF dummy value
-                             lint1(1:kproma,:))
+   ztmp1(1:kproma,ktop:klev) = MERGE( &
+                            X2(1:kproma,ktop:klev)-X1(1:kproma,ktop:klev), &
+                            1._dp, & !SF dummy value
+                            lint1(1:kproma,ktop:klev))
 
-    ztmp1(1:kproma,:) = &
-        (((X2(1:kproma,:)-pfprecip(1:kproma,:))/ztmp1(1:kproma,:))*Q11(1:kproma,:)) &
-       +(((pfprecip(1:kproma,:)-X1(1:kproma,:))/ztmp1(1:kproma,:))*Q21(1:kproma,:))
+   ztmp1(1:kproma,ktop:klev) = &
+       (((X2(1:kproma,ktop:klev)-pfprecip(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q11(1:kproma,ktop:klev)) &
+      +(((pfprecip(1:kproma,ktop:klev)-X1(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q21(1:kproma,ktop:klev))
 
-    pscavcoef(1:kproma,:) = MERGE(ztmp1(1:kproma,:), pscavcoef(1:kproma,:), lint1(1:kproma,:))
+   pscavcoef(1:kproma,ktop:klev) = MERGE(ztmp1(1:kproma,ktop:klev), pscavcoef(1:kproma,ktop:klev), lint1(1:kproma,ktop:klev))
 
 ! --- Interpolation in y direction only (aerosol radii) ----------------------------------
 
-    ztmp1(1:kproma,:) = MERGE( &
-                             Y2(1:kproma,:)-Y1(1:kproma,:), &
-                             1._dp, & !SF dummy value
-                             lint2(1:kproma,:))
+   ztmp1(1:kproma,ktop:klev) = MERGE( &
+                            Y2(1:kproma,ktop:klev)-Y1(1:kproma,ktop:klev), &
+                            1._dp, & !SF dummy value
+                            lint2(1:kproma,ktop:klev))
 
-    ztmp1(1:kproma,:) = &
-        (((Y2(1:kproma,:)-pmr(1:kproma,:))/ztmp1(1:kproma,:))*Q21(1:kproma,:))   &
-       +(((pmr(1:kproma,:)-Y1(1:kproma,:))/ztmp1(1:kproma,:))*Q22(1:kproma,:))
+   ztmp1(1:kproma,ktop:klev) = &
+       (((Y2(1:kproma,ktop:klev)-pmr(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q21(1:kproma,ktop:klev))   &
+      +(((pmr(1:kproma,ktop:klev)-Y1(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q22(1:kproma,ktop:klev))
 
-    pscavcoef(1:kproma,:) = MERGE(ztmp1(1:kproma,:), pscavcoef(1:kproma,:), lint2(1:kproma,:))
+   pscavcoef(1:kproma,ktop:klev) = MERGE(ztmp1(1:kproma,ktop:klev), pscavcoef(1:kproma,ktop:klev), lint2(1:kproma,ktop:klev))
 
 ! --- No interpolation of below-cloud scavenging coefficents -----------------------------
 
-    ztmp1(1:kproma,:) = Q11(1:kproma,:)
+   ztmp1(1:kproma,ktop:klev) = Q11(1:kproma,ktop:klev)
 
-    pscavcoef(1:kproma,:) = MERGE(ztmp1(1:kproma,:), pscavcoef(1:kproma,:), lint3(1:kproma,:))
+   pscavcoef(1:kproma,ktop:klev) = MERGE(ztmp1(1:kproma,ktop:klev), pscavcoef(1:kproma,ktop:klev), lint3(1:kproma,ktop:klev))
 
 ! --- Bilinear interpolation of below-cloud scavenging coefficients ----------------------             
 
-    ztmp1(1:kproma,:) = MERGE( &
-                             X2(1:kproma,:)-X1(1:kproma,:), &
+    ztmp1(1:kproma,ktop:klev) = MERGE( &
+                             X2(1:kproma,ktop:klev)-X1(1:kproma,ktop:klev), &
                              1._dp, & !SF dummy value
-                             lint4(1:kproma,:))
+                             lint4(1:kproma,ktop:klev))
 
-    ztmp2(1:kproma,:) = MERGE( &
-                             Y2(1:kproma,:)-Y1(1:kproma,:), &
+    ztmp2(1:kproma,ktop:klev) = MERGE( &
+                             Y2(1:kproma,ktop:klev)-Y1(1:kproma,ktop:klev), &
                              1._dp, & !SF dummy value
-                             lint4(1:kproma,:))
+                             lint4(1:kproma,ktop:klev))
+    
+    ztmp3(1:kproma,ktop:klev) =                                          &
+      (((Y2(1:kproma,ktop:klev)-pmr(1:kproma,ktop:klev))/ztmp2(1:kproma,ktop:klev))*                   &
+       ((((X2(1:kproma,ktop:klev)-pfprecip(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q11(1:kproma,ktop:klev))     &
+       +((pfprecip(1:kproma,ktop:klev)-X1(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q21(1:kproma,ktop:klev))) +   &
+      (((pmr(1:kproma,ktop:klev)-Y1(1:kproma,ktop:klev))/ztmp2(1:kproma,ktop:klev))*                   &
+       ((((X2(1:kproma,ktop:klev)-pfprecip(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q12(1:kproma,ktop:klev))     &
+       +((pfprecip(1:kproma,ktop:klev)-X1(1:kproma,ktop:klev))/ztmp1(1:kproma,ktop:klev))*Q22(1:kproma,ktop:klev)))
 
-    ztmp3(1:kproma,:) =                                          &
-      (((Y2(1:kproma,:)-pmr(1:kproma,:))/ztmp2(1:kproma,:))*                   &
-       ((((X2(1:kproma,:)-pfprecip(1:kproma,:))/ztmp1(1:kproma,:))*Q11(1:kproma,:))     &
-       +((pfprecip(1:kproma,:)-X1(1:kproma,:))/ztmp1(1:kproma,:))*Q21(1:kproma,:))) +   &
-      (((pmr(1:kproma,:)-Y1(1:kproma,:))/ztmp2(1:kproma,:))*                   &
-       ((((X2(1:kproma,:)-pfprecip(1:kproma,:))/ztmp1(1:kproma,:))*Q12(1:kproma,:))     &
-       +((pfprecip(1:kproma,:)-X1(1:kproma,:))/ztmp1(1:kproma,:))*Q22(1:kproma,:)))
-
-    pscavcoef(1:kproma,:) = MERGE(ztmp3(1:kproma,:), pscavcoef(1:kproma,:), lint4(1:kproma,:))
+    pscavcoef(1:kproma,ktop:klev) = MERGE(ztmp3(1:kproma,ktop:klev), pscavcoef(1:kproma,ktop:klev), lint4(1:kproma,ktop:klev))
 
    END SUBROUTINE scavcoef_bilinterp
 
