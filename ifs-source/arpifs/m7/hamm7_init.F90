@@ -51,7 +51,8 @@ USE PARKIND1, ONLY : JPRB
 USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMRIP,   ONLY : TRIP
 USE YOM_YGFL, ONLY : TYPE_GFLD   ! Gives type for YGFL
-Use YOMMP0,   ONLY : MYPROC
+USE YOMMP0,   ONLY : MYPROC
+USE YOMLUN,   ONLY : NULOUT
 
 ! --- M7 modules --------------------------------------------------------------
 USE MO_TIME_CONTROL, ONLY: init_mo_time_control
@@ -186,7 +187,7 @@ ASSOCIATE(&
 ! tracer data stored in PCEN and PTENC in the HAM routines without
 ! having to copy the data into new fields.
 ! The naming conventions in IFS and HAM are somewhat different, so
-! tracher naming is somewhat hard-coded. As a first instance to troubleshooting,
+! tracer naming is somewhat hard-coded. As a first instance to troubleshooting,
 ! check the logfile 'fort.2001' in the run directory and see which tracers 
 ! are not recognised by HAM. Then check the file 
 ! AC-experiments/ctrl/Table/bins_hamm7ver1.csv and compare the names you get 
@@ -473,6 +474,54 @@ ELSE
    ! - CHEM_SCHEME is either 'tm5' or 'SimChem'
    CALL ABOR1(" hamm7_init: UNCOUPLED CHEMISTRY SCHEME "//TRIM(CHEM_SCHEME) )
 END IF
+
+! -- LOG
+WRITE(NULOUT,'("====== HAMM7_INIT ===== ")')
+
+WRITE(NULOUT,'("Number of  size classes:", I3)') znclass
+WRITE(NULOUT,'(" class# / IFS id / HM7 id / IFSNAME / M7NAME ")')
+DO J_CLASS = 1,NCLASS
+  WRITE(NULOUT,'(1x,I6,3x,I6,3x,I6,3x,A,2x,A)') &
+       & J_CLASS, &
+       & IND_OIFS_HAM%IND_CLASS_OIFS(J_CLASS), &
+       & IND_OIFS_HAM%IND_CLASS_HAM(J_CLASS),  &
+       & TRIM(YAERO(IND_OIFS_HAM%IND_CLASS_OIFS(J_CLASS))%CNAME), &
+       & TRIM(trlist%ti(sizeclass(J_CLASS)%idt_no)%fullname)
+ENDDO
+
+WRITE(NULOUT,'("Number of  mass tracers:", I3)') znaerocomp
+WRITE(NULOUT,'("  mass# / IFS id / HM7 id / IFSNAME / M7NAME ")')
+DO J_MASS = 1,NAEROCOMP
+  WRITE(NULOUT,'(1x,I6,3x,I6,3x,I6,3x,A,2x,A)') &
+       & J_MASS, &
+       & IND_OIFS_HAM%IND_MASS_OIFS(J_MASS), &
+       & IND_OIFS_HAM%IND_MASS_HAM(J_MASS),  &
+       & TRIM(YAERO(IND_OIFS_HAM%IND_MASS_OIFS(J_MASS))%CNAME), &
+       & TRIM(trlist%ti(aerocomp(J_MASS)%idt)%fullname)
+ENDDO
+
+WRITE(NULOUT,'("Number of   gas tracers:", I3)') zsubm_ngasspec
+WRITE(NULOUT,'("   gas# / IFS id / HM7 id / IFSNAME / M7NAME  ")')
+DO J_GAS = 1,SUBM_NGASSPEC
+  J_SPEC = SUBM_GASSPEC(J_GAS)
+  WRITE(NULOUT,'(1x,I6,3x,I6,3x,I6,3x,A,2x,A)') &
+       & J_GAS, &
+       & IND_OIFS_HAM%IND_GAS_OIFS(J_GAS), &
+       & IND_OIFS_HAM%IND_GAS_HAM(J_GAS),  &
+       & TRIM(YCHEM(IND_OIFS_HAM%IND_GAS_OIFS(J_GAS))%CNAME), &
+       & TRIM(TRLIST%TI(SPECLIST(J_SPEC)%IDT)%FULLNAME)
+ENDDO
+
+WRITE(NULOUT,'("Number of cloud tracers:", I3)') zcloudind
+WRITE(NULOUT,'(" cloud# / IFS id / HM7 id / IFSNAME / M7NAME  ")')
+DO J_CLOUD = IDT_CDNC,IDT_ICNC
+  WRITE(NULOUT,'(1x,I6,3x,I6,3x,I6,3x,A,2x,A)') &
+       & J_CLOUD-IDT_CDNC+1, &
+       & IND_OIFS_HAM%IND_CLOUD_OIFS(J_CLOUD-IDT_CDNC+1), &
+       & IND_OIFS_HAM%IND_CLOUD_HAM(J_CLOUD-IDT_CDNC+1),  &
+       & TRIM(YAERO(IND_OIFS_HAM%IND_CLOUD_OIFS(J_CLOUD-IDT_CDNC+1))%CNAME), &
+       & TRIM(trlist%ti(IND_OIFS_HAM%IND_CLOUD_HAM(J_CLOUD-IDT_CDNC+1))%fullname)
+ENDDO
 
 IF (LLDEBUG .AND. MYPROC == 1) THEN
    WRITE(5001+MYPROC,*) 'HAM class idts =', ind_oifs_ham%ind_class_HAM(:)
