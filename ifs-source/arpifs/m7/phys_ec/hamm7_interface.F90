@@ -381,10 +381,13 @@ REAL(KIND=JPRB) :: ZMRATEPS_str(KLON,KLEV) ! ice formation rate in cloudy part, 
 
 REAL(KIND=JPRB) :: ZMSNOWACL(KLON,KLEV) !accretion rate of snow with cloud droplets in cloudy part
 REAL(KIND=JPRB) :: ZFLXR, ZFLXS, ZFLXRB, ZFLXSB !variables to calculate rain and snow evap/formation
+
+REAL(KIND=JPRB) :: ZFPLCL(KLON,KLEV),ZFPLCN(KLON,KLEV),ZFPLSL(KLON,KLEV),ZFPLSN(KLON,KLEV)
 REAL(KIND=JPRB) :: ZLP(KLON,KLEV) !temporary variable for cloud water content
 REAL(KIND=JPRB) :: ZIP(KLON,KLEV) !temporary variable for cloud ice water content
 REAL(KIND=JPRB) :: ZLPU(KLON,KLEV) !temporary variable for cloud water content
 REAL(KIND=JPRB) :: ZIPDUM(KLON,KLEV) !temporary variable for cloud ice water content
+REAL(KIND=JPRB) :: ZMFU(KLON,KLEV)  ! temporary variable for constraing Conv. mass flux up
 ! variables for ICNC calculations
 REAL(KIND=JPRB) :: ZICNC(KLON,KLEV) ! ice crystal number concentration [#/cm3]
 ! added here variables for dry deposition and sedimentation
@@ -1282,6 +1285,11 @@ ENDDO
           END DO
         END DO
 
+        ZFPLCL(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLCL(KIDIA:KFDIA,0:KLEV-1)+PFPLCL(KIDIA:KFDIA,1:KLEV))
+        ZFPLCN(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLCN(KIDIA:KFDIA,0:KLEV-1)+PFPLCN(KIDIA:KFDIA,1:KLEV))
+        ZFPLSL(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLSL(KIDIA:KFDIA,0:KLEV-1)+PFPLSL(KIDIA:KFDIA,1:KLEV))
+        ZFPLSN(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLSN(KIDIA:KFDIA,0:KLEV-1)+PFPLSN(KIDIA:KFDIA,1:KLEV))
+
         ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = PSP(KIDIA:KFDIA,1:KLEV) !?
 
         ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
@@ -1322,17 +1330,18 @@ ENDDO
         IF (.NOT. LSTRAT) THEN
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
                 
+          ZMFU(KIDIA:KFDIA,1:KLEV) = min(PMFU(KIDIA:KFDIA,1:KLEV),ZDPG(KIDIA:KFDIA,1:KLEV)/TIME_STEP_LEN)!constraing Conv. mass flux up
 
           CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, KTOP, ZKROW, LSTRAT, & ! ktop = cloud top level index, lstrat = FALSE for conv. case
                   ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
-                  ZLPU,  ZIP,                                        & ! cloud water content, cloud ice water content
+                  ZLPU,  ZIPDUM,                                        & ! cloud water content, cloud ice water content
                   ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
                   REFFI,  REFFL,                                     & ! effective radii
                   ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
                   PTP, ZXTM1, ZLFRAC_SO2,                            & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
                   ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
-                  PFPLCL, PFPLCN, ZFEVAPR_cov, ZFSUBLS_cov,          & ! rain flux, snow flux, 
-                  PMFU, ZFUXT3D,                                     & ! conv flux, updraft mass flux (updated in wetdep)
+                  ZFPLCL, ZFPLCN, ZFEVAPR_cov, ZFSUBLS_cov,          & ! rain flux, snow flux, 
+                  ZMFU, ZFUXT3D,                                     & ! conv flux, updraft mass flux (updated in wetdep)
                   ZAP,  ZDUM2D, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
 
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .FALSE., ZDUMMY) ! call convective mass conserving
@@ -1379,7 +1388,7 @@ ENDDO
                 ZCDNCACT, ZFRACN,                                  & ! number/fraction of activated particles per mode
                 PTP, ZXTM1, ZLFRAC_SO2,                            & ! temperature, prev. mixing ratio, zlfrac_so2 only needed in gas scavenging (0 for now)
                 ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
-                PFPLSL, PFPLSN, ZFEVAPR_str, ZFSUBLS_str,          & ! rain flux, snow flux, 
+                ZFPLSL, ZFPLSN, ZFEVAPR_str, ZFSUBLS_str,          & ! rain flux, snow flux, 
                 ZDUM2D, ZDUM3D,                                    & ! zeroes as these are not needed in strat. case
                 ZAP,  PCOVPTOT, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
 
