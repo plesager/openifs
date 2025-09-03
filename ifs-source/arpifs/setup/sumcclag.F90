@@ -375,7 +375,7 @@ IF (LMCCEC) THEN  !BOUNDARY CONDITIONS UPDATED BY ECMWF ROUTINES
     WRITE(NULOUT,*) 'OCEANBC ALLOCATED'
   ENDIF
 
-! naj set up mechanism to read in emissions and dry deposition fields during model run for COMPO (AER AND CHEM) 
+  ! Set up mechanism to read in emissions fields during model run for COMPO (AER AND CHEM)
   IF (LMCC_COMPO) THEN
     IF (LMCCIEC_COMPO) THEN ! Emissions etc. interpolated in time
       NPCOMPO_1=1
@@ -456,44 +456,41 @@ IF (LMCCEC) THEN  !BOUNDARY CONDITIONS UPDATED BY ECMWF ROUTINES
 
     NJDCR1_COMPO=-999
 
-! allocate communication array 
+    ! allocate communication array
     ALLOCATE(YDMCC%CLIMRCOMPO(NGPTOT,ITIM,NCLIMR_COMPO))
     
     WRITE(KULOUT,"(1X,'ARRAY ',A10,' ALLOCATED ',8I8)")&
     & 'CLIMRCOMPO     ',SIZE(YDMCC%CLIMRCOMPO),SHAPE(YDMCC%CLIMRCOMPO)
 
     WRITE(KULOUT,"(1X,A20)")  ' EXPECTED ORDER '
-    DO IT=1,NCLIMR_COMPO 
+    DO IT=1,NCLIMR_COMPO
       WRITE(KULOUT,"(1X,3I10)") IT,  NCLIGC_COMPO(IT),  NYSDMP_COMPO(IT)
     ENDDO
 
-
-
-!VH Add stuff associated to 3D aerosol climatology
+    ! Add stuff associated to 3D SO2 oxidants climatology
     IF( NSO4SCHEME == 2 ) THEN
+
+      IF (NAEROCLIM == 0) THEN
+        CALL ABOR1('SUMCCLAG:  "NSO4SCHEME == 2" requires SO2 oxidants')
+      ENDIF
 
       IF (LMCCIEC_AERCLIM) THEN !THE 3D fields ARE INTERPOLATED IN TIME
         NPAERCLIM_1=1
         NPAERCLIM_2=2
-        !NPCOMPO_1=1
-        !NPCOMPO_2=2
         ITIM_AERCLIM=2
       ELSE !THE FLUXES ARE NOT INTERPOLATED IN TIME
         NPAERCLIM_1=1
         NPAERCLIM_2=NPAERCLIM_1
-        !NPCOMPO_1=1
-        !NPCOMPO_2=NPCOMPO_1
         ITIM_AERCLIM=1
       ENDIF
       
-      DO IT=1,NAEROCLIM 
+      DO IT=1,NAEROCLIM
         NCLIGC_AERCLIM(IT) = YAEROCLIM_NL(IT)%IGRBCODE   
         NYSDMP_AERCLIM(IT) = YDML_GCONF%YGFL%YAEROCLIM(IT)%MP 
       ENDDO
 
       ! allocate communication array 
       ALLOCATE(YDML_AOC%YRMCC%CLIMRAER(NGPTOT,NFLEVG,ITIM_AERCLIM,NAEROCLIM))
-      !ALLOCATE(YDML_AOC%YRMCC%CLIMRAER(NGPTOT,NFLEVG,NAEROCLIM)) !!! default array is 3 dims instead of 4 dims
     
       WRITE(KULOUT,"(1X,'ARRAY ',A10,' ALLOCATED ',10I8)")&
       & 'CLIMRAER  ',SIZE(YDML_AOC%YRMCC%CLIMRAER),SHAPE(YDML_AOC%YRMCC%CLIMRAER)
@@ -504,9 +501,6 @@ IF (LMCCEC) THEN  !BOUNDARY CONDITIONS UPDATED BY ECMWF ROUTINES
       ENDDO
 
     ENDIF
-
-
-
 
   ENDIF ! Composition part
 

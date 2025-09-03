@@ -49,6 +49,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS_LAYER',0,ZHOOK_HANDLE)
 
+IF ( YDMODEL%YRML_GCONF%YGFL%NEMIS3D .GT. 0 ) THEN
+  
 !     ------------------------------------------------------------------
   CALL COMPO_APPLY_EMISSIONS(YDMODEL, &
    &                         KDIM%KIDIA, KDIM%KFDIA, KDIM%KLEV, KDIM%KLON, GEMSL%ITRAC, &
@@ -63,6 +65,24 @@ IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS_LAYER',0,ZHOOK_HANDLE)
    &                         PLSM=PSURF%PSD_VF(:,YDSURF%YSD_VF%YLSM%MP), &
    &                         PBLH=PSURF%PSD_VD(:,YDSURF%YSD_VD%YBLH%MP))
 
+ELSE
+
+  !     ------------------------------------------------------------------
+  CALL COMPO_APPLY_EMISSIONS(YDMODEL, &
+       &                         KDIM%KIDIA, KDIM%KFDIA, KDIM%KLEV, KDIM%KLON, GEMSL%ITRAC, &
+       &                         PAUX%PGELAT, PAUX%PGELAM, PAUX%PDELP, &
+       &                         GEMSL%ZCEN, GEMSL%ZTENC, GEMSL%ZCFLX, &
+       & PEMIS2D=PSURF%PSD_VF(:,YDSURF%YSD_VF%YEMIS2D(1)%MP:YDSURF%YSD_VF%YEMIS2D(YDMODEL%YRML_GCONF%YGFL%NEMIS2D)%MP), &
+       & PEMIS2DAUX=PSURF%PSD_VF(:,YDSURF%YSD_VF%YEMIS2DAUX(1)%MP:YDSURF%YSD_VF%YEMIS2DAUX(YDMODEL%YRML_GCONF%YGFL%NEMIS2DAUX)%MP), &
+       & PEMIS3D=PGFL(:,:,1:), &
+       &                         KAERO=GEMSL%IAERO, KCHEM=GEMSL%ICHEM, &
+       &                         PEXTRA=PSURF%PSD_XA, &
+       &                         PAPHIF=PAUX%PAPHIF, &
+       &                         PLSM=PSURF%PSD_VF(:,YDSURF%YSD_VF%YLSM%MP), &
+       &                         PBLH=PSURF%PSD_VD(:,YDSURF%YSD_VD%YBLH%MP))
+
+ENDIF
+  
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS_LAYER',1,ZHOOK_HANDLE)
 END SUBROUTINE COMPO_APPLY_EMISSIONS_LAYER
