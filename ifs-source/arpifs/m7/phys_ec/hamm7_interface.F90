@@ -720,7 +720,7 @@ DO JK=1,KLEV
     ZAP(JL,JK)=MIN(1.0_JPRB,MAX(0.0_JPRB,PAP(JL,JK))) !add threshold for cloud cover
   ENDDO
 ENDDO
-ZBLHIDX(KIDIA:KFDIA)=1
+ZBLHIDX(KIDIA:KFDIA)=1.0_JPRB
 ! Find top level index of bounrary layer
 DO JK=1,KLEV
   DO JL=KIDIA,KFDIA
@@ -728,12 +728,8 @@ DO JK=1,KLEV
     ! PGEOH used here as it is the layer interface geopotential, and when divided by gravitation constat gives height
     ! 
     IF (PBLH(JL)>(((PGEOH(JL,JK)-PGEOH(JL,KLEV))*ZRG)) .and. .not. LBLHFOUND(JL)) THEN
-      ZBLHIDX(JL)=JK-1
+      ZBLHIDX(JL)=REAL(JK, KIND=JPRB)
       LBLHFOUND(JL)=.TRUE.
-    !   write(1212,*)PBLH(JL),PAPHIF(JL,JK),JL,JK-1
-    ! else
-    !   write(1212,*)PBLH(JL),PAPHIF(JL,JK),JL,ZBLHIDX(JL)
-
     END IF
   ENDDO 
 ENDDO

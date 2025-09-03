@@ -720,12 +720,12 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
     
     DO jl = 1, kproma
       ! Above the boundary layer:
-      DO jk = 1, int(ppbl(jl)) - 1
+      DO jk = 1, nint(ppbl(jl)) - 1
         pns(jl,jk)  = 0.0_dp
         ppfr(jl,jk) = 0.0_dp
       ENDDO
       ! In the boundary layer:
-      DO jk = int(ppbl(jl)), klev
+      DO jk = nint(ppbl(jl)), klev
         pns(jl,jk)  = 1.0_dp
         ppfr(jl,jk) = 1.0E-6_dp*ph2so4(jl,jk)*pforest(jl)
       ENDDO
@@ -792,12 +792,12 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
     
     DO jl = 1, kproma
       ! Above the boundary layer:
-      DO jk = 1, int(ppbl(jl)) - 1
+      DO jk = 1, nint(ppbl(jl)) - 1
         pns(jl,jk)  = 0.0_dp
         ppfr(jl,jk) = 0.0_dp
       ENDDO
       ! In the boundary layer:
-      DO jk = int(ppbl(jl)), klev
+      DO jk = nint(ppbl(jl)), klev
         pns(jl,jk)  = 2.0_dp
         ppfr(jl,jk) = 3.86E-13_dp*ph2so4(jl,jk)*ph2so4(jl,jk)*pforest(jl)
       ENDDO
