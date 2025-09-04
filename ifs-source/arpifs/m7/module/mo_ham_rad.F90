@@ -1228,7 +1228,7 @@ CONTAINS
 #ifdef HAMMOZ         
                 zxx(1:kproma,:)=2._dp*pi*rwet_p(1:kproma,:,krow)/lambda(jlwv)
 #else
-                zxx(1:kproma,:) = 2._dp*pi*rwet_m7(1:kproma,:,jclass)/lambda(jwv) 
+                zxx(1:kproma,:) = 2._dp*pi*rwet_m7(1:kproma,:,jclass)/lambda(jlwv) 
 #endif  
 
                 !--- 1.2) Table-lookup for optical properties:
