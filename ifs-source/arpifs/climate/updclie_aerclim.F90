@@ -21,9 +21,12 @@ SUBROUTINE UPDCLIE_AERCLIM(YDGEOMETRY, YDDYNA, YDMCC, YDGFL, YDML_GCONF, PTSTEP)
 !     METHOD.
 !     -------
 
-!     Reads the time-varying 3D fields for SO2 oxidants (OH, H2O2, O3) a/k/a "aerosol climatology"
-!     Uses time interpolation if LMCCIEC_AERCLIM=true,
-!     otherwise the most recent fields are used.
+!     Reads the time-varying 3D fields for SO2 oxidants (OH, H2O2, O3) a/k/a "aerosol climatology".  
+!     Uses time interpolation if LMCCIEC_AERCLIM=true (tested, assumes
+!     that monthly data are in the middle of the month), otherwise the
+!     most recent fields are used (untested).
+!  
+!     Note that reading is sequential and, to be correct, detection of the first field is crucial.
 
 !     EXTERNALS.
 !     ----------
@@ -33,6 +36,7 @@ SUBROUTINE UPDCLIE_AERCLIM(YDGEOMETRY, YDDYNA, YDMCC, YDGFL, YDML_GCONF, PTSTEP)
 !     AUTHORS.
 !     --------
 !       V Huijnen (KNMI) Oct 2022  (based on routine UPDCLIE_COMPO)
+!       P Le Sager (KNMI) Sept 2025 - Fix reading
 
 !     MODIFICATIONS.
 !     --------------
@@ -131,7 +135,7 @@ YDMCC%LFIRSTUPDAERCLIM=.FALSE.
 IJ0=NDD(NINDAT)
 IM0=NMM(NINDAT)
 IA0=NCCAA(NINDAT)
-CALL UPDCAL(IJ0,IM0,IA0,NSTADD,IJOUR,IMOIS,IAN,ILMOIS,NULOUT)
+CALL UPDCAL(IJ0,IM0,IA0,NSTADD,IJOUR,IMOIS,IAN,ILMOIS,NULOUT) ! Current date 
 IF(IJOUR > 15)THEN
   IMT1=IMOIS
   IJT1=15
@@ -235,6 +239,7 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
 ! Check fields come in a consistent order and position file at the
 !   right place
 
+    ! End date of current integration ('leg' in EC-Earth vocab)
     ITIME=NINT(PTSTEP)
     IF (YDDYNA%LTWOTL) THEN
       IZTE=NINT(PTSTEP*(REAL(NSTOP,JPRB)+0.5_JPRB))
@@ -251,19 +256,20 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
 
     ISTADDE=IZTE/NINT(RDAY)
     CALL UPDCAL(IJ0,IM0,IA0,ISTADDE,IJE,IME,IAE,ILMOIS,NULOUT)
+
     IF (LMCCIEC_AERCLIM) THEN
-      IF (IJOUR > 0) THEN
+      IF (IJOUR > 15) THEN      ! which month is needed first: current or...
         ICCYY0=IAN
         IMM0=IMOIS
       ELSE
-        IMM0=1+MOD(IMOIS+10,12)
+        IMM0=1+MOD(IMOIS+10,12) ! ...previous month
         IF (IMM0 == 12) THEN
           ICCYY0=IAN-1
         ELSE
           ICCYY0=IAN
         ENDIF
       ENDIF
-      IF (IJE > 0) THEN
+      IF (IJE > 15) THEN      ! which month is needed last
         IMME=1+MOD(IME,12)
         IF (IMME == 1) THEN
           ICCYYE=IAE+1
@@ -275,7 +281,7 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
         IMME=IME
       ENDIF
 
-! Locates the first field needed
+      ! Locates the first field needed (check only YYYY and MM)
 
       IYYM0=IMM0+100*ICCYY0
       LLFOUND=.FALSE.
@@ -288,10 +294,14 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
         ENDIF
       ENDDO
       IF (.NOT.LLFOUND) THEN
-        CALL ABOR1(' UPDCLIE_AERCLIM : FIRST FILE NOT FOUND')
+        WRITE(NULERR,'(A,I6,A)')&
+             & 'UPDCLIE_AERCLIM: FIRST FIELD FOR ',IYYM0,' (YYYYMM) NOT FOUND'
+        CALL ABOR1(' UPDCLIE_AERCLIM : FIRST FIELD NOT FOUND')
+      ELSE
+        WRITE(NULOUT,'(A,I6)') 'UPDCLIME_AERCLIM: FOUND FIRST FIELD FOR ',IYYM0
       ENDIF
 
-! Check all fields in the right time order
+      ! Check all fields in the right time order
 
       ICOU=IFIRST
       DO JY=ICCYY0,ICCYYE
@@ -410,8 +420,9 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
         ENDIF
       ENDDO
 
- ENDIF
-! Positions the file in the first field needed
+    ENDIF
+    
+    ! Position the file to the first field needed
 
     CALL GRIB_CLOSE_FILE(IUNITAERCLIM,IRET)
     IF( IRET /= GRIB_SUCCESS )THEN
@@ -429,17 +440,17 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
         EXIT
       ELSE
         CALL GRIB_RELEASE(IGRIB) 
-    ENDIF
-   ENDDO
+      ENDIF
+    ENDDO
 
-! Pack message
+    ! Pack message
 
     IDM(1)=IDIF
     IDM(2)=IJDCR
     IDM(3)=IUNITAERCLIM
   ENDIF MYPROCIF
 
-! Broadcast
+  ! Broadcast
 
   ITAG=19591214
   CALL MPL_BROADCAST(IDM,KTAG=ITAG,KROOT=1,CDSTRING='UPDCLIE_AERCLIM')
@@ -464,7 +475,6 @@ READIF: IF(NAERCLIM >= 1) THEN
       IFIRST=2
     ELSE
       IDATE=IAN*10000+IMOIS*100+IJOUR
-      WRITE(NULOUT,*) 'IDATE=',IDATE,IDATEREF
       IF (IJOUR == 16 .AND. IDATE > IDATEREF) THEN
         LLREAD=.TRUE.
         IFIRST=1
@@ -473,6 +483,7 @@ READIF: IF(NAERCLIM >= 1) THEN
         IFIRST=1
       ENDIF
     ENDIF
+    WRITE(NULOUT,*) 'UPDCLIME_AERCLIM IDATE INFO: ',IDATE, IDATEREF, LLREAD, IFIRST
   ELSE
     IF (LLFIRST) THEN
       LLREAD=.TRUE.
@@ -482,9 +493,9 @@ READIF: IF(NAERCLIM >= 1) THEN
       IJUL=RJUDAT(IAN,IMOIS,IJOUR)
       LLREAD=NJDCR_AERCLIM == IJUL
     ENDIF
+    WRITE(NULOUT,*) 'UPDCLIME_AERCLIM IDATE INFO: ', IDATE, IDATEREF, LLREAD, NJDCR_AERCLIM, NDIFC_AERCLIM
   ENDIF
 
-  WRITE(NULOUT,*) 'UPDCLIME_AERCLIM IDATE INFO: ',IDATE,IDATEREF,LLREAD, NJDCR_AERCLIM,NDIFC_AERCLIM
 !*    3.1 READ, DECODE AND SELECT THE FIELDS
 
   IF (LLREAD) THEN
@@ -507,8 +518,9 @@ READIF: IF(NAERCLIM >= 1) THEN
               WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE, IRET=',IRET
               CALL ABOR1('UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_INDEX')
             ENDIF
+          ! ELSE
+          !   WRITE(NULOUT,*) 'UPDCLIME_AERCLIM : use igrib from last position in scan above'
           ENDIF
-!VH Strange/problematic line?!          CALL GRIB_SET(IGRIB,'missingValue',19591204.0_JPRB)
           CALL GSTATS(1703,0)
           CALL GRIB_GET(IGRIB,'values',ZBUF)
           CALL GSTATS(1703,1)
