@@ -302,7 +302,6 @@ ASSOCIATE(NCLOUDACT             => YRERAD%NCLOUDACT,                  &
      &    WEIGHT_PAR            => YDRADIATION%WEIGHT_PAR(:),         &
      &    TROP_BG_AER_MASS_EXT  => YDRADIATION%TROP_BG_AER_MASS_EXT,  &
      &    STRAT_BG_AER_MASS_EXT => YDRADIATION%STRAT_BG_AER_MASS_EXT, &
-     &    REPSCAER              => YDEAERATM%REPSCAER,                &
      &    AERO_SCHEME           => YDCOMPO%AERO_SCHEME)
 
 ! Allocate memory in radiation objects
@@ -611,7 +610,7 @@ IF ( YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) then
           DO JAER = 1,STRATO_CMIP_NTB
             DO JLEV = 1,KLEV
               DO JLON = KIDIA,KFDIA
-                AEROSOL%OD_LW(JAER,JLEV,JLON)  = MAX(REPSCAER,PAEROM7_TAULW(JLON,JLEV,JAER))
+                AEROSOL%OD_LW(JAER,JLEV,JLON)  = PAEROM7_TAULW(JLON,JLEV,JAER)
               ENDDO
             ENDDO
           ENDDO

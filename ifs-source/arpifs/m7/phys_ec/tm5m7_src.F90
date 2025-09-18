@@ -486,41 +486,6 @@ DO JL=KIDIA,KFDIA
   ENDDO
 ENDDO
 
-! RCHG -> This is outside the previous loop so it is important to initialize PEMIDIAG(:,:) = 0. 
-!         at begining of this subroutine. Note that here we are not filling PCFLX 
-!         Is this ok?
-!
-!IF (.not. LAERCHEM) THEN
-!    DO JL=KIDIA,KFDIA
-!       DO JK=1,KLEV
-!          DO JGAS=1,2
-!             IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
-!                ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
-!                PTENC(JL,JK,KAERO(ISSO2))=PTENC(JL,JK,KAERO(ISSO2))+ PSO2SRC(JL,JK)
-!                !PCFLX(JL,KAERO(ISSO2))=PCFLX(JL,KAERO(ISSO2)) + PSO2SRC(JL,JK)
-!                PEMIDIAG(JL,KAERO(ISSO2))=PEMIDIAG(JL,KAERO(ISSO2))+ PSO2SRC(JL,JK)
-!             ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas') THEN
-!                ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
-!                PTENC(JL,JK,KAERO(ISSO4))=PTENC(JL,JK,KAERO(ISSO4))+ PSO4SRC(JL,JK)
-!                !PCFLX(JL,KAERO(ISSO4))=PCFLX(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
-!                PEMIDIAG(JL,KAERO(ISSO4))=PEMIDIAG(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
-!             END IF
-!          END DO
-!       END DO
-!
-!
-!! For add SOA from CO into ISVOC tracer
-!!!$       DO JGAS=1,NACTAERO
-!!!$          IF (TRIM(YAERO(JGAS)%CNAME)=='ISVOC') THEN
-!!!$             
-!!!$             PTENC(JL,JK,KAERO(JGAS))=PTENC(JL,JK,KAERO(JGAS))+ PSOACO(JL)
-!!!$             PEMIDIAG(JL,KAERO(JGAS))=PEMIDIAG(JL,KAERO(JGAS)) + PSOACO(JL)
-!!!$          END IF
-!!!$       END DO
-!
-!    END DO
-! END IF
-
 
 !-----------------------------------------------------------------------
 !*       6.0   De-allocate arrays
@@ -890,43 +855,43 @@ SUBROUTINE BC_SRC_43R3()
 
 END SUBROUTINE
 
-SUBROUTINE ADD_TOFLUX()
-  emit(KIDIA:KFDIA,:) = 0.0
-  DO IMODE=1,NMOD                           ! loop in each mode 
-    DO INMODE=0,MODE_NM_SED(IMODE)          ! loop in aerosols species per mode 
-       JN = MODE_TRACERS_SED(INMODE,IMODE)  ! retrieve indentifier of each specie
-       if (JN==ino3_a.or.JN==inh4.or.JN==imsa) then
-          emit(KIDIA:KFDIA,:) = 0.0
-       else if(inmode == 0) then            ! 1st specie of mode is number part. in mode 
-          emit(KIDIA:KFDIA,:) = 0.0
-          do ii=1,mode_nm(IMODE)            ! add up all number emissions in the mode 'imode'...
-             emit(KIDIA:KFDIA,:) = emit(KIDIA:KFDIA,:) + emis_number(IMODE)%d3(KIDIA:KFDIA,:,ii)
-          enddo
-       else                                 ! this is a 'mass' emission with index nmode
-          emit(KIDIA:KFDIA,:) = emis_mass(IMODE)%d3(KIDIA:KFDIA,:,inmode)
-       endif
-       ! Change units from kg/m2/sec to kg/kg/sec and update tendency..
-       DO JL=KIDIA,KFDIA
-         ! Should limit to troposphere?! (for now sfc only)
-          !JK=91
-          !if (JN==iduai)then
-          !   write(2020,*)jk,emit(jl,jk)
-          !end if
-          !if (JN==iaii_n)then
-          !   write(2020,*)jk,emit(jl,jk)
-          !end if
-          !write(2929,*)JN,KAERO(JN)
-          PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,KAERO(JN))+sum(emit(JL,:))
-         DO JK=1,KLEV
-            !PCFLX(JL,KAERO(JN))=PCFLX(JL,KAERO(JN))+emit(JL,JK)
+! SUBROUTINE ADD_TOFLUX()
+!   emit(KIDIA:KFDIA,:) = 0.0
+!   DO IMODE=1,NMOD                           ! loop in each mode 
+!     DO INMODE=0,MODE_NM_SED(IMODE)          ! loop in aerosols species per mode 
+!        JN = MODE_TRACERS_SED(INMODE,IMODE)  ! retrieve indentifier of each specie
+!        if (JN==ino3_a.or.JN==inh4.or.JN==imsa) then
+!           emit(KIDIA:KFDIA,:) = 0.0
+!        else if(inmode == 0) then            ! 1st specie of mode is number part. in mode 
+!           emit(KIDIA:KFDIA,:) = 0.0
+!           do ii=1,mode_nm(IMODE)            ! add up all number emissions in the mode 'imode'...
+!              emit(KIDIA:KFDIA,:) = emit(KIDIA:KFDIA,:) + emis_number(IMODE)%d3(KIDIA:KFDIA,:,ii)
+!           enddo
+!        else                                 ! this is a 'mass' emission with index nmode
+!           emit(KIDIA:KFDIA,:) = emis_mass(IMODE)%d3(KIDIA:KFDIA,:,inmode)
+!        endif
+!        ! Change units from kg/m2/sec to kg/kg/sec and update tendency..
+!        DO JL=KIDIA,KFDIA
+!          ! Should limit to troposphere?! (for now sfc only)
+!           !JK=91
+!           !if (JN==iduai)then
+!           !   write(2020,*)jk,emit(jl,jk)
+!           !end if
+!           !if (JN==iaii_n)then
+!           !   write(2020,*)jk,emit(jl,jk)
+!           !end if
+!           !write(2929,*)JN,KAERO(JN)
+!           PEMIDIAG(JL,KAERO(JN))=PEMIDIAG(JL,KAERO(JN))+sum(emit(JL,:))
+!          DO JK=1,KLEV
+!             !PCFLX(JL,KAERO(JN))=PCFLX(JL,KAERO(JN))+emit(JL,JK)
             
-            PTENC(JL,JK,KAERO(JN))=PTENC(JL,JK,KAERO(JN))+emit(JL,JK) * RG /PDELP(JL,JK)
-         ENDDO
+!             PTENC(JL,JK,KAERO(JN))=PTENC(JL,JK,KAERO(JN))+emit(JL,JK) * RG /PDELP(JL,JK)
+!          ENDDO
          
-       ENDDO
-    ENDDO
- ENDDO
- END SUBROUTINE
+!        ENDDO
+!     ENDDO
+!  ENDDO
+! END SUBROUTINE ADD_TOFLUX
 
 END SUBROUTINE TM5M7_SRC
 

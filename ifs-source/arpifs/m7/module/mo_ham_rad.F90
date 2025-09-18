@@ -1497,9 +1497,9 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
-                IF(zaer_tau_diag(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
-                   zaer_ssa_diag(jl,jk,jwv) = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
-                  zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_tau_diag(jl,jk,jwv)
+               IF(zaer_ssa_diag(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
+                 zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_ssa_diag(jl,jk,jwv)
+                 zaer_ssa_diag(jl,jk,jwv)  = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
                 END IF
              END DO
           END DO

@@ -317,9 +317,6 @@ LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
 
-!REAL(KIND=JPRB), ALLOCATABLE ::    ZAERSRC(:,:),  ZAERSCC(:,:)  
-! [RCHG -> non used ]     REAL(KIND=JPRB) :: ZAEROUT1(KLON,KLEV),ZAEROUT2(KLON,KLEV),ZAEROUT3(KLON,KLEV),ZAEROUT4(KLON,KLEV),ZAEROUT5(KLON,KLEV)
-
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
@@ -439,6 +436,7 @@ LOGICAL         :: LBLHFOUND(KLON) ! logical if boundary layer height is found
 REAL(KIND=JPRB) :: ZRG             ! 1/RG
 
 !!! parameters needed for diagnostic aerosol optical properties
+LOGICAL, PARAMETER :: LSAFETY=.FALSE. ! If true, impose limits on computed optical properties
 LOGICAL         :: LDIAG_AEROPT ! logical for aerosol optics
 REAL(KIND=JPRB) :: ZAER_TAU_DIAG(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
 REAL(KIND=JPRB) :: ZAER_SSA_DIAG(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
@@ -456,7 +454,6 @@ REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_
 #include "tm5m7_optics_aop_get.intfb.h"
 #include "troplev.intfb.h"
 #include "chem_inext.intfb.h"
-#include "m7_simple_sulfur_drydep.intfb.h"
 #include "ice_effective_radius.intfb.h"
 
 !-----------------------------------------------------------------------
@@ -512,7 +509,8 @@ ASSOCIATE( &
          & LAERSCAV_CHEM  => YREAERATM%LAERSCAV_CHEM,              &
          & LAERVOL        => YREAERATM%LAERVOL,                    &
          & NXT3DAER       => YREAERATM%NXT3DAER,                   & 
-         & LAERRRTM       => YREAERATM%LAERRRTM,                   &
+         & LAERRRTM       => YREAERATM%LAERRRTM,                   &       
+         & REPSCAER       => YREAERATM%REPSCAER,                   &         
          ! --- YRERAD ----------------------------------------------
          & LAERVISI       => YRERAD%LAERVISI,                      &
          & NTSW           => YRERAD%NTSW,                          &
@@ -556,16 +554,6 @@ CALL SURF_INQ(YSURF,PRWPWP=ZRWPWP)
 ALLOCATE( ZAERNGT(KLON,NACTAERO) )
 ZAERNGT(KIDIA:KFDIA,1:NACTAERO) = 0._JPRB
 
-!ALLOCATE( ZAERSCC(KLON,NACTAERO) )
-!ALLOCATE( ZAERSRC(KLON,NACTAERO) )
-!ZAERSRC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
-!ZAERSCC(KIDIA:KFDIA,1:NACTAERO)       =0._JPRB
-!ZAEROUT1(KIDIA:KFDIA,:) =0._JPRB
-!ZAEROUT2(KIDIA:KFDIA,:) =0._JPRB
-!ZAEROUT3(KIDIA:KFDIA,:) =0._JPRB
-!ZAEROUT4(KIDIA:KFDIA,:) =0._JPRB
-!ZAEROUT5(KIDIA:KFDIA,:) =0._JPRB
-
 ZOUT3(KIDIA:KFDIA,:,:) = 0._JPRB
 ZOUT_dnuc(KIDIA:KFDIA,:,:) = 0._JPRB
 ! Need to initialize those 3 arrays early in case LAERDRYDP=F (GNU, Lianghai Wu)
@@ -594,7 +582,6 @@ ZCDNCACT(KIDIA:KFDIA,:) = 0._JPRB     !number of activated particles [m-3]
 ZCEN(KIDIA:KFDIA,:,:)   = 0._JPRB
 
 ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !fraction of activated particles per mode
-!ZAERSRC(KIDIA:KFDIA,1:NACTAERO)=PAERSRC(KIDIA:KFDIA,1:NACTAERO) 
 
 ZRG=1/RG
 
@@ -680,28 +667,6 @@ IF (LCHEM_DIA) THEN
   ZTAERO0(KIDIA:KFDIA,1:KLEV,1:NACTAERO) =  ZTAEROK(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
   ZTENC0(KIDIA:KFDIA,1:KLEV, :) = 0._JPRB
 ENDIF 
-
-!*         0.2    GAS-TO-PARTICLE CONVERSION (SO2 -> SO4)
-!                 ---------------------------------------
-
-! IF(TRIM(CHEM_SCHEME)=="SimChem") THEN
-!   DO JGAS=1,2
-!     IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
-!       ISSO2 = ind_oifs_ham%ind_gas_OIFS(JGAS)
-!     ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas')THEN
-!       ISSO4 = ind_oifs_ham%ind_gas_OIFS(JGAS)
-!     ELSE
-!       CALL ABOR1('HAMM7_INTERFACE: SO2 not defined. Wrong table in use')
-!     END IF
-!   END DO
-
-!   DO JAER=1,NACTAERO
-!     IF (TRIM(YAERO(JAER)%CNAME)=='SO4_AS') THEN
-!       ISSO4_ACS=JAER
-!       EXIT
-!     END IF
-!   END DO
-! ENDIF
 
 !
 !*         1.1    COMPUTE RELATIVE HUMIDITY WITHOUT VERTICAL SMOOTING
@@ -1290,19 +1255,16 @@ ENDDO
 
         ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
 
-        ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud water content (modified in wetdep)
-        ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud ice water content (modified in wetdep)
-        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB               ! temporary variable for cloud ice water content (modified in wetdep)
-        ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content (modified in wetdep)
+        ! In cloudsc.f90 PLU is defined as convective condensate (understood as total condensate, ie "include liquid and ice phases").
+        !  So we use ZIPDUM to set the ice part to zero and use total condensate as liquid for the convective case of wetdep.
+        !  In the future, it would be better to calculate the actual fraction based on 7.6. This may be important to describe the
+        !  liquid and ice fractions correctly.
+        ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud water content     (modified in wetdep - stratif case)
+        ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud ice water content (modified in wetdep - stratif case)
+        ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB               ! temporary variable for cloud ice water content (modified in wetdep - convec case)
+        ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content     (modified in wetdep - convec case)
 
-        IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
-          ! We need to revisit this subroutine, it can crash. Commented out for now.
-          ! Moreover, from the perspective of aligning SimChem and TM5 schemes, 
-          !  this step should be (or probably has already been) handled on the chemistry side.
-          !LHW CALL HAM_CONV_LFRAQ_SO2(KFDIA,KLON,KLEV,PTP,ZXTM1,ZRHO,ZLP,ZLFRAC_SO2)
-        END IF
-
-        !Double call to wet deposition. One for convective case and one for stratiform case.
+        ! Double call to wet deposition. One for convective case and one for stratiform case:
         
         ! WETDEP CONVECTIVE CASE
         
@@ -1515,7 +1477,7 @@ ENDDO
 
         ! RCHG: Recommendation, those subroutines specific of m7 should have 
         !       m7 in the name not sure if this is specific or general/common 
-        !       but adapted to m7. Like m7_simple_sulfur_drydep below. 
+        !       but adapted to m7.
         CALL DRYDEP_INTERFACE(KLON, KFDIA,  KLEV, ZKROW,                    &
             & ZQP(:,KLEV), ZQSAT(:,KLEV), PTP(:,KLEV), ZCFML, ZCFMW, ZCFMI, &
             & ZCFNCL, ZCFNCW, ZCFNCI,                                       &
@@ -1529,19 +1491,6 @@ ENDDO
             & ZXTEMS, ZXTMD1, ZRHO(:,KLEV), PRS1, ZFOREST, ZTSI,            & !air dens lowest, air press at int.
             & ZAZ0L, ZAZ0W, ZAZ0I, ZCDNL, ZCDNW, ZCDNI, ZDDEPFLUX, ZVDEP)     !ZCDNL and ZCDNW used for ustar and aerodyn. resist.
            
-        IF (TRIM(CHEM_SCHEME)=="SimChem")THEN
-          ! Here inconsistent array dimensions have been fixed but
-          ! still commented this out. Because from the perspective of
-          ! aligning SimChem and TM5, I think this removal step should
-          ! be (or probably has already been) handled on the chemistry
-          ! side. Lianghai
-!          CALL M7_SIMPLE_SULFUR_DRYDEP(YDMODEL, KIDIA,KFDIA, KLON, KLEV, &
-!               ZXTM1(:,:,KAERO(1):KAERO(NACTAERO)), PCFLX(:,KAERO(1):KAERO(NACTAERO)),  &
-!               ZDP, PGEOH, ZRHO, ZXTTE(:,:,KAERO(1):KAERO(NACTAERO)), PTSPHY,&
-!               PSO2DD, PGELAM, &
-!               ZFAERO(:,:,KAERO(1):KAERO(NACTAERO), ZXTP1(:,:,KAERO(1):KAERO(NACTAERO), ZDDEPFLUX_SO2)
-!          ZDDEPFLUX(KIDIA:KFDIA,2)=ZDDEPFLUX_SO2(KIDIA:KFDIA)
-        END IF
         
         !--> modify tendency at surface according to changes in surface emissions
         DO JT = 1,NTRAC
@@ -1667,7 +1616,7 @@ IF (LAERNGAT) THEN
 ENDIF
 
 !------------------------------------------------------------------------------
-!*         7.       STORE ALL AEROSOL VERTICALLY INTEGRATED FLUXES
+!*         5.       STORE ALL AEROSOL VERTICALLY INTEGRATED FLUXES
 !                   ----------------------------------------------
 
 DO JAER=1,NACTAERO
@@ -1675,20 +1624,16 @@ DO JAER=1,NACTAERO
     PAERODDF(JL,JAER,1)=PAERSRC(JL,JAER) !aerosol so4 source term 
     PAERODDF(JL,JAER,2)=PAERDDP(JL,JAER) ! aerosol dry deposition
     PAERODDF(JL,JAER,3)=PAERSDM(JL,JAER) ! aerosol sedimentation 
-    PAERODDF(JL,JAER,4)=0.0!ZAERSCL(JL,JAER) ! so2 sink added to scavenging
-    PAERODDF(JL,JAER,5)=0.0!ZAERSCC(JL,JAER) ! scavenging (in-cloud & below cloud) so wet deposition
+    PAERODDF(JL,JAER,4)=0.0              ! (todo) so2 sink added to scavenging
+    PAERODDF(JL,JAER,5)=0.0              ! (todo) scavenging (in-cloud & below cloud) so wet deposition
     PAERODDF(JL,JAER,6)=ZAERNGT(JL,JAER)
-    PAERODDF(JL,JAER,7)=0.0!ZAERTAUT(JL,JAER,1) !total AOD?
+    PAERODDF(JL,JAER,7)=0.0              ! (todo) total AOD?
   ENDDO
 ENDDO
 
 !-----------------------------------------------------------------------
-
-
-!*         5.      OPTICAL DEPTH
+!*         6.      OPTICAL PROPERTIES
 !                  -------------------------------------------------- 
-!calculate optical properties only when radiation is calculated 
-!radiation is calculated before microphysics -> nstep+1
 
 INWAVL = 20
 ITWAVL( 1)= 9   ! 550 nm
@@ -1731,12 +1676,15 @@ ZAER_TAU_DIAG(KIDIA:KFDIA,:,:)  = 0.0_JPRB
 ZAER_SSA_DIAG(KIDIA:KFDIA,:,:)  = 0.0_JPRB
 ZAER_ASYM_DIAG(KIDIA:KFDIA,:,:) = 0.0_JPRB
 
+!*         6.1      Calculate optical properties only when radiation is called
+!                   ----------------------------------------------------------
 IF(MOD(NSTEP,NRADFR) == 0) THEN
-CALL GSTATS(2506,0)
-ZAER_TAU(KIDIA:KFDIA,:,:,:)  = 0.0_JPRB
-ZAER_SSA(KIDIA:KFDIA,:,:)    = 0.0_JPRB
-ZAER_ASYM(KIDIA:KFDIA,:,:)   = 0.0_JPRB
-ZAER_TAU_LW(KIDIA:KFDIA,:,:) = 0.0_JPRB
+  
+  CALL GSTATS(2506,0)
+  ZAER_TAU(KIDIA:KFDIA,:,:,:)  = 0.0_JPRB
+  ZAER_SSA(KIDIA:KFDIA,:,:)    = 0.0_JPRB
+  ZAER_ASYM(KIDIA:KFDIA,:,:)   = 0.0_JPRB
+  ZAER_TAU_LW(KIDIA:KFDIA,:,:) = 0.0_JPRB
 
 SELECT CASE (NAEROOPT) 
 
@@ -1766,10 +1714,10 @@ CASE (1)
    PAOD(KIDIA:KFDIA,:)=0._JPRB
    DO JK = 1, KLEV
      DO JL = KIDIA,KFDIA
-       DO IW=1,NASWBAND         
-         PAER_TAU(JL,JK,IW)=ZAER_TAU(JL,JK,IW,1)*(PGEOH(JL,JK-1) - PGEOH(JL,JK))/RG
-         PAER_SSA(JL,JK,IW)=ZAER_SSA(JL,JK,IW)
-         PAER_ASYM(JL,JK,IW)=ZAER_ASYM(JL,JK,IW)
+       DO IW=1,NASWBAND
+         PAER_TAU(JL,JK,IW) = ZAER_TAU(JL,JK,IW,1)*(PGEOH(JL,JK-1) - PGEOH(JL,JK))/RG
+         PAER_SSA(JL,JK,IW) = ZAER_SSA(JL,JK,IW)
+         PAER_ASYM(JL,JK,IW)= ZAER_ASYM(JL,JK,IW)
          !PAOD(JL,IW)=ZAER_TAU(JL,JK,IW,1)*(PGEOH(JL,JK-1) - PGEOH(JL,JK))+PAOD(JL,IW)
        ENDDO
        DO IW=1,16
@@ -1800,10 +1748,10 @@ CASE (1)
 
    DO JK = 1, KLEV
      DO JL = KIDIA,KFDIA
-       DO IW=1,NASWBAND         
-         PAER_TAU(JL,JK,IW)=ZAER_TAU(JL,JK,IW,1)!*(PGEOH(JL,JK-1) - PGEOH(JL,JK))
-         PAER_SSA(JL,JK,IW)=ZAER_SSA(JL,JK,IW)
-         PAER_ASYM(JL,JK,IW)=ZAER_ASYM(JL,JK,IW)
+       DO IW=1,NASWBAND
+         PAER_TAU(JL,JK,IW) = ZAER_TAU(JL,JK,IW,1)!*(PGEOH(JL,JK-1) - PGEOH(JL,JK))
+         PAER_SSA(JL,JK,IW) = ZAER_SSA(JL,JK,IW)
+         PAER_ASYM(JL,JK,IW)= ZAER_ASYM(JL,JK,IW)
        ENDDO
        DO IW=1,16
          PAER_TAU_LW(JL,JK,IW)=ZAER_TAU_LW(JL,JK,IW)
@@ -1813,9 +1761,30 @@ CASE (1)
 
  END SELECT
 
+ ! Impose safety limits
+ IF ((NAEROOPT .NE. 0).AND. LSAFETY) THEN
+   ! REPSCAER was needed to avoid corruption in radiation_scheme at
+   ! some point. Such limit could be removed once we are satisfied
+   ! with computed optical depths
+   DO JK = 1, KLEV
+     DO JL = KIDIA,KFDIA
+       DO IW=1,NASWBAND
+         PAER_TAU(JL,JK,IW) = MAX(REPSCAER,      PAER_TAU(JL,JK,IW) )
+         PAER_SSA(JL,JK,IW) = MIN(MAX(0._JPRB,   PAER_SSA(JL,JK,IW) ), 1._JPRB)
+         PAER_ASYM(JL,JK,IW)= MIN( MAX(-1._JPRB, PAER_ASYM(JL,JK,IW)), 1._JPRB)
+       ENDDO
+       DO IW=1,16
+         PAER_TAU_LW(JL,JK,IW) = MAX(REPSCAER, PAER_TAU_LW(JL,JK,IW))
+       END DO
+     ENDDO
+   ENDDO
+ ENDIF
+ 
  CALL GSTATS(2506,1)
-ENDIF  ! (MOD(NSTEP+1,NRADFR) == 0)
+ENDIF  ! It's a time step when radiation is called
 
+!*         6.2      Vertically integrated optical properties
+!                   ----------------------------------------
 PAOD (KIDIA:KFDIA,:)=0._JPRB
 PABS (KIDIA:KFDIA,:)=0._JPRB
 PFAOD(KIDIA:KFDIA,:)=0._JPRB
@@ -1866,8 +1835,8 @@ DO JL = KIDIA,KFDIA
   END DO
 END DO
 
-!------------------------------------------------------------------------------
-!*         6.0     Fill selective aerosol OD fields in structure as available in IFS-AER
+!*         6.3     Fill selective aerosol OD fields in structure as available in IFS-AER
+!                  ---------------------------------------------------------------------
 
 DO JWAVL=1,MIN(INWAVL,NAERO_WVL_DIAG)
   DO JL=KIDIA,KFDIA
@@ -1901,31 +1870,9 @@ DO JL=KIDIA,KFDIA
   PODTO1240(JL)=PTAUS_AER(JL,KLEV,5,1)
 ENDDO
 
-!*         6.1     STORE IN AEROUT-1 
-!                  ------------------------------
 
-!-- total instantaneous optical depth
-!  DO JB=1,NBANDS_TROP
-!    DO JL=KIDIA,KFDIA
-!      ZAEROUT1(JL,JB)= PTAUS_AER(JL,KLEV,JB,1)
-!      ZAEROUT1(JL,NBANDS_TROP+JB)= PTAUA_AER(JL,KLEV,JB,1)
-!    ENDDO
-!  ENDDO 
-
-!-- 
-
-!*         6.1     STORE IN AEROUTs
-!                  ------------------------------
-
-!-- the total extinction coefficient at wavelengths ?? nm is archived in GFL%AEROUT
-!    DO JK=1,KLEV
-!      DO JL=KIDIA,KFDIA
-!        ZAEROUT2(JL,JK)=PTAUS_AER(JL,JK, 1,1)
-!        ZAEROUT3(JL,JK)=PTAUA_AER(JL,JK, 1,1)
-!        ZAEROUT4(JL,JK)=Ppmaer(JL,JK,1,1)
-!      ENDDO
-!    ENDDO
-
+!*         7.     STORE IN AEROUTs
+!                 ------------------------------
 
 ! LIFSMIN (T if running minimisation) and LIFSTRAJ (T if running high
 ! resolution trajectory integration) are both assimilation flags
@@ -2162,10 +2109,7 @@ ENDIF
 !------------------------------------------------------------------------------
 !*         9.       RELEASE LOCAL MEMORY
 !                   --------------------
-!DEALLOCATE( ZAERSRC )
-IF (ALLOCATED(ZAERNGT ) ) DEALLOCATE( ZAERNGT )
-!DEALLOCATE( ZAERSCC )
-
+IF (ALLOCATED(ZAERNGT)) DEALLOCATE( ZAERNGT )
 IF (ALLOCATED(ZWPDF ) ) DEALLOCATE( ZWPDF )
 IF (ALLOCATED(ZW ) )    DEALLOCATE( ZW )
 IF (ALLOCATED(ZRC) )    DEALLOCATE( ZRC )

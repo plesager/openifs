@@ -97,20 +97,29 @@ INTEGER(KIND=JPIM), SAVE :: IDATEREF=0, IUNITAERCLIM
 INTEGER(KIND=JPIM) :: IDATE, IBITMAP, IYSDMP,ILEVEL
 
 REAL(KIND=JPRB) :: ZPOID1, ZPOID2
-
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+! LCLIMATO allows us to use the same file regardless of the date.
+!
+! It is then assumed that a full year of data is needed.
+!
+! To account for any start date, the oxidants file must contain 2
+! years of data with an extra month before and after. For example:
+! monthly data from 1989-12-15 to 1992-01-15 (use IYEARCLIMATO=1990
+! then).
+!
+LOGICAL, PARAMETER :: LCLIMATO=.TRUE. 
+INTEGER(KIND=JPIM), PARAMETER :: IYEARCLIMATO=1990
 
 !     ------------------------------------------------------------------
 
 #include "abor1.intfb.h"
 #include "updcal.intfb.h"
-
 #include "fcttim.func.h"
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('UPDCLIE_AERCLIM',0,ZHOOK_HANDLE)
 
-!ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,YDRIP=>YDML_GCONF%YRRIP,YGFL=>YDML_GCONF%YGFL )
 ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,YDRIP=>YDML_GCONF%YRRIP)
 ASSOCIATE(NDGLG=>YDDIM%NDGLG, NDGNH=>YDDIM%NDGNH, NDLON=>YDDIM%NDLON, &
  & NPROMA=>YDDIM%NPROMA, &
@@ -146,6 +155,9 @@ ELSE
   IJT2=15
 ENDIF
 
+IF (LCLIMATO) THEN
+  IAN = IYEARCLIMATO
+ENDIF
 
 !*
 !     2. OPEN AND SCAN THE FILE, IF CLIMATE FIELDS REQUIRED
@@ -239,23 +251,29 @@ SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
 ! Check fields come in a consistent order and position file at the
 !   right place
 
-    ! End date of current integration ('leg' in EC-Earth vocab)
-    ITIME=NINT(PTSTEP)
-    IF (YDDYNA%LTWOTL) THEN
-      IZTE=NINT(PTSTEP*(REAL(NSTOP,JPRB)+0.5_JPRB))
+    ! -- End date of current integration ('leg' in EC-Earth vocab)
+    IF (LCLIMATO) THEN
+      ! Assume that an entire year will be simulated
+      IJE = IJOUR
+      IME = IMOIS
+      IF ((IME == 2).AND.(IJE == 29 )) IJE=28 ! to avoid error in IJULE below
+      IAE = IYEARCLIMATO + 1
     ELSE
-      IZTE=ITIME*NSTOP
-    ENDIF
+      ITIME=NINT(PTSTEP)
+      IF (YDDYNA%LTWOTL) THEN
+        IZTE=NINT(PTSTEP*(REAL(NSTOP,JPRB)+0.5_JPRB))
+      ELSE
+        IZTE=ITIME*NSTOP
+      ENDIF
 
-!--
-    IF (LPERPET) THEN
-      ISECND=IZTE/NINT(RDAY)
-      IZTE=IZTE-ISECND*NINT(RDAY)
-    ENDIF
-!--
+      IF (LPERPET) THEN
+        ISECND=IZTE/NINT(RDAY)
+        IZTE=IZTE-ISECND*NINT(RDAY)
+      ENDIF
 
-    ISTADDE=IZTE/NINT(RDAY)
-    CALL UPDCAL(IJ0,IM0,IA0,ISTADDE,IJE,IME,IAE,ILMOIS,NULOUT)
+      ISTADDE=IZTE/NINT(RDAY)
+      CALL UPDCAL(IJ0,IM0,IA0,ISTADDE,IJE,IME,IAE,ILMOIS,NULOUT)
+    ENDIF
 
     IF (LMCCIEC_AERCLIM) THEN
       IF (IJOUR > 15) THEN      ! which month is needed first: current or...
