@@ -183,7 +183,8 @@ USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
-
+USE MO_HAM_RAD_DATA, ONLY: Nwv_tot,Nwv_sw_tot
+USE MO_SPECIES,          ONLY: speclist,naerospec
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
 
 USE TM5M7_OPTICS_DATA,       ONLY : NWDEP, NASWBAND, ASWBAND !,WDEP, AER_TAU, AER_SSA,AER_ASYM,AER_TAU_LW
@@ -299,7 +300,10 @@ REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,16)
-
+!Needed for component aod:s
+REAL(KIND=JPRB) :: ZTAU_COMP(KLON,naerospec,Nwv_tot),ZABS_COMP(KLON,naerospec,Nwv_tot)
+REAL(KIND=JPRB) :: ZTAU_MODE(KLON,KLEV,nclass,Nwv_tot),ZABS_MODE(KLON,KLEV,nclass,Nwv_tot)
+REAL(KIND=JPRB) :: ZOMEGA(KLON,KLEV,Nwv_sw_tot,nclass)
 ! Optics output fields (to be used and allocated by methods using the optics)
 REAL(KIND=JPRB), DIMENSION(:,:,:),   ALLOCATABLE :: ZTAUS_AER, ZTAUA_AER, ZPMAER ! extinctions
 REAL(KIND=JPRB), DIMENSION(:,:,:,:), ALLOCATABLE :: ZAOP_OUT_EXT ! extinctions
@@ -443,7 +447,8 @@ INTEGER(KIND=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 
 
 REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND), PASY(KLON,NASWBAND),PFAOD(KLON,NASWBAND)
 REAL(KIND=JPRB) :: PAOD_LW(KLON,16)
-
+REAL(KIND=JPRB) :: PAOD_ALL_W(KLON,Nwv_tot) !includes SW and LW and additional/optional WL (550nm and 865nm)
+                                            !Could replace PAOD and PAODLW?
 ! Boundary layer height index calculation
 REAL(KIND=JPRB) :: ZBLHIDX(KLON)   ! index
 LOGICAL         :: LBLHFOUND(KLON) ! logical if boundary layer height is found  
@@ -1601,6 +1606,9 @@ DO JK=1,KLEV
 ENDDO
 
 
+ZTAU_COMP(KIDIA:KFDIA,:,:)=0._JPRB
+ZABS_COMP(KIDIA:KFDIA,:,:)=0._JPRB
+ZTAU_MODE(KIDIA:KFDIA,:,:,:)=0._JPRB
 !*         6.1      Calculate optical properties only when radiation is called
 !                   ----------------------------------------------------------
 IF(MOD(NSTEP,NRADFR) == 0) THEN
@@ -1672,9 +1680,14 @@ CASE (1)
    ZXTM0(KIDIA:KFDIA,1:KLEV,:) = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + ZXTTE(KIDIA:KFDIA,1:KLEV,:)*time_step_len
 
    CALL HAM_RAD(KFDIA, KLON, KLEV, ZKROW, LWBANDS, NASWBAND, ZXTM0, PRS1D, &
-        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, ZM6RP, &
+        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, &
         & LDIAG_AEROPT,NAERO_WVL_DIAG,YGFL%NAERO_WVL_DIAG_TYPES, &
-        & LAMBDA_DIAG, ZAER_TAU_DIAG, ZAER_SSA_DIAG, ZAER_ASYM_DIAG)
+        & LAMBDA_DIAG, ZAER_TAU_DIAG, ZAER_SSA_DIAG, ZAER_ASYM_DIAG,&
+        & ZM6RP,ZTAU_MODE,ZOMEGA)
+
+   CALL HAM_RAD_DIAG(KFDIA, KLON, KLEV, ZKROW, ZXTM0,&
+   ZTAU_MODE,ZABS_MODE,ZOMEGA, ZTAU_COMP, ZABS_COMP,PAOD_ALL_W)
+
    !CALL ham_rad_cache_cleanup
 
    DO JK = 1, KLEV
@@ -1851,6 +1864,17 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
 
   ! AOD of 16 internal (long) wavelengths
   PGFL(KIDIA:KFDIA,18:33,YAEROUT(1)%MP)= PAOD_LW(KIDIA:KFDIA,1:16)
+
+  !AOD / specie (index 15=550nm / extra output for diagnostic): 
+  PGFL(KIDIA:KFDIA,34,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,1,15)
+  PGFL(KIDIA:KFDIA,35,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,2,15)
+  PGFL(KIDIA:KFDIA,36,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,3,15)
+  PGFL(KIDIA:KFDIA,37,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,4,15)
+  PGFL(KIDIA:KFDIA,38,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,5,15)
+ 
+  ! AOD at selected (diagnostic) wavelengths
+  JK = YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG ! Should check (at setup, not here) that JK+38 <= KLEV
+  PGFL(KIDIA:KFDIA,39:JK+38,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
 
   !** YAEROUT(2) : DRY DEPOSITION
 
