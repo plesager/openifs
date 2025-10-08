@@ -178,7 +178,7 @@ CONTAINS
        
        nraddiagwv(1:NWv_tot)=0                          !--- Default: no diagnostic
 
-       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=2         ! AOD only for all optional wavelengths
+       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=1         ! AOD only for all optional wavelengths
        nraddiagwv(Nwv_sw+1)=2                           ! Additional diagnostics for 550nm
 
        IF (ANY(nrad(:)==2) .OR. ANY(nrad(:)==3)) THEN
