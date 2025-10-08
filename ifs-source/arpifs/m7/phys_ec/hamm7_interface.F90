@@ -10,7 +10,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PFRTI,     PLSM,      PSNS,      PWND,        PWS1,     PAERFLX,  PAERLIF, &
  & PAERODDF,  PTSPHY,    PGFL,                                                &
  & PODTO,     PAERO_WVL_DIAG,                                                 &
- & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW,                              &
+ & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW, PTAU_COMP,                   &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
@@ -182,7 +182,7 @@ USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface c
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
-USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
+USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache, ham_rad_diag 
 USE MO_HAM_RAD_DATA, ONLY: Nwv_tot,Nwv_sw_tot
 USE MO_SPECIES,          ONLY: speclist,naerospec
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
@@ -253,6 +253,7 @@ REAL(KIND=JPRB),INTENT(OUT)   :: PAERODDF(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO,
 REAL(KIND=JPRB),INTENT(INOUT) :: PEXTRA(KLON,KLEVX,KFLDX)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAER_TAU(KLON,KLEV,14), PAER_SSA(KLON,KLEV,14),PAER_ASYM(KLON,KLEV,14)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAER_TAU_LW(KLON,KLEV,16)
+REAL(KIND=JPRB),INTENT(OUT) :: PTAU_COMP(KLON,5) !550nm only
 REAL(KIND=JPRB),INTENT(OUT)   :: PTAUS_AER(KLON,KLEV,NBANDS_TROP,2),PTAUA_AER(KLON,KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB),INTENT(OUT)   :: PPMAER(KLON,KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB),INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM), PPRAERS(KLON)
@@ -1592,6 +1593,8 @@ ENDDO
 !                  -------------------------------------------------- 
 IBLK=(KSTGLO-1)/KLON + 1
 
+!These values are used for diagnostic when radiation/optical properties
+!is not calculated
 DO JK=1,KLEV
   DO JL=KIDIA,KFDIA
     DO JAER=1,14
@@ -1604,9 +1607,16 @@ DO JK=1,KLEV
     ENDDO
   ENDDO
 ENDDO
-
-
 ZTAU_COMP(KIDIA:KFDIA,:,:)=0._JPRB
+DO JL=KIDIA,KFDIA
+  DO JAER=1,5 !SU,OC,BC,SS,DU 
+  !550nm - Alaakso: I think that is only one needed.
+  ZTAU_COMP(JL,JAER,15)   = YDAERM7%AODCOMP(JL,JAER,IBLK)
+  END DO
+ENDDO
+
+
+
 ZABS_COMP(KIDIA:KFDIA,:,:)=0._JPRB
 ZTAU_MODE(KIDIA:KFDIA,:,:,:)=0._JPRB
 !*         6.1      Calculate optical properties only when radiation is called
@@ -1688,6 +1698,7 @@ CASE (1)
    CALL HAM_RAD_DIAG(KFDIA, KLON, KLEV, ZKROW, ZXTM0,&
    ZTAU_MODE,ZABS_MODE,ZOMEGA, ZTAU_COMP, ZABS_COMP,PAOD_ALL_W)
 
+
    !CALL ham_rad_cache_cleanup
 
    DO JK = 1, KLEV
@@ -1750,6 +1761,8 @@ CASE (1)
  CALL GSTATS(2506,1)
 ENDIF  ! It's a time step when radiation is called
 
+
+
 !*         6.2      Vertically integrated optical properties
 !                   ----------------------------------------
 PAOD (KIDIA:KFDIA,:)=0._JPRB
@@ -1782,6 +1795,9 @@ DO JL = KIDIA,KFDIA
     IF(PAOD(JL,IW)>0._JPRB) THEN
       PSSA(JL,IW) = PSSA(JL,IW)/PAOD(JL,IW) ! AOD AVERAGE
     ENDIF
+  END DO
+  DO JAER=1,5 !SU,OC,BC,SS,DU 
+    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER,15)  
   END DO
 END DO
 

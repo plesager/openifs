@@ -2456,7 +2456,7 @@ CONTAINS
                !END IF ! nraddiagwv(jwv)>0
   
                !--- 2) 2D extended diatnostics of mode radiative parameters:
-
+               
                 IF (nraddiagwv(jwv)>1) THEN
                  !alaak: I commented out these too:
                !    IF (nraddiag>0) THEN
@@ -2659,12 +2659,12 @@ CONTAINS
                      END DO     !jclass
   
                      !--- Store in output streams:
-  
+                     
                      tau_comp(1:kproma,jspec,jwv)=ztaucomp(1:kproma)
                      !abs_comp(1:kproma,jspec,jwv)=zabscomp(1:kproma)
   
                   END DO     !jspec   
-               write(*,*) 'MENNNEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'
+
                END IF !nraddiagwv(jwv)>1
   
             END DO !jwv

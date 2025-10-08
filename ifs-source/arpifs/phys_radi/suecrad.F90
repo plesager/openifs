@@ -2149,17 +2149,19 @@ ENDIF
 !
 IF (NACTAERO > 0) THEN
   IF (TRIM(AERO_SCHEME) == "hamm7" ) THEN
-
+     !Variables to keep values when radiation/optical properties is/are not calculated
      ALLOCATE(YDAERM7%M7AOD(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7SSA(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7ASYM( NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7AODLW(NPROMA, NFLEVG, NTSW+2,NGPBLKS))
+     !Alaakso: Currently hardcoded for SO4, OC, BC, SS and DU (=5)
+     ALLOCATE(YDAERM7%AODCOMP(  NPROMA, 5,  NGPBLKS))
      ! RCHG -> be careful with this initializations in the case of parallel programming.
      YDAERM7%M7AOD(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7ASYM(:,:,:,:)  = 0.0_JPRB
      YDAERM7%M7AODLW(:,:,:,:) = 0.0_JPRB
-
+     YDAERM7%AODCOMP(:,:,:) = 0.0_JPRB
      IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF
@@ -2248,6 +2250,7 @@ IF (NAERMACC == 1) THEN
     ! This won't have already been called "early" if there's no prognostic aerosol,
     ! but must still be called prior to initialising the radiation scheme, not
     ! fully "late" in SUPHEC.
+
     CALL SU_AERW(YDMODEL)
   END IF
 ENDIF
