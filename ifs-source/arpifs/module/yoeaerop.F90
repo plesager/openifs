@@ -48,6 +48,17 @@ REAL(KIND=JPRB) :: ALFL_OM(12,16)  , ASYL_OM(12,16)  , OMGL_OM(12,16)
 REAL(KIND=JPRB) :: ALFL_SS(12,16,3), ASYL_SS(12,16,3), OMGL_SS(12,16,3)
 REAL(KIND=JPRB) :: ALFL_SU(12,16)  , ASYL_SU(12,16)  , OMGL_SU(12,16)
 
+
+! M7 aerosol optical properties
+TYPE:: TEAERM7
+
+REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7AOD(:,:,:,:)
+REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7SSA(:,:,:,:)
+REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7ASYM(:,:,:,:)
+REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: M7AODLW(:,:,:,:)
+REAL(KIND=JPRB), ALLOCATABLE, PUBLIC :: AODCOMP(:,:,:)
+
+END TYPE TEAERM7
 !     ------------------------------------------------------------------
 ! 9 refers to up to 9 bins (3 operationally for SS and DD) 
 ! 20 to 19 SW channel radiances + 1 channel at 10 micron
