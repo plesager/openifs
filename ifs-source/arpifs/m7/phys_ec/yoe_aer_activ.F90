@@ -167,7 +167,7 @@ CONTAINS
    REAL(KIND=JPRB), INTENT(IN)    :: PSIGMA_W(KLON,KLEV)    ! sigma_w
 
    REAL(KIND=JPRB), INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM)
-   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV)      ! cloud droplet number concentration [#/cm-3]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV)      ! cloud droplet number concentration [#/m-3]
    REAL(KIND=JPRB), INTENT(INOUT) :: PICNC(KLON,KLEV)         ! ice crystal number concentration [#/cm-3]
    REAL(KIND=JPRB), INTENT(INOUT) :: PREFFL(KLON,KLEV)        ! liquid droplet effective radius [um]
    REAL(KIND=JPRB), INTENT(INOUT) :: PREFFI(KLON,KLEV)        ! ice effective radius [um]
