@@ -4,7 +4,7 @@
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
+! License: see the COPYING file for details 
 !
 ! Modifications
 !   2018-04-15  R Hogan  Add "direct" option
@@ -521,7 +521,7 @@ contains
   ! If they are provided, adds AOD, SSA, ASYM of aerosols to corresponding variables in
   ! radiation module.
   ! Note:
-  ! - Weighting of SSA, ASYM (added not background) is done before calling this subroutine
+  ! - Weighting of SSA, ASYM is done before calling this subroutine
   ! - For LW only AOD is added
   ! Original code: A.Laakso (FMI)
   subroutine add_aerosol_aod_ssa_asym(ncol, nlev, istartcol, iendcol, config, aerosol, &
@@ -557,39 +557,60 @@ contains
     istartlev = lbound(aerosol%od_sw,2)
     iendlev   = ubound(aerosol%od_sw,2)
 
-    ! Loop over position
-    do jlev = istartlev,iendlev
-      do jcol = istartcol,iendcol
-          do jg = 1,config%n_g_lw
-        
-             od_lw(jg,jlev,jcol) = od_lw(jg,jlev,jcol)&
-                  + aerosol%od_sw(jcol,jlev,config%n_bands_sw+config%i_band_from_reordered_g_lw(jg))
-          end do 
+    if (config%do_sw) then
+      ! Loop over position
+      do jlev = istartlev,iendlev
+        do jcol = istartcol,iendcol
 
           ! Weighting - only for existing aerosols
           do jg = 1,config%n_g_sw
-                 iband=config%i_band_from_reordered_g_sw(jg)
-                 IF (aerosol%od_sw(jcol,jlev,iband) > 0.0_jprb) THEN
-                     g_sw(jg,jlev,jcol) = g_sw(jg,jlev,jcol)*ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
-                     +aerosol%g_sw(jcol,jlev,iband)
-                    
-                     ssa_sw(jg,jlev,jcol) = ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
-                     +aerosol%ssa_sw(jcol,jlev,iband)
-                    
-                     od_sw(jg,jlev,jcol) = od_sw(jg,jlev,jcol) &
-                     +aerosol%od_sw(jcol,jlev,iband)
-                    
-                     IF (ssa_sw(jg,jlev,jcol) /= 0.0_jprb) THEN
-                        g_sw(jg,jlev,jcol)=g_sw(jg,jlev,jcol)/ssa_sw(jg,jlev,jcol)
-                     ENDIF
-                     !IF (od_sw(jg,jlev,jcol) /= 0.0_jprb) THEN
-                     ssa_sw(jg,jlev,jcol)=ssa_sw(jg,jlev,jcol)/od_sw(jg,jlev,jcol)
-                ENDIF     
+            iband=config%i_band_from_reordered_g_sw(jg)
+            IF (aerosol%od_sw(iband,jlev,jcol) > 0.0_jprb) THEN
+              g_sw(jg,jlev,jcol) = g_sw(jg,jlev,jcol)*ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
+                   +aerosol%g_sw(iband,jlev,jcol)
+
+              ssa_sw(jg,jlev,jcol) = ssa_sw(jg,jlev,jcol)*od_sw(jg,jlev,jcol) &
+                   +aerosol%ssa_sw(iband,jlev,jcol)
+
+              od_sw(jg,jlev,jcol) = od_sw(jg,jlev,jcol) &
+                   +aerosol%od_sw(iband,jlev,jcol)
+
+              IF (ssa_sw(jg,jlev,jcol) /= 0.0_jprb) THEN
+                g_sw(jg,jlev,jcol)=g_sw(jg,jlev,jcol)/ssa_sw(jg,jlev,jcol)
+              ENDIF
+              !IF (od_sw(jg,jlev,jcol) /= 0.0_jprb) THEN
+              ssa_sw(jg,jlev,jcol)=ssa_sw(jg,jlev,jcol)/od_sw(jg,jlev,jcol)
+              !ENDIF
+            ENDIF
           end do
 
-      end do ! Loop over column
-    end do ! Loop over level
+        end do ! Loop over column
+      end do ! Loop over level
+    endif
+    
+    if (config%do_lw) then
 
+      if (ubound(aerosol%od_lw,1) /= config%n_bands_lw) then
+        write(nulerr,'(a,i0,a,i0)') '*** Error: aerosol%od_lw contains ', &
+             &  ubound(aerosol%od_lw,1), ' band, expected ', &
+             &  config%n_bands_lw
+        call radiation_abort()
+      end if
+
+      istartlev = lbound(aerosol%od_lw,2)
+      iendlev   = ubound(aerosol%od_lw,2)
+
+      !A.Laakso: This module is done for aerosols without scattering of LW
+      ! Loop over position
+      do jcol = istartcol,iendcol
+        do jlev = istartlev,iendlev
+          do jg = 1,config%n_g_lw
+            od_lw(jg,jlev,jcol) = od_lw(jg,jlev,jcol) &
+                 &  +  aerosol%od_lw(config%i_band_from_reordered_g_lw(jg),jlev,jcol)
+          end do
+        end do
+      end do
+    endif
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_aod_ssa_asym',1,hook_handle)
   end subroutine
 

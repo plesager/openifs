@@ -198,8 +198,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
 
     IBLK=(KDIM%KSTGLO-1)/KDIM%KLON + 1
 
-    ! FIXME Better than 1:14 is to define a variable with value 14 with a
-    !       meaningful name (RCHG)
     DO JAER=1,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW
       DO JK=1,KDIM%KLEV
         DO JL=KDIM%KIDIA,KDIM%KFDIA
@@ -209,7 +207,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
         ENDDO
       ENDDO
     ENDDO
-    DO JAER=1,16
+    DO JAER=1,16 !FIXME this needs better variable
       DO JK=1,KDIM%KLEV
         DO JL=KDIM%KIDIA,KDIM%KFDIA
           GEMSL%ZAEROTAULW(JL,JK,JAER) = YDAERM7%M7AODLW(JL,JK,JAER,IBLK)

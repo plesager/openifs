@@ -6,7 +6,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction
 SUBROUTINE RADIATION_SCHEME &
-     & (YDMODEL,KIDIA, KFDIA, KLON, KLEV, KAEROSOL,                        &
+     & (YDMODEL,KIDIA, KFDIA, KLON, KLEV, KBL, KAEROSOL,                   &
      & PSOLAR_IRRADIANCE,                                                  &
      & PMU0, PTEMPERATURE_SKIN, PALBEDO_DIF, PALBEDO_DIR,                  &
      & PSPECTRALEMISS,                                                     &
@@ -28,7 +28,7 @@ SUBROUTINE RADIATION_SCHEME &
      & PPERT, PFSD)
 
 ! RADIATION_SCHEME - Interface to modular radiation scheme
-!
+! 
 ! PURPOSE
 ! -------
 !   The modular radiation scheme is contained in a separate
@@ -93,10 +93,10 @@ USE RADIATION_FLUX,           ONLY : FLUX_TYPE
 USE RADIATION_INTERFACE,      ONLY : RADIATION, SET_GAS_UNITS
 USE RADIATION_SAVE,           ONLY : SAVE_INPUTS, SAVE_FLUXES
 
-IMPLICIT NONE
+! CMIP6/7 straotspheric aerosols
+USE YOEAEROP, ONLY: STRATO_CMIP_NMONTH, STRATO_CMIP_NTB 
 
-! TEMPO HACK UNTIL WE GOT THE CMIP STRATO AEROSOLS
-INTEGER(KIND=JPIM), PARAMETER :: STRATO_CMIP_NTB=16
+IMPLICIT NONE
 
 ! INPUT ARGUMENTS
 
@@ -106,6 +106,7 @@ INTEGER(KIND=JPIM),INTENT(IN)   :: KIDIA    ! Start column to process
 INTEGER(KIND=JPIM),INTENT(IN)   :: KFDIA    ! End column to process
 INTEGER(KIND=JPIM),INTENT(IN)   :: KLON     ! Number of columns
 INTEGER(KIND=JPIM),INTENT(IN)   :: KLEV     ! Number of levels
+INTEGER(KIND=JPIM),INTENT(IN)   :: KBL      ! Block to read strat aerosols
 INTEGER(KIND=JPIM),INTENT(IN)   :: KAEROSOL ! Number of aerosol types
 
 ! *** Single-level fields
@@ -220,6 +221,7 @@ TYPE(THERMODYNAMICS_TYPE) :: THERMODYNAMICS
 TYPE(GAS_TYPE)            :: GAS
 TYPE(CLOUD_TYPE)          :: YLCLOUD
 TYPE(AEROSOL_TYPE)        :: AEROSOL
+TYPE(AEROSOL_TYPE)        :: STRAT_AEROSOL
 TYPE(FLUX_TYPE)           :: FLUX
 
 ! Mass mixing ratio of ozone (kg/kg)
@@ -256,7 +258,7 @@ REAL(KIND=JPRB)           :: ZFACTOR
 INTEGER(KIND=JPIM) :: ITIM, IDAY
 
 ! Loop indices
-INTEGER(KIND=JPIM) :: JLON, JLEV, JBAND, JAER
+INTEGER(KIND=JPIM) :: JLON, JLEV, JBAND, JAER, JIW, IJLEV, JSW_ORDERED_BIS
 
 ! Have any fluxes been returned that are out of a physically
 ! reasonable range? This integer stores the number of blocks of fluxes
@@ -275,6 +277,16 @@ CHARACTER(LEN=512) :: CL_FILE_NAME
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+! CMIP6/7 stratospheric aerosols - ALaakso
+REAL(KIND=JPRB)       :: ZAODSTRAT_M(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW,STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_M(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW,STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZREFAODSTRAT_M(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW,STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_LW_M(KLON,KLEV,STRATO_CMIP_NTB,STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAODSTRAT(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW)
+REAL(KIND=JPRB)       :: ZAAODSTRAT(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW)
+REAL(KIND=JPRB)       :: ZREFAODSTRAT(KLON,KLEV,YDMODEL%YRML_PHY_RAD%YRERAD%NSW)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_LW(KLON,KLEV,STRATO_CMIP_NTB)
+INTEGER(KIND=JPIM)    :: KTROPPAUSE(KLON)
 
 ! Import time functions for iseed calculation
 #include "fcttim.func.h"
@@ -284,6 +296,10 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "cloud_overlap_decorr_len.intfb.h"
 #include "satur.intfb.h"
 !#include "abor1.intfb.h"
+
+!CMIP7 stratospheric aerosols 
+#include "cmip_strato_aero_interp.intfb.h"
+#include "cmip_strato_aero_process.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME',0,ZHOOK_HANDLE)
 
@@ -303,6 +319,9 @@ ASSOCIATE(NCLOUDACT             => YRERAD%NCLOUDACT,                  &
      &    TROP_BG_AER_MASS_EXT  => YDRADIATION%TROP_BG_AER_MASS_EXT,  &
      &    STRAT_BG_AER_MASS_EXT => YDRADIATION%STRAT_BG_AER_MASS_EXT, &
      &    AERO_SCHEME           => YDCOMPO%AERO_SCHEME)
+
+ASSOCIATE(YDPHYAER   => YDMODEL%YRML_PHY_AER )
+ASSOCIATE(YDAERSTRAT => YDPHYAER%YREAEROSTRAT )
 
 ! Allocate memory in radiation objects
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
@@ -329,6 +348,8 @@ ELSE
 ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
 
+! Stratospheric aerosols. Fields are 0 if LCMIP6_STRATAER_FULL = FALSE
+CALL STRAT_AEROSOL%ALLOCATE_DIRECT(RAD_CONFIG, KLON, 1, KLEV)
 
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
@@ -639,6 +660,105 @@ ELSE
 
 ENDIF 
 
+!CMIP6/7 Stratospheric aerosols
+ZAODSTRAT(:,:,:)=0.0_JPRB
+ZAAODSTRAT(:,:,:)=0.0_JPRB
+ZREFAODSTRAT(:,:,:)=0.0_JPRB
+ZAAODSTRAT_LW(:,:,:)=0.0_JPRB
+IF (YRERAD%LCMIP_STRATAER_CMIP6 .OR. YRERAD%LCMIP_STRATAER_CMIP7) THEN
+   IF (YRERAD%LSTRATAERO_UPDATED) THEN
+      
+      ! Read the data, only one time per month
+      CALL  CMIP_STRATO_AERO_INTERP (YDMODEL,  KIDIA,  KFDIA,  KLON, KLEV, 1 , 0,  &
+                            &     PPRESSURE_H,   PGELAM, PGEMU,                    &
+                            &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M)
+
+      YDAERSTRAT%STRAT_AOD(KIDIA:KFDIA,:,:,:,KBL) = ZAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+      YDAERSTRAT%STRAT_AAOD(KIDIA:KFDIA,:,:,:,KBL) = ZAAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+      YDAERSTRAT%STRAT_REFAOD(KIDIA:KFDIA,:,:,:,KBL)= ZREFAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+      YDAERSTRAT%STRAT_AAOD_LW(KIDIA:KFDIA,:,:,:,KBL) = ZAAODSTRAT_LW_M(KIDIA:KFDIA,:,:,:)
+      
+   ELSE
+      ! no new data, use the last computed values
+      ZAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AOD(KIDIA:KFDIA,:,:,:,KBL)
+      ZAAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AAOD(KIDIA:KFDIA,:,:,:,KBL)
+      ZREFAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_REFAOD(KIDIA:KFDIA,:,:,:,KBL)
+      ZAAODSTRAT_LW_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AAOD_LW(KIDIA:KFDIA,:,:,:,KBL)
+   ENDIF
+
+   ! Time interpolation and excluding the data below the tropopause, each timestep.
+   CALL CMIP_STRATO_AERO_PROCESS (YDMODEL,KIDIA, KFDIA, KLON, KLEV, 1 , 0,                      &
+                        &     NINDAT, YDMODEL%YRML_GCONF%YRRIP%NSTADD,                                            &
+                        &     PPRESSURE, PPRESSURE_H, PTEMPERATURE, PTEMPERATURE_H, PGELAM,                         &
+                        &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M,&
+                        &     ZAODSTRAT, ZAAODSTRAT, ZREFAODSTRAT, ZAAODSTRAT_LW, KTROPPAUSE)
+
+   !Excluding optical properties of M7 aerosols above stratosphere if CMIP stratospheric aerosols are used
+  ! If we want do this here, remember add same for LW properties
+  ! DO JLON=KIDIA,KFDIA
+  !    AEROSOL%OD_SW(:,1:KTROPPAUSE(JLON)-1,JLON) = 0.0_JPRB
+  !    AEROSOL%SSA_SW(:,1:KTROPPAUSE(JLON)-1,JLON) = 0.0_JPRB
+  !    AEROSOL%G_SW(:,1:KTROPPAUSE(JLON)-1,JLON)  = 0.0_JPRB
+  !ENDDO                      
+
+ELSE
+   ZAODSTRAT(:,:,:)=0.0_JPRB
+   ZAAODSTRAT(:,:,:)=0.0_JPRB
+   ZREFAODSTRAT(:,:,:)=0.0_JPRB
+   ZAAODSTRAT_LW(:,:,:)=0.0_JPRB
+ENDIF
+
+STRAT_AEROSOL%OD_SW(:,:,KIDIA:KFDIA)=0.0_JPRB               
+STRAT_AEROSOL%SSA_SW(:,:,KIDIA:KFDIA) = 0.0_JPRB
+STRAT_AEROSOL%G_SW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%OD_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%SSA_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%G_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+IF (RAD_CONFIG%DO_SW) THEN
+  IF (YRERAD%LCMIP_STRATAER_CMIP6) THEN
+    DO JLEV = 1,KLEV
+      IJLEV=KLEV+1-JLEV
+      DO JAER=1,YRERAD%NTSW  ! SW radiation     
+        !      ! IFS wavelength intervals 1..14 as defined in SUSRTAER correspond to 2..14,1 in the CMIP6 forcing
+        JSW_ORDERED_BIS=JAER+1 
+        IF (JAER==14) THEN 
+          JSW_ORDERED_BIS=1
+        ENDIF
+        STRAT_AEROSOL%OD_SW(JAER,JLEV,KIDIA:KFDIA)=ZAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)               
+        STRAT_AEROSOL%SSA_SW(JAER,JLEV,KIDIA:KFDIA) = &
+             &ZAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)-ZAAODSTRAT(KIDIA:KFDIA,JLEV,JSW_ORDERED_BIS)
+        STRAT_AEROSOL%G_SW(JAER,JLEV,KIDIA:KFDIA)   = ZREFAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)
+
+      ENDDO
+    ENDDO
+
+  ELSEIF(YRERAD%LCMIP_STRATAER_CMIP7) THEN
+    DO JLEV = 1,KLEV
+      IJLEV=KLEV+1-JLEV
+      DO JAER=1,YRERAD%NTSW  ! SW radiation     
+        ! CMIP7 wavelengts are already in right order
+        STRAT_AEROSOL%OD_SW(JAER,JLEV,KIDIA:KFDIA)=ZAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)               
+        STRAT_AEROSOL%SSA_SW(JAER,JLEV,KIDIA:KFDIA) = &
+             &ZAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)-ZAAODSTRAT(KIDIA:KFDIA,JLEV,JAER)
+        STRAT_AEROSOL%G_SW(JAER,JLEV,KIDIA:KFDIA)   = ZREFAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)
+
+      ENDDO
+    ENDDO
+
+  ENDIF
+ENDIF
+
+IF (RAD_CONFIG%DO_LW) THEN
+  DO JLEV = 1,KLEV
+    IJLEV=KLEV+1-JLEV
+    DO JAER=1,STRATO_CMIP_NTB  !LW radiation
+        STRAT_AEROSOL%OD_LW(JAER,JLEV,KIDIA:KFDIA)=ZAAODSTRAT_LW(KIDIA:KFDIA,IJLEV,JAER)
+        STRAT_AEROSOL%SSA_LW(JAER,JLEV,KIDIA:KFDIA)=0.0_JPRB !only absorbtion for LW
+        STRAT_AEROSOL%G_LW(JAER,JLEV,KIDIA:KFDIA)=0.0_JPRB
+    ENDDO 
+  ENDDO
+ENDIF
+
 
 ! Convert ozone Pa*kg/kg to kg/kg
 DO JLEV = 1,KLEV
@@ -666,7 +786,7 @@ CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
 
 ! Call radiation scheme
 CALL RADIATION( KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,                          &
-     &          SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
+     &          SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, STRAT_AEROSOL, FLUX)
 
 ! Check fluxes are within physical bounds
 IF (YRERAD%NDUMPBADINPUTS /= 0 &
@@ -797,11 +917,13 @@ CALL THERMODYNAMICS%DEALLOCATE
 CALL GAS%DEALLOCATE
 CALL YLCLOUD%DEALLOCATE
 CALL AEROSOL%DEALLOCATE
+CALL STRAT_AEROSOL%DEALLOCATE
 CALL FLUX%DEALLOCATE
 
 END ASSOCIATE
 END ASSOCIATE
-
+END ASSOCIATE
+END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME',1,ZHOOK_HANDLE)
 
 END SUBROUTINE RADIATION_SCHEME
