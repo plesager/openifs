@@ -34,8 +34,8 @@ MODULE mo_activ
   
   REAL(dp),        PUBLIC, POINTER :: swat(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: w_cape(:,:)
-  REAL(dp),        PUBLIC, POINTER :: w_sigma(:,:,:)
 #ifdef HAMMOZ
+  REAL(dp),        PUBLIC, POINTER :: w_sigma(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: reffl(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: reffi(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: w_large(:,:,:)
@@ -203,7 +203,9 @@ CONTAINS
     !--- Large scale vertical velocity in SI units:
 
     pwsigma(1:kproma,:)      = MAX(w_sigma_min, ((2.0_dp/3.0_dp)*ptkem1(1:kproma,:))**0.5_dp) ! m/s
+#ifdef HAMMOZ
     w_sigma(1:kproma,:,krow) = pwsigma(1:kproma,:)
+#endif
 
   END SUBROUTINE aero_activ_updraft_sigma
 
