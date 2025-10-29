@@ -50,11 +50,11 @@ IMPLICIT NONE
                                        !    ndust = 1  Balkanski et al. (2002)
                                        !          = 2  Tegen et al. (2002)
                                        !
-             nseasalt    = 2,       &  ! Sea Salt emission scheme:
-                                       ! 
-                                       !    nseasalt = 1  Monahan (1986)
-                                       !             = 2  Schulz et al. (2002)
-                                       !
+!mo_ham.f90 is used             nseasalt    = 2,       &  ! Sea Salt emission scheme:
+!mo_ham.f90 is used                                       ! 
+!mo_ham.f90 is used                                       !    nseasalt = 1  Monahan (1986)
+!mo_ham.f90 is used                                       !             = 2  Schulz et al. (2002)
+!mo_ham.f90 is used                                       !
              npist       = 3,       &  ! DMS emission scheme:
                                        !
                                        !    npist = 1 Liss & Merlivat (1986) 

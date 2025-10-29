@@ -931,15 +931,17 @@ ENDDO
        !   ZSIGMA_W(KIDIA:KFDIA,1:KLEV)= MAX(0.1_JPRB, (ZTUNPAR*((ZTKEM1(KIDIA:KFDIA,1:KLEV))**0.5_JPRB))) ! m/s
        !END IF
 
-       ! put default values for effective radii
-       reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
-       reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
+       ! Update mixing ratios with tendencies
+       DO JT =1,NTRAC 
+         ZXTP1(KIDIA:KFDIA,1:KLEV,JT) = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN 
+       END DO
+
        CALL AER_ACTIV(KIDIA,   KFDIA,  KTDIA,   KLON,    KLEV,   KSTGLO, &
                     &  PRS1,    PRSF1,    PTP,      ZQP,      ZQSAT,  &
                     &  PVERVEL, ZAP,     PLP,      PIP,              &
                     &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                     &  PGFL, YDMODEL, ZCDNCACT, ZICNC, REFFL(1:KLON,1:KLEV,ZKROW), REFFI(1:KLON,1:KLEV,ZKROW), &
-                    &  ZSMAXMN, ZM6DRY, ZXTM1, KTRAC, ZSIGMA_W, ZFRACN)
+                    &  ZSMAXMN, ZM6DRY, ZXTP1, KTRAC, ZSIGMA_W, ZFRACN)
        
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC

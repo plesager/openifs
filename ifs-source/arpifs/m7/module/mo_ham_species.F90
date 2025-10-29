@@ -345,7 +345,7 @@ MODULE mo_ham_species
                       mw           = 12.010_dp,           &
                       tsubmname    = 'HAM',               &
                       itrtype      = itrprog,             &
-                      density      = 2000._dp,            &
+                      density      = 1800._dp,            &
                       iaerorad     = iradbc,              &
                       lwatsol      = .FALSE.,             &  
                       ldrydep      = .TRUE.,              &
@@ -364,7 +364,7 @@ MODULE mo_ham_species
                          mw           = 180._dp,             &
                          tsubmname   = 'HAM',                &
                          itrtype      = itrprog,             &
-                         density      = 2000._dp,            &
+                         density      = 1300._dp,            &
                          iaerorad     = iradoc,              &
                          lwatsol      = .TRUE.,              &  
                          kappa        = 0.06_dp,             &
