@@ -138,6 +138,10 @@ CALL init_mo_time_control(YRRIP)
 
 !eehol: set advection scheme
 iadvec = tpcore !comes from ECHAM mo_control.f90
+!eehol: activation initialization 
+nactivpdf = 1 !eehol: using PDF to calculate updraft. Hardcoded for now.. need to check this later (add setphys to oifs?)
+ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)
+lcdnc_progn = .TRUE.
 
 !eehol: set submodel parameters and flags
 CALL init_splist !eehol: added init for splist
@@ -152,10 +156,6 @@ CALL ham_initialize
 ! ham_nucl_initialize, if nsnucl+nonucl > 0
 !CALL ham_init_memory !eehol: this is not needed now
 
-!eehol: activation initialization 
-nactivpdf = 1 !eehol: using PDF to calculate updraft. Hardcoded for now.. need to check this later (add setphys to oifs?)
-ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)
-lcdnc_progn = .TRUE.
 CALL activ_initialize
 
 !eehol: set cdnc and icnc indices for HAM

@@ -35,19 +35,10 @@
   ! standard deviation of updraft PDF
   !REAL(KIND=JPRB), PARAMETER, PUBLIC :: PPDF_SIGMA = 0.8_JPRB
 
-  ! minimum CDNC value
-  REAL(KIND=JPRB), PARAMETER, PUBLIC :: PPMINCDNC = 1._JPRB
-
-  ! default CDNC value
-  REAL(KIND=JPRB), PARAMETER, PUBLIC :: PPDEFCDNC = 1._JPRB !1.E-14_JPRB !10._JPRB
-
   ! Diagnostics
   !TYPE(T_DIAG), POINTER, PUBLIC :: D_CDNC
   !TYPE(T_DIAG), POINTER, PUBLIC :: D_REFF
   !TYPE(T_DIAG), POINTER, PUBLIC :: D_LIQCLDT
-
-  ! default value of effective radius (value when gridbox is cloud-free) [um]
-  REAL(KIND=JPRB), PARAMETER, PRIVATE :: PPREFFL_DEF = 4.0_JPRB
  
 CONTAINS
   SUBROUTINE AER_ACTIV(KIDIA,   KFDIA,  KTDIA,   KLON,    KLEV,   KSTGLO, &
@@ -56,7 +47,7 @@ CONTAINS
                      &  PVERVEL, PA,     PL,      PI,              &
                      &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                      &  PGFL, YDMODEL, PCDNCACT, PICNC, PREFFL, PREFFI, PSMAX, PDRYRSOLU, PXTM1, KTRAC, PSIGMA_W, &
-                     &  PFRACN )!,    PEXTRA, PEXTR2)
+                     &  PFRACN, PPMINCDNC, PPDEFCDNC, PQLWC, LLIQCLD, LICECLD, PPREFFL_DEF, PPREFFI_DEF)!,    PEXTRA, PEXTR2)
    
    ! *AER_ACTIV* is the interface to the cloud droplet activation scheme. 
    !  Four schemes are available, depending on the aerosol scheme used.
@@ -165,10 +156,17 @@ CONTAINS
    REAL(KIND=JPRB), INTENT(IN)    :: PDRYRSOLU(KLON,KLEV,NSOL) ! rdry of soluble modes [m]
    REAL(KIND=JPRB), INTENT(IN)    :: PXTM1(KLON,KLEV,KTRAC) ! tracer mixing ratios
    REAL(KIND=JPRB), INTENT(IN)    :: PSIGMA_W(KLON,KLEV)    ! sigma_w
+   REAL(KIND=JPRB), INTENT(IN)    :: PPMINCDNC              ! minimum CDNC [# cm-3]
+   REAL(KIND=JPRB), INTENT(IN)    :: PPDEFCDNC              ! default (background) CDNC [# cm-3]
+   REAL(KIND=JPRB), INTENT(IN)    :: PQLWC(KLON,KLEV)       ! LWC [kg kg-1]
+   LOGICAL,         INTENT(IN)    :: LLIQCLD(KLON,KLEV)     ! logical for liquid cloud
+   LOGICAL,         INTENT(IN)    :: LICECLD(KLON,KLEV)     ! logical for ice cloud
+   REAL(KIND=JPRB), INTENT(IN)    :: PPREFFI_DEF            ! default (background) ice eff rad [mu m]
+   REAL(KIND=JPRB), INTENT(IN)    :: PPREFFL_DEF            ! default (background) liq eff rad [mu m]
 
    REAL(KIND=JPRB), INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM)
-   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV)      ! cloud droplet number concentration [#/m-3]
-   REAL(KIND=JPRB), INTENT(INOUT) :: PICNC(KLON,KLEV)         ! ice crystal number concentration [#/cm-3]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PCDNCACT(KLON,KLEV)      ! cloud droplet number concentration [# cm-3]
+   REAL(KIND=JPRB), INTENT(INOUT) :: PICNC(KLON,KLEV)         ! ice crystal number concentration [# cm-3]
    REAL(KIND=JPRB), INTENT(INOUT) :: PREFFL(KLON,KLEV)        ! liquid droplet effective radius [um]
    REAL(KIND=JPRB), INTENT(INOUT) :: PREFFI(KLON,KLEV)        ! ice effective radius [um]
    REAL(KIND=JPRB), INTENT(INOUT) :: PSMAX(KLON,KLEV)         ! maximum supersaturation [%]
@@ -211,13 +209,7 @@ CONTAINS
    REAL(KIND=JPRB) :: ZNACT_KS(KLON,KLEV)                   ! variables for modewise activated fraction calculations
    REAL(KIND=JPRB) :: ZFRAC_KS,ZFRAC_AS,ZFRAC_CS            ! variables for modewise activated fraction calculations
 
-   !variables for liquid droplet eff rad calculations
-   REAL(KIND=JPRB) :: ZQLWC(KLON,KLEV) !tresholded LWC [kg/kg]
-   REAL(KIND=JPRB) :: RCLDMAX=5.E-3_JPRB !max cloud water
-
-   LOGICAL :: LLIQCLD(KLON,KLEV)                            ! true if liquid cloud is present
    LOGICAL :: LLIQCLDD(KLON,KLEV)                           ! true if liquid cloud is present (for activation calculations)
-   LOGICAL :: LICECLD(KLON,KLEV)                            ! true if ice cloud is present
 
    LOGICAL :: LL1
    LOGICAL :: LBULK, LMODE                                  ! fetch HAMM7 aerosols as bulk mass / per-mode mass
@@ -258,11 +250,7 @@ CONTAINS
    ZCDNC(KIDIA:KFDIA,1:KLEV) = PPDEFCDNC
    ZRE_LIQ(KIDIA:KFDIA,1:KLEV) = PPREFFL_DEF
    ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
-   ZRE_ICE(KIDIA:KFDIA,1:KLEV) = 80._JPRB*0.64952_JPRB
-  !PGFL(KIDIA:KFDIA,:,YCDNC%MP9_PH) = PPDEFCDNC
-  !PGFL(KIDIA:KFDIA,:,YRE_LIQ%MP9_PH) = PPREFFL_DEF
-  !PGFL(KIDIA:KFDIA,:,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,:)
-  !PGFL(KIDIA:KFDIA,:,YRE_ICE%MP9_PH) = PREFFI(KIDIA:KFDIA,:)
+   ZRE_ICE(KIDIA:KFDIA,1:KLEV) = PPREFFI_DEF
 
    !---get aerosols from HAMM7
    LMODE = .TRUE.
@@ -275,16 +263,6 @@ CONTAINS
                           & ZNO3MASS,    ZMSAMASS)
 
    ZDRYRSOL(KIDIA:KFDIA,1:KLEV,:) = PDRYRSOLU(KIDIA:KFDIA,1:KLEV,:)
-
-  !---find cells where there is cloud (same criteria as cloudsc.F90 when it uses CDNC)
-
-   DO JK=1,KLEV
-      DO JL=KIDIA,KFDIA
-         ZTMPA = 1.0_JPRB/MAX(PA(JL,JK),ZEPSEC)
-         LLIQCLD(JL,JK) = ( PL(JL,JK)*ZTMPA  ) > ZEPSEC
-         LICECLD(JL,JK) = ( PI(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-      END DO
-   END DO
 
    IF (LCALCINCLOUD) THEN
       !---find highest model level where there is cloud
@@ -392,13 +370,9 @@ CONTAINS
 
       !---limit CDNC to min PPMINCDNC, set default value for CDNC outside clouds
       DO JK=KTDIA,KLEV
-         ZCDNC(KIDIA:KFDIA,JK)=MAX(ZCDNC(KIDIA:KFDIA,JK)*ZMAC2SP_CDNC_FACTOR(KIDIA:KFDIA),PPMINCDNC)
-         !ZCDNC(KIDIA:KFDIA,JK)=MERGE( &
-         !& MAX(ZCDNC(KIDIA:KFDIA,JK)*ZMAC2SP_CDNC_FACTOR(KIDIA:KFDIA),PPMINCDNC), &
-         !& PPDEFCDNC, LLIQCLD(KIDIA:KFDIA,JK) )
-      !   PGFL(KIDIA:KFDIA,JK,YCDNC%MP9_PH)=MERGE( &
-      !   & MAX(PGFL(KIDIA:KFDIA,JK,YCDNC%MP9_PH)*ZMAC2SP_CDNC_FACTOR(KIDIA:KFDIA),PPMINCDNC), &
-      !   & PPDEFCDNC, LLIQCLD(KIDIA:KFDIA,JK) )
+         ZCDNC(KIDIA:KFDIA,JK)=MERGE( &
+         & MAX(ZCDNC(KIDIA:KFDIA,JK)*ZMAC2SP_CDNC_FACTOR(KIDIA:KFDIA),PPMINCDNC), &
+         & PPDEFCDNC, LLIQCLD(KIDIA:KFDIA,JK) )
       END DO
 
       !---cloud liquid water: droplet effective radius is computed in radlswr now
@@ -406,16 +380,14 @@ CONTAINS
 
       ! liquid effective radius                                                                                                                         
       DO JK=1,KLEV
-         DO JL=KIDIA,KFDIA                                                                
-            ZQLWC(JL,JK) = PL(JL,JK)/MAX(PA(JL,JK),1.E-10_JPRB) ! calculate lwc                                                                         
-            ZQLWC(JL,JK) = MIN(MAX(ZQLWC(JL,JK),0.0_JPRB),RCLDMAX) ! treshold lwc                                                                         
+         DO JL=KIDIA,KFDIA                                                                                                                                        
             ! effective radius calculated similarly as in radlswr.F90                                                                                     
             ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]                                                                             
-            !ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWC(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),PPMINCDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
-            ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWC(JL,JK)/(MAX(ZCDNC(JL,JK),PPMINCDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
+            ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*PQLWC(JL,JK)/ZCDNC(JL,JK))**0.333_JPRB
          END DO
       END DO
-      ZRE_LIQ(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV)) 
+      ZRE_LIQ(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),PPREFFL_DEF,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+      
    END IF
 
    !---cloud ice: ICNC and effective radius for ice crystals 
@@ -454,35 +426,26 @@ CONTAINS
        PFRACN(JL,JK,2) = MAX(0._JPRB,MIN(ZFRAC_KS, 1._JPRB)) !threshold between 0 and 1
        ZNACT_KS(JL,JK) = ZAERONUM(JL,JK,2) * PFRACN(JL,JK,2) !calculate activated number for KS mode
 
-       PFRACN(JL,JK,2) = MERGE(PFRACN(JL,JK,2),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
-       PFRACN(JL,JK,3) = MERGE(PFRACN(JL,JK,3),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
-       PFRACN(JL,JK,4) = MERGE(PFRACN(JL,JK,4),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is cloud
+       PFRACN(JL,JK,2) = MERGE(PFRACN(JL,JK,2),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is liquid cloud
+       PFRACN(JL,JK,3) = MERGE(PFRACN(JL,JK,3),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is liquid cloud
+       PFRACN(JL,JK,4) = MERGE(PFRACN(JL,JK,4),0._JPRB,LLIQCLD(JL,JK)) !fraction only where there is liquid cloud
      END DO
    END DO
          
             
    !eehol: diagnostics:
    !--CDNC
-   !PCDNCACT(KIDIA:KFDIA,:) = 1.0E6_JPRB*PGFL(KIDIA:KFDIA,:,YCDNC%MP9_PH) !eehol: output CDNC [#/m3]
    PCDNCACT(KIDIA:KFDIA,1:KLEV) = 1.0E6_JPRB*MAX(ZCDNC(KIDIA:KFDIA,1:KLEV),PPMINCDNC) !eehol: output CDNC [#/m3]
 
    !--ICNC
-   !PICNC(KIDIA:KFDIA,:) = PGFL(KIDIA:KFDIA,:,YICNC%MP9_PH) !eehol: output ICNC [#/cm3]
    PICNC(KIDIA:KFDIA,1:KLEV) = ZICNC(KIDIA:KFDIA,1:KLEV) !eehol: output ICNC [#/cm3]
-   
+
    !--Liq eff rad
-   !PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * ZRE_LIQ(KIDIA:KFDIA,1:KLEV) !save liq eff rad in meters
-   PREFFL(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !eehol: output liq eff rad [um]
+   PREFFL(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),PPREFFL_DEF,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !eehol: output liq eff rad [um]
 
-   !--Ice eff rad
-   ! only if there is ice cloud else minimum value
-   PREFFI(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_ICE(KIDIA:KFDIA,1:KLEV),20._JPRB,LICECLD(KIDIA:KFDIA,1:KLEV))
-   !PREFFI(KIDIA:KFDIA,:) = 1.E-6_JPRB*PGFL(KIDIA:KFDIA,:,YRE_ICE%MP9_PH) !eehol: output ice eff rad [um]
-   ! only if there is ice cloud else minimum value
-   !PREFFI(KIDIA:KFDIA,1:KLEV) = MERGE(PREFFI(KIDIA:KFDIA,1:KLEV), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
-   ! add effective radii to PGFL fields
-   !PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * PREFFI(KIDIA:KFDIA,1:KLEV) ! convert um to meters and save to PGFL fields
-
+   !--Ice eff rad (only if there is ice cloud else minimum value)
+   PREFFI(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_ICE(KIDIA:KFDIA,1:KLEV),PPREFFI_DEF,LICECLD(KIDIA:KFDIA,1:KLEV))
+   
    !--Maximum supersaturation
    PSMAX(KIDIA:KFDIA,1:KLEV) = ZSMAX(KIDIA:KFDIA,1:KLEV) !eehol: output maximum supersaturation [%]
    
@@ -1726,7 +1689,7 @@ CONTAINS
 
     !--- 0) Initializations:
 
-    !PCDNC(KIDIA:KFDIA,KTDIA:KLEV) = 10._JPRB
+    PCDNC(KIDIA:KFDIA,KTDIA:KLEV) = 0._JPRB
     PSMAX(KIDIA:KFDIA,KTDIA:KLEV) = 0._JPRB
 
     ZEPS=EPSILON(1._JPRB)

@@ -31,10 +31,10 @@ MODULE mo_activ
      REAL(dp), POINTER  :: ptr(:,:,:)
   END TYPE vmem3d
 #endif
-  
+
+#ifdef HAMMOZ
   REAL(dp),        PUBLIC, POINTER :: swat(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: w_cape(:,:)
-#ifdef HAMMOZ
   REAL(dp),        PUBLIC, POINTER :: w_sigma(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: reffl(:,:,:)
   REAL(dp),        PUBLIC, POINTER :: reffi(:,:,:)

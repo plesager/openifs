@@ -539,7 +539,7 @@ CONTAINS
     SUMFHH    = 0.0_JPRB   !Contribution of FHH integral
 
     DO J = 1, BOX%NMD
-      IF (SG(J).GT.EPSILON(1.0_JPRB)) THEN !eehol: do not calculate if SG=0 or less
+      IF (SG(J).GT.(0.0_JPRB)) THEN !eehol: do not calculate if SG=0 or less
 
         IF (BOX%MODE(J).EQ.1) THEN          ! Kohler modes
 

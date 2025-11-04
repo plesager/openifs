@@ -316,6 +316,11 @@ LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
 
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
+REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=10.0_JPRB               !eehol: minimum CDNC (can be changed but for now 10 cm-3)
+REAL(KIND=JPRB), PARAMETER :: ZDEF_CDNC=125.0_JPRB              !eehol: default CDNC (can be changed but for now 125 cm-3)
+REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_LIQ=4.0_JPRB              !eehol: default liq eff radius (can be changed but for now 4 mu m comes from liquid effective radius routine (PP_MIN_RE_UM))
+REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_ICE=80._JPRB*0.64952_JPRB !eehol: default ice eff radius (comes from ice effective radius routine (ZDEFAULT_RE_UM))
+REAL(KIND=JPRB), PARAMETER :: ZTUNPAR=0.8164965_JPRB            !eehol: tuning parameter for sigma_w derived from TKE (square root of 2/3 (isotropy assumption))
 
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
 
@@ -346,6 +351,8 @@ REAL(KIND=JPRB) :: ZSC(KLON,KLEV,nclass) !critical supersaturation [% 0-1]
 REAL(KIND=JPRB) :: ZNACT(KLON,KLEV,nclass) !number of activated particles per mode [m-3]
 REAL(KIND=JPRB) :: ZFRACN(KLON,KLEV,nclass) !fraction of activated particles per mode
 REAL(KIND=JPRB) :: ZCDNCACT(KLON,KLEV)     !number of activated particles [m-3]
+REAL(KIND=JPRB) :: ZCDNC_temp(KLON,KLEV)   !eehol: temporary for tendency of CDNC
+REAL(KIND=JPRB) :: ZICNC_temp(KLON,KLEV)   !eehol: temporary for tendency of ICNC
 REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)! liquid effective radius
 REAL(KIND=JPRB) :: ZNACT_AS(KLON,KLEV),ZNACT_CS(KLON,KLEV),ZNACT_KS(KLON,KLEV) ! variables for modewise activated fraction calculations
 REAL(KIND=JPRB) :: ZFRAC_KS,ZFRAC_AS,ZFRAC_CS  ! variables for modewise activated fraction calculation
@@ -826,6 +833,10 @@ DO JCLOUD=1,2 !CDNC and ICNC
 END DO
 !ENDIF
 
+!eehol: init CDNC and ICNC with non updated to temporary HAMM7 variables (unit in #/kg)
+ZCDNC_temp(KIDIA:KFDIA,1:KLEV) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
+ZICNC_temp(KIDIA:KFDIA,1:KLEV) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
+
 ! implementation of HAM-M7
 ZWND(KIDIA:KFDIA) = 0._JPRB
 DO JL=KIDIA,KFDIA
@@ -919,8 +930,8 @@ ENDDO
     END DO
 
     ! Default values for effective radii
-    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
-    REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
+    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = ZDEF_RE_LIQ ! comes from liquid effective radius routine (PP_MIN_RE_UM)
+    REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = ZDEF_RE_ICE ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
 
     ! Cloud activation scheme
     CLDACT: IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes
@@ -941,7 +952,8 @@ ENDDO
                     &  PVERVEL, ZAP,     PLP,      PIP,              &
                     &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                     &  PGFL, YDMODEL, ZCDNCACT, ZICNC, REFFL(1:KLON,1:KLEV,ZKROW), REFFI(1:KLON,1:KLEV,ZKROW), &
-                    &  ZSMAXMN, ZM6DRY, ZXTP1, KTRAC, ZSIGMA_W, ZFRACN)
+                    &  ZSMAXMN, ZM6DRY, ZXTP1, KTRAC, ZSIGMA_W, ZFRACN, ZMIN_CDNC, ZDEF_CDNC, &
+                    &  ZQLWP, LLIQCLD, LICECLD, ZDEF_RE_LIQ, ZDEF_RE_ICE)
        
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
        ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC
@@ -1007,8 +1019,9 @@ ENDDO
        DO JCLASS = 1,NCLASS
           ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS) = MERGE(ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS),0._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
        ENDDO
-       ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
-       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
+
+       ! threshold CDNC and ICNC to grid cells with only liquid or ice clouds
+       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZDEF_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV), RNICE, LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
 
        !-----------------------------------------------------------------
@@ -1089,8 +1102,8 @@ ENDDO
           END DO
        END DO
 
-       ! treshold CDNC and ICNC to gridcells with only liquid or ice clouds
-       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZMIN_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
+       ! threshold CDNC and ICNC to grid cells with only liquid or ice clouds
+       ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZDEF_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV), RNICE, LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
 
        !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
@@ -1139,15 +1152,36 @@ ENDDO
     PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV),ZMIN_CDNC)  ! convert from #/m3 to #/cm3 and threshold minimum value to 1 cm-3
     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), RNICE) ! no conversion needed: already in #/cm3, just impose minimum value
 
+    !eehol: update tendency of CDNC and ICNC (calculate only the newly formed droplets)
+    ZXTTE(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) - ZCDNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
+    ZXTTE(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) - ZICNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
     
     !-----------------------------------------------------------------
-    
-    !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values and to PGFL fields
-    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*1._JPRB)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
-    ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-    PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), 1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
-    PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), 0.027_JPRB) ! no conversion needed: already in #/cm3, just max of default value (RNICE in sucldp.F90) and icnc
-    !--> End store CDNC and ICNC
+    !--> Calculation of effective radii (Note: already done if NCLOUDACT=1)
+    IF (NCLOUDACT == 2 .OR. NCLOUDACT == 0 ) THEN
+
+      DO JK=1,KLEV
+        DO JL=KIDIA,KFDIA
+          ! effective radius (in um) calculated similarly as in radlswr.F90 
+          ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
+          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
+        END DO
+      END DO
+
+      ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
+      REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV), ZDEF_RE_LIQ, LLIQCLD(KIDIA:KFDIA,1:KLEV))
+
+      CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
+           &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
+           &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
+
+      ! only if there is ice cloud else minimum value
+      REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), ZDEF_RE_ICE, LICECLD(KIDIA:KFDIA,1:KLEV))
+
+      ! add effective radii to PGFL fields
+      PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+      PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+    ENDIF
 
     !-----------------------------------------------------------------
     !--> Calculation of effective radii and put to PGFL fields
@@ -1547,7 +1581,8 @@ ENDDO
     !         problems with these tracers about CCN. 
     !cloud variables
     DO JCLOUD=1,2 !CDNC and ICNC
-      PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
+       !PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
+       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = (1.0E-6_JPRB) * ZRHO(KIDIA:KFDIA,1:KLEV) * ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
     END DO
     !<-- End adding HAM modified tendency back to PTENC
     !-----------------------------------------------------------------
