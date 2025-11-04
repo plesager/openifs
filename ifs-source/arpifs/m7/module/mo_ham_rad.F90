@@ -962,7 +962,7 @@ CONTAINS
 #else
     REAL(dp), INTENT(in)    ::    rwet_m7(kbdim,klev,nclass) 
 #endif  
-    INTEGER  :: jclass, jl, jk, jwv, itable, itrac, ikl
+    INTEGER  :: jclass, jl, jk, jwv, jwv_diag, itable, itrac, ikl
 
     REAL(dp) :: zeps
 
@@ -1183,6 +1183,8 @@ CONTAINS
              DO jl=1, kproma
                 IF(aer_piz_sw_vr(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
                    aer_cg_sw_vr(jl,jk,jwv) =aer_cg_sw_vr(jl,jk,jwv)/aer_piz_sw_vr(jl,jk,jwv)
+                END IF
+                IF(aer_tau_sw_vr(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
                    aer_piz_sw_vr(jl,jk,jwv)=aer_piz_sw_vr(jl,jk,jwv)/aer_tau_sw_vr(jl,jk,jwv)
                 END IF
              END DO
@@ -1353,9 +1355,16 @@ CONTAINS
                 znr2d(1:kproma,:) = nr_diag(1:kproma,:,jwv,jclass)
                 zni2d(1:kproma,:) = ni_diag(1:kproma,:,jwv,jclass)
 
-                CALL ham_rad_refrac(kproma, kbdim, klev, krow, &
-                                     ntrac,  jclass,  jwv,     &
-                                     pxtm1,  znr2d, zni2d )
+
+                !    3.46, 2.79, 2.33, 2.05, 1.78, 1.46, 1.27, 1.01, 0.70, 0.53, 0.39, 0.30, 0.23, 8.02 [um]
+                call interp_refr_index(kbdim, klev, lambda, nr(1:kproma,:,:,jclass), lambda_diag(jwv), znr2d(1:kproma,:))
+                
+                ! should we do logarithmic interpolation for imaginary part?
+                call interp_refr_index(kbdim, klev, lambda, ni(1:kproma,:,:,jclass), lambda_diag(jwv), zni2d(1:kproma,:))
+
+                !CALL ham_rad_refrac(kproma, kbdim, klev, krow, &
+                !                     ntrac,  jclass,  jwv,     &
+                !                     pxtm1,  znr2d, zni2d )
 
 #ifdef HAMMOZ
                 IF (ltimer) CALL timer_stop(timer_ham_rad_refrac)
@@ -1520,6 +1529,51 @@ CONTAINS
     END IF
 
   END SUBROUTINE ham_rad
+
+  !----------------------------------------------------------------------------------------------------------------
+  
+  SUBROUTINE interp_refr_index(kbdim, klev, wl_in, nr_in, wl_out, nr_out)
+    !! Interpolates refractive index nr_in(kbdim,klev,Nwv_tot)
+    !! at a single wavelength wl_out, result in nr_out(kbdim,klev)
+
+    implicit none
+
+    ! Input
+    integer :: kbdim, klev
+    real(dp), intent(in) :: wl_in(Nwv_tot)           ! (Nwv_tot), unsorted
+    real(dp), intent(in) :: nr_in(kbdim,klev,Nwv_tot)       ! (kbdim,klev,Nwv_tot)
+    real(dp), intent(in) :: wl_out             ! single query wavelength
+
+    ! Output
+    real(dp), intent(out) :: nr_out(kbdim, klev)
+
+    ! Locals
+    integer :: idx_low, idx_high
+    real(dp) :: val_low, val_high, weight
+
+    ! ---- Sort wl_in (insertion sort) ----
+
+    ! nearest smaller/equal
+    !write(*,*)"wl_in",wl_in            
+    !write(*,*)"wl_out",wl_out             
+    val_low = maxval(pack(wl_in, wl_in <= wl_out))
+    idx_low = maxloc(wl_in, mask = wl_in == val_low, dim=1)
+    !write(*,*)"val_low ",val_low 
+    !write(*,*)"idx_low ",idx_low 
+
+    ! nearest larger/equal
+    val_high = minval(pack(wl_in, wl_in > wl_out))
+    idx_high = maxloc(wl_in, mask = wl_in == val_high, dim=1)
+    !write(*,*)"val_high ",val_high 
+    !write(*,*)"idx_high ",idx_high
+
+    weight = (wl_out-val_low)/(val_high-val_low)
+
+    !write(*,*)"wl_out",wl_out             
+
+    nr_out(1:kbdim,1:klev) = (1.0_dp - weight) * nr_in(:,:,idx_low)+ weight*nr_in(:,:,idx_high)
+
+  END SUBROUTINE interp_refr_index
 
   !----------------------------------------------------------------------------------------------------------------
   !>>dod removed wavelength from subroutine interface
@@ -1912,6 +1966,13 @@ CONTAINS
 
              DO jwv=1, Nwv_sw  !Laakso: note different order than HAM (here same as RRTM)        
                 lambda(jwv)=ASWBAND(jwv)%wl*1.E-6_dp
+             END DO
+             !!! include diagnostic wavelengths, lhw
+             DO jwv=1, Nwv_sw_opt
+                iwv=Nwv_sw+jwv
+                lambda(iwv)=lambda_sw_opt(jwv)
+                WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp
+                CALL message('', message_text, level=em_param)
              END DO
 #endif
           END IF

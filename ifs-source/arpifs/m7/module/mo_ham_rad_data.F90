@@ -114,19 +114,15 @@ MODULE mo_ham_rad_data
   !--- Indices and dimensions:
 
   INTEGER, PARAMETER :: Nwv_sw     = 14, &   !-- RRTM-SW GCM wavebands
-#ifdef HAMMOZ
                         Nwv_sw_opt = 2,  &   !--Optional SW wavebands (550nm+865nm)
-#else
-     Nwv_sw_opt = 0,  &   !--Optional SW wavebands (550nm+865nm) 
-#endif
-!                       Nwv_sw_opt = 2,  &   !--Optional SW wavebands (550nm+865nm+440nm)
+!                       Nwv_sw_opt = 3,  &   !--Optional SW wavebands (550nm+865nm+440nm)
                         Nwv_sw_tot = Nwv_sw+Nwv_sw_opt, &
                         Nwv_lw     = 16, &   !--RRTM-LW GCM wavebands
                         Nwv_swlw   = Nwv_sw+Nwv_lw, &
                         Nwv_tot    = Nwv_sw+Nwv_sw_opt+Nwv_lw
 
-  REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp /) !used only with #HAMMOZ
-!  REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp , 0.440E-6_dp/)
+  REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp /)
+!  REAL(dp), PARAMETER :: lambda_sw_opt(3)=(/ 0.550E-6_dp, 0.865E-6_dp , 0.440E-6_dp/)
 
   !--- Define mask for output of wavelengths: 
   !
@@ -216,13 +212,13 @@ CONTAINS
            1.000E-09_dp,   2.600E-01_dp                                                               /)
 
    !--- Optional Wavelengths at 550 and 865nm:
-#ifdef HAMMOZ
+
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradso4) =                                                          &
         (/ 1.432_dp,       1.424_dp                                                                   /)
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradso4) =                                                          &
         (/ 1.000E-09_dp,   7.384E-07_dp                                                               /)
-#endif
+
    !--- Black Carbon (Medium-absorbing values from Bond & Bergstrom, 2006):
    !
    !    - at 550 nm: n=1.85-0.71i
@@ -237,7 +233,7 @@ CONTAINS
         (/ 8.975E-01_dp,  8.510E-01_dp,  8.120E-01_dp,  7.939E-01_dp,  7.765E-01_dp,  7.397E-01_dp,  &
            7.274E-01_dp,  7.106E-01_dp,  6.939E-01_dp,  7.213E-01_dp,  7.294E-01_dp,  7.584E-01_dp,  &
            7.261E-01_dp,  1.088E+00_dp                                                               /)
-#ifdef HAMMOZ
+
    !--- Optional Wavelengths at 550nm and 865nm:
 
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradbc) =                                                          &
@@ -245,7 +241,7 @@ CONTAINS
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradbc) =                                                          &
         (/ 7.10E-01_dp,   6.99E-01_dp                                                                /)
-#endif
+
    !--- Organic Carbon (Medium-absorbing values from Bond & Bergstrom, 2006):
    !
    !    - wavelength dependency scaled from OPAC (Hess et al., 1998)
@@ -261,13 +257,13 @@ CONTAINS
            5.27E-03_dp,   7.24E-02_dp                                                                /)
 
    !--- Optional Wavelengths at 550nm and 865nm:
-#ifdef HAMMOZ
+
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradoc) =                                                          &
         (/ 1.53_dp,       1.52_dp                                                                    /)
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradoc) =                                                          &
         (/ 5.50E-03_dp,   1.10E-02_dp                                                                /)
-#endif
+!#endif
    !--- Sea Salt (Nilsson, 1979):
 
    cnr(1:Nwv_sw,iradss) = &
@@ -281,13 +277,13 @@ CONTAINS
            1.000E-05_dp,  1.400E-02_dp                                                               /)
 
    !--- Optional Wavelengths at 550nm and 865nm:
-#ifdef HAMMOZ
+
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradss) =                                                          &
         (/ 1.450_dp,      1.470_dp                                                                   /)
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradss) =                                                          &
         (/ 1.000E-08_dp,  1.000E-8_dp                                                                /)
-#endif
+
   !--- Dust (provided by Stefan Kinne, MPI-MET:
   !    mainly based on Sokolik & Toon, JGR, 1999)
   !    imaginary parts in the visible modified according to AERONET statistics
@@ -304,13 +300,13 @@ CONTAINS
            2.500E-02_dp,  1.000E-01_dp                                                               /)
 
    !--- Optional Wavelengths at 550nm and 865nm:
-#ifdef HAMMOZ
+
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iraddu) =                                                          &
         (/ 1.450_dp,      1.450_dp                                                                   /)
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iraddu) =                                                          &
         (/ 1.000E-03_dp,  8.400E-4_dp                                                                /)
-#endif
+
    !--- Water (provided by Stefan Kinne interpolated with code by Andy Lacis (NASA-GISS):
    !          (Hale and Querry [1973] for 0.2 to 0.7 mm, 
    !          Palmer and Williams [1974] for 0.7 to 2.0 mm)
@@ -326,13 +322,13 @@ CONTAINS
            6.400E-08_dp,  4.000E-02_dp                                                               /)
 
    !--- Optional Wavelengths at 550nm and 865nm:
-#ifdef HAMMOZ
+
    cnr(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradwat) =                                                         &
         (/ 1.335_dp,      1.329_dp                                                                   /)
 
    cni(Nwv_sw+1:Nwv_sw+Nwv_sw_opt,iradwat) =                                                         &
         (/ 2.800E-09,     1.186E-06                                                                  /)
-#endif
+
 
    !--- 2) LW refractive indices:
    !    Note that the RRTM spectral bands are ordered with increasing wavenumber,
