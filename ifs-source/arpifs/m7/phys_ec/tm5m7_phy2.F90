@@ -313,7 +313,7 @@ ELSEIF (LAERSURF) THEN
     &  PLSM   , PSST  , PQP   , ZRHO , PSNS , PTP  , PTL  , PTSPHY, PZ0M, KCHEM, &
     &  ZWND   , PWSA1 , PSOIL_TYPE, &
     &  PCVL  , PCVH, KTVL, KTVH, &
-    &  PLDAY  , PAERFLX, PCFLX, PCEN , PTENC, ZEMIDIAG, PSO2SRC,PSO4SRC)  
+    &  PLDAY  , PAERFLX, PCEN , PTENC, ZEMIDIAG, PSO2SRC,PSO4SRC)  
   
 
 ! sea salt and desert dust fluxes in kg m-2 s-1, thus:
