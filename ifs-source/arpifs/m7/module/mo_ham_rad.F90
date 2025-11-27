@@ -1348,23 +1348,15 @@ CONTAINS
 #ifdef HAMMOZ
                 IF (ltimer) CALL timer_start(timer_ham_rad_refrac)
 #endif  
-                !gf: the former usage of nr(1:kproma,:,jwv,jclass) and ni(1:kproma,:,jwv,jclass)
-                !    directly in the call to ham_rad_refrac is causing architecture-dependent problems (Cray XT5)
-                !    Therefore intermediate variables znr2d and zni2d are introduced
-
-                znr2d(1:kproma,:) = nr_diag(1:kproma,:,jwv,jclass)
-                zni2d(1:kproma,:) = ni_diag(1:kproma,:,jwv,jclass)
-
-
+                !  Fill znr2d(1:kproma,:) with interpolated values; to becopied into nr_diag(1:kproma,:,jwv,jclass)
+                !
                 !    3.46, 2.79, 2.33, 2.05, 1.78, 1.46, 1.27, 1.01, 0.70, 0.53, 0.39, 0.30, 0.23, 8.02 [um]
-                call interp_refr_index(kbdim, klev, lambda, nr(1:kproma,:,:,jclass), lambda_diag(jwv), znr2d(1:kproma,:))
-                
-                ! should we do logarithmic interpolation for imaginary part?
-                call interp_refr_index(kbdim, klev, lambda, ni(1:kproma,:,:,jclass), lambda_diag(jwv), zni2d(1:kproma,:))
+                call interp_refr_index(kproma, kbdim, klev, lambda, nr(:,:,:,jclass), lambda_diag(jwv), znr2d)
 
-                !CALL ham_rad_refrac(kproma, kbdim, klev, krow, &
-                !                     ntrac,  jclass,  jwv,     &
-                !                     pxtm1,  znr2d, zni2d )
+                !  Fill zni2d(1:kproma,:) with interpolated values; to becopied into ni_diag(1:kproma,:,jwv,jclass)
+                !
+                ! should we do logarithmic interpolation for imaginary part?
+                call interp_refr_index(kproma, kbdim, klev, lambda, ni(:,:,:,jclass), lambda_diag(jwv), zni2d)
 
 #ifdef HAMMOZ
                 IF (ltimer) CALL timer_stop(timer_ham_rad_refrac)
@@ -1445,7 +1437,7 @@ CONTAINS
           !ALLOCATE(ni(kbdim,klev,Nwv_tot,nclass))
                 !sigma(1:kproma,:,jwv,jclass) = sigma(1:kproma,:,jwv,jclass)*lambda(jwv)*lambda(jwv)
          
-             END DO ! jwv
+             END DO ! jwv diag
 
           END IF ! nrad
        END DO ! jclass
@@ -1532,14 +1524,14 @@ CONTAINS
 
   !----------------------------------------------------------------------------------------------------------------
   
-  SUBROUTINE interp_refr_index(kbdim, klev, wl_in, nr_in, wl_out, nr_out)
+  SUBROUTINE interp_refr_index(kproma, kbdim, klev, wl_in, nr_in, wl_out, nr_out)
     !! Interpolates refractive index nr_in(kbdim,klev,Nwv_tot)
     !! at a single wavelength wl_out, result in nr_out(kbdim,klev)
 
     implicit none
 
     ! Input
-    integer :: kbdim, klev
+    integer :: kproma, kbdim, klev
     real(dp), intent(in) :: wl_in(Nwv_tot)           ! (Nwv_tot), unsorted
     real(dp), intent(in) :: nr_in(kbdim,klev,Nwv_tot)       ! (kbdim,klev,Nwv_tot)
     real(dp), intent(in) :: wl_out             ! single query wavelength
@@ -1571,7 +1563,7 @@ CONTAINS
 
     !write(*,*)"wl_out",wl_out             
 
-    nr_out(1:kbdim,1:klev) = (1.0_dp - weight) * nr_in(:,:,idx_low)+ weight*nr_in(:,:,idx_high)
+    nr_out(1:kproma,1:klev) = (1.0_dp - weight) * nr_in(1:kproma,:,idx_low)+ weight*nr_in(1:kproma,:,idx_high)
 
   END SUBROUTINE interp_refr_index
 
