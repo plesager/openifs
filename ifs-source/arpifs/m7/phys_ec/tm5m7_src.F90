@@ -7,7 +7,7 @@ SUBROUTINE TM5M7_SRC( &
  & PLSM , PSST , PQ  , PRHO  , PSNS , PT  , PTL  , PTSPHY, PZ0M, KCHEM,                   &
  & PWIND, PWS1 ,PSOIL_TYPE,                                                               &
  & PCVL, PCVH, KTVL, KTVH,                                                                &
- & PLDAY,  PAERFLX, PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC )
+ & PLDAY,  PAERFLX, PCFLX, PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC )
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 03-Jun-2024) │
@@ -118,6 +118,7 @@ INTEGER(KIND=JPIM), INTENT(IN)    :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
 
 ! RCHG -> try to understand what is 12 and 9 here.
 REAL(KIND=JPRB),    INTENT(INOUT) :: PAERFLX(KLON,12,9)
+REAL(KIND=JPRB),INTENT(INOUT)   :: PCFLX(KLON,KTRAC)
 
 REAL(KIND=JPRB),    INTENT(IN)    :: PCVL(KLON), PCVH(KLON) ! Low/High vegetation cover
 INTEGER(KIND=JPIM), INTENT(IN)    :: KTVL(KLON), KTVH(KLON) ! Low/High vegetation type
@@ -423,7 +424,14 @@ CALL TM5M7_SRC_DUST( YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTI
 !         I keep current implementation. 
 
 DO JL=KIDIA,KFDIA
-  
+  PCFLX(JL,KAERO(iacs_n)) =PCFLX(JL,KAERO(iacs_n))+ emis_number(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(icos_n)) =PCFLX(JL,KAERO(icos_n))+ emis_number(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(issacs)) =PCFLX(JL,KAERO(issacs))+ emis_mass(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(isscos)) =PCFLX(JL,KAERO(isscos))+ emis_mass(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
+  PCFLX(JL,KAERO(iaci_n)) =PCFLX(JL,KAERO(iaci_n))+ emis_number(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(icoi_n)) =PCFLX(JL,KAERO(icoi_n))+ emis_number(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(iduaci)) =PCFLX(JL,KAERO(iduaci))+ emis_mass(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
+  PCFLX(JL,KAERO(iducoi)) =PCFLX(JL,KAERO(iducoi))+ emis_mass(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
 
   ZCFLX(JL,KAERO(iacs_n)) = emis_number(mode_acs)%d3(JL,KLEV,4)*(-1._JPRB)
   ZCFLX(JL,KAERO(icos_n)) = emis_number(mode_cos)%d3(JL,KLEV,4)*(-1._JPRB)
