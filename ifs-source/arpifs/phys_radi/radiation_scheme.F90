@@ -601,9 +601,6 @@ IF ( YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) then
     
     ! Copy optical properties of HAMM7 aerosols
 
-    ! Optical properties of HAMM7 aerosols 
-    !IF ( TRIM(AERO_SCHEME) =="hamm7" ) THEN
-
       ! reset
       IF (RAD_CONFIG%DO_SW) THEN
         AEROSOL%OD_SW(1:YRERAD%NTSW,:,KIDIA:KFDIA)  = 0.0_JPRB
@@ -614,7 +611,7 @@ IF ( YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) then
         AEROSOL%OD_LW(1:STRATO_CMIP_NTB,:,KIDIA:KFDIA)  = 0.0_JPRB
       ENDIF
 
-      ! fill with M7 values    ->
+      ! fill with M7 values
       IF (YRERAD%NAEROOPT>0) THEN
         IF (RAD_CONFIG%DO_SW) THEN
           DO JAER = 1,YRERAD%NTSW
@@ -637,7 +634,6 @@ IF ( YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) then
           ENDDO
         ENDIF
       ENDIF
-    !ENDIF
   ENDIF 
 ELSE
 
@@ -688,18 +684,31 @@ IF (YRERAD%LCMIP_STRATAER_CMIP6 .OR. YRERAD%LCMIP_STRATAER_CMIP7) THEN
 
    ! Time interpolation and excluding the data below the tropopause, each timestep.
    CALL CMIP_STRATO_AERO_PROCESS (YDMODEL,KIDIA, KFDIA, KLON, KLEV, 1 , 0,                      &
-                        &     NINDAT, YDMODEL%YRML_GCONF%YRRIP%NSTADD,                                            &
-                        &     PPRESSURE, PPRESSURE_H, PTEMPERATURE, PTEMPERATURE_H, PGELAM,                         &
-                        &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M,&
+                        &     NINDAT, YDMODEL%YRML_GCONF%YRRIP%NSTADD,                          &
+                        &     PPRESSURE, PPRESSURE_H, PTEMPERATURE, PTEMPERATURE_H, PGELAM,     &
+                        &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M,       &
                         &     ZAODSTRAT, ZAAODSTRAT, ZREFAODSTRAT, ZAAODSTRAT_LW, KTROPPAUSE)
 
-   !Excluding optical properties of M7 aerosols above stratosphere if CMIP stratospheric aerosols are used
-  ! If we want do this here, remember add same for LW properties
-  ! DO JLON=KIDIA,KFDIA
-  !    AEROSOL%OD_SW(:,1:KTROPPAUSE(JLON)-1,JLON) = 0.0_JPRB
-  !    AEROSOL%SSA_SW(:,1:KTROPPAUSE(JLON)-1,JLON) = 0.0_JPRB
-  !    AEROSOL%G_SW(:,1:KTROPPAUSE(JLON)-1,JLON)  = 0.0_JPRB
-  !ENDDO                      
+   ! Excluding optical properties of M7 aerosols above stratosphere
+   IF ( AEROSOL%IS_DIRECT ) THEN
+     DO JLON=KIDIA,KFDIA
+       IF (RAD_CONFIG%DO_SW) THEN
+         AEROSOL%OD_SW (1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+         AEROSOL%SSA_SW(1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+         AEROSOL%G_SW  (1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+       ENDIF
+       IF (RAD_CONFIG%DO_LW) THEN
+         AEROSOL%OD_LW(1:STRATO_CMIP_NTB, 1:KTROPPAUSE(JLON)-1, JLON)  = 0.0_JPRB
+       ENDIF
+     ENDDO
+   ELSE
+     ! TODO: this needs to be confirmed
+     DO JAER = 1,KAEROSOL
+       DO JLON = KIDIA,KFDIA
+         AEROSOL%MIXING_RATIO(JLON, 1:KTROPPAUSE(JLON)-1, JAER) = 0.0_JPRB
+       ENDDO
+     ENDDO
+   ENDIF
 
 ELSE
    ZAODSTRAT(:,:,:)=0.0_JPRB
