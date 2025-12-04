@@ -1348,6 +1348,8 @@ CONTAINS
 #ifdef HAMMOZ
                 IF (ltimer) CALL timer_start(timer_ham_rad_refrac)
 #endif  
+                znr2d(1:kproma,:) = nr_diag(1:kproma,:,jwv,jclass)
+                zni2d(1:kproma,:) = ni_diag(1:kproma,:,jwv,jclass)
                 !  Fill znr2d(1:kproma,:) with interpolated values; to becopied into nr_diag(1:kproma,:,jwv,jclass)
                 !
                 !    3.46, 2.79, 2.33, 2.05, 1.78, 1.46, 1.27, 1.01, 0.70, 0.53, 0.39, 0.30, 0.23, 8.02 [um]
