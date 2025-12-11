@@ -1533,7 +1533,7 @@ CONTAINS
     implicit none
 
     ! Input
-    integer :: kproma, kbdim, klev
+    integer,  intent(in) :: kproma, kbdim, klev
     real(dp), intent(in) :: wl_in(Nwv_tot)           ! (Nwv_tot), unsorted
     real(dp), intent(in) :: nr_in(kbdim,klev,Nwv_tot)       ! (kbdim,klev,Nwv_tot)
     real(dp), intent(in) :: wl_out             ! single query wavelength
