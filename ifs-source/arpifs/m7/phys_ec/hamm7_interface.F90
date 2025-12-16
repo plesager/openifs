@@ -13,7 +13,8 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW,                              &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
- & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU, PBLH)
+ & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
+ & PBLH,      PSNOWACL,  KCTOP,     KCBOT)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 30-APR-2024) │
@@ -200,6 +201,8 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KTRAC
 INTEGER(KIND=JPIM), INTENT(IN) :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
 INTEGER(KIND=JPIM), INTENT(IN) :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
 INTEGER(KIND=JPIM), INTENT(IN) :: KSTGLO
+INTEGER(KIND=JPIM), INTENT(IN) :: KCTOP(KLON) ! cloud top level index
+INTEGER(KIND=JPIM), INTENT(IN) :: KCBOT(KLON) ! cloud bottom level index
 
 REAL(KIND=JPRB),INTENT(IN)    :: PGEOH(KLON,0:KLEV)
 REAL(KIND=JPRB),INTENT(IN)    :: PRSF1(KLON,KLEV), PRS1(KLON,0:KLEV), PAPHIF(KLON,KLEV)
@@ -221,16 +224,17 @@ REAL(KIND=JPRB),INTENT(IN)    :: PTSPHY
 REAL(KIND=JPRB),INTENT(IN)    :: PVERVEL(KLON,KLEV) ! vertical velocity (needed in HAM-M7 activation)
 REAL(KIND=JPRB),INTENT(IN)    :: PCCNL(KLON) ! CCN over land (needed in liquid effective radius calc.)
 REAL(KIND=JPRB),INTENT(IN)    :: PCCNO(KLON) ! CCN over ocean (needed in liquid effective radius calc.)
-REAL(KIND=JPRB),INTENT(IN)    :: PAHFSTI(KLON,KTILES) ! added surface sensible heat flux for dry deposition
-REAL(KIND=JPRB),INTENT(IN)    :: PCI(KLON) ! added fraction of sea-ice for dry deposition
-REAL(KIND=JPRB),INTENT(IN)    :: PZ0M(KLON) ! added roughness length for momentum for dry deposition
-REAL(KIND=JPRB),INTENT(IN)    :: PAHFLEV(KLON) ! added latent heat flux for dry deposition
-REAL(KIND=JPRB),INTENT(IN)    :: PUP(KLON,KLEV) ! added u component of wind
-REAL(KIND=JPRB),INTENT(IN)    :: PVP(KLON,KLEV) ! added v component of wind
-REAL(KIND=JPRB),INTENT(IN)    :: PCVL(KLON) ! added low vegetation cover
-REAL(KIND=JPRB),INTENT(IN)    :: PCVH(KLON) ! added high vegetation cover
+REAL(KIND=JPRB),INTENT(IN)    :: PAHFSTI(KLON,KTILES) ! surface sensible heat flux for dry deposition
+REAL(KIND=JPRB),INTENT(IN)    :: PCI(KLON) ! fraction of sea-ice for dry deposition
+REAL(KIND=JPRB),INTENT(IN)    :: PZ0M(KLON) ! roughness length for momentum for dry deposition
+REAL(KIND=JPRB),INTENT(IN)    :: PAHFLEV(KLON) ! latent heat flux for dry deposition
+REAL(KIND=JPRB),INTENT(IN)    :: PUP(KLON,KLEV) ! u component of wind
+REAL(KIND=JPRB),INTENT(IN)    :: PVP(KLON,KLEV) ! v component of wind
+REAL(KIND=JPRB),INTENT(IN)    :: PCVL(KLON) ! low vegetation cover
+REAL(KIND=JPRB),INTENT(IN)    :: PCVH(KLON) ! high vegetation cover
 REAL(KIND=JPRB),INTENT(IN)    :: PGEMU(KLON) ! sine of latitude
 REAL(KIND=JPRB),INTENT(IN)    :: PMFU(KLON,KLEV)  ! Conv. mass flux up
+REAL(KIND=JPRB),INTENT(IN)    :: PSNOWACL(KLON,KLEV)  ! accretion rate of snow with cloud droplets
 REAL(KIND=JPRB),INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAERDDP(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
@@ -272,7 +276,7 @@ REAL(KIND=JPRB) :: ZTAEROK(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZTAERO0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZFAERO(KLON,ntrac)!YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZAER(KLON,KLEV), ZAERNEG(KLON,KLEV)
-REAL(KIND=JPRB) :: ZAP(KLON,KLEV) 
+REAL(KIND=JPRB) :: ZAP(KLON,KLEV), ZAP_COV(KLON,KLEV)
 REAL(KIND=JPRB) :: ZSO2(KLON,KLEV), ZDP(KLON,KLEV), ZDZ(KLON,KLEV) 
 REAL(KIND=JPRB) :: ZITSO2(KLON,KLEV)
 REAL(KIND=JPRB) :: ZFSO2(KLON)  , ZFSO4(KLON), ZFSO4_AQ(KLON)
@@ -308,8 +312,8 @@ TYPE(MODAL_DATA), DIMENSION(NMOD), TARGET :: DENS_MODE
 REAL(KIND=JPRB), ALLOCATABLE ::    ZAERNGT(:,:)
 
 REAL(KIND=JPRB) :: ZDEGRAD, ZEPSCOV, ZEPSWAT, ZRWSAT, ZRWPWP
-REAL(KIND=JPRB) :: ZQLWP2
-REAL(KIND=JPRB) :: ZTMPA, ZTEMP, ZDPOG, ZQIWP, ZPODT
+REAL(KIND=JPRB) :: ZQLWP(KLON,KLEV), ZQIWP(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTMPA
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
@@ -383,7 +387,8 @@ REAL(KIND=JPRB) :: ZMRATEPS_cov(KLON,KLEV) ! ice formation rate in cloudy part, 
 REAL(KIND=JPRB) :: ZMRATEPR_str(KLON,KLEV) !rain formation rate in cloudy part, stratiform case
 REAL(KIND=JPRB) :: ZMRATEPS_str(KLON,KLEV) ! ice formation rate in cloudy part, stratiform case
 
-REAL(KIND=JPRB) :: ZMSNOWACL(KLON,KLEV) !accretion rate of snow with cloud droplets in cloudy part
+REAL(KIND=JPRB) :: ZMSNOWACL_str(KLON,KLEV) !accretion rate of snow with cloud droplets in cloudy part strat
+REAL(KIND=JPRB) :: ZMSNOWACL_cov(KLON,KLEV) !accretion rate of snow with cloud droplets in cloudy part conv
 REAL(KIND=JPRB) :: ZFLXR, ZFLXS, ZFLXRB, ZFLXSB !variables to calculate rain and snow evap/formation
 
 REAL(KIND=JPRB) :: ZFPLCL(KLON,KLEV),ZFPLCN(KLON,KLEV),ZFPLSL(KLON,KLEV),ZFPLSN(KLON,KLEV)
@@ -686,10 +691,15 @@ CALL SATUR(KIDIA , KFDIA , KLON  , KTDIA , KLEV,  YDMODEL%YRML_PHY_SLIN%YREPHLI%
 ! RH calculation
 DO JK=1,KLEV
   DO JL=KIDIA,KFDIA
-    ZQP(JL,JK)=MAX(0.0_JPRB,PQP(JL,JK)) !add treshold for full level humid
+    ZQP(JL,JK)=MAX(0.0_JPRB,PQP(JL,JK)) ! threshold for full level humid
     ZRH(JL,JK)=ZQP(JL,JK)/(MAX(1.E-30_JPRB,ZQSAT(JL,JK)))
     ZRH(JL,JK)=MIN(1.0_JPRB,MAX(0.0_JPRB,ZRH(JL,JK)))
-    ZAP(JL,JK)=MIN(1.0_JPRB,MAX(0.0_JPRB,PAP(JL,JK))) !add threshold for cloud cover
+    ZAP(JL,JK)=MIN(1.0_JPRB,MAX(0.0_JPRB,PAP(JL,JK))) ! threshold for cloud cover
+    IF (JK >= KCTOP(JL) .AND. JK <= KCBOT(JL)) THEN ! cloud fraction for convective wet removal (0 outside and 1 inside cloud)
+      ZAP_COV(JL,JK) = 1.0_JPRB
+    ELSE
+      ZAP_COV(JL,JK) = 0.0_JPRB
+    END IF
   ENDDO
 ENDDO
 ZBLHIDX(KIDIA:KFDIA)=1.0_JPRB
@@ -916,15 +926,24 @@ ENDDO
           ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
           LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
           LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-          ZQLWP(JL,JK) = PLP(JL,JK)/MAX(ZAP(JL,JK),1.E-10_JPRB) ! calculate lwc
-          ZQLWP(JL,JK) = MIN(MAX(ZQLWP(JL,JK),0.0_JPRB),RCLDMAX) ! treshold lwc
-       END DO
+          ZQLWP(JL,JK)   = MIN(MAX(0._JPRB, PLP(JL,JK)*ZTMPA), RCLDMAX)   ! lwc
+          ZQIWP(JL,JK)   = MIN(MAX(0._JPRB, PIP(JL,JK)*ZTMPA), RCLDMAX)   ! iwc
+          ZMSNOWACL_str(JL,JK) = PSNOWACL(JL,JK)*ZTMPA ! accretion rate of snow with cloud drop. in cloudy part for strat. wetdep
+        ELSE
+          LLIQCLD(JL,JK) = .FALSE.
+          LICECLD(JL,JK) = .FALSE.
+          ZQLWP(JL,JK)   = 0.0_JPRB
+          ZQIWP(JL,JK)   = 0.0_JPRB
+          ZMSNOWACL_str(JL,JK) = 0.0_JPRB
+        END IF
+      END DO
     END DO
+    ZMSNOWACL_cov(KIDIA:KFDIA,1:KLEV) = 0.0_JPRB ! accretion rate of snow 0 for conv. wetdep
 
     !---find highest model level where there is cloud
     KTOP = KLEV !eehol: add as default (basically if no cloud so KTOP is assigned to lowest level)
     DO JK=1,KLEV
-       IF ( ANY(ZAP(KIDIA:KFDIA,JK) >=0.001_JPRB) ) THEN !eehol: if cloud fraction is larger than threshold
+       IF ( ANY(ZAP(KIDIA:KFDIA,JK) >=0.001_JPRB) ) THEN ! if cloud fraction is larger than threshold
           KTOP = JK
           EXIT
        ENDIF
@@ -1251,6 +1270,7 @@ ENDDO
       IF ( ANY(trlist%ti(:)%nwetdep > 0) ) THEN
 
         ! for calculating the rain and snow evaporation/formation variables used in wet deposition
+        ! convective wet deposition values
         DO JK=1,KLEV
           DO JL=KIDIA,KFDIA
             ZFLXR=PFPLCL(JL,JK-1)
@@ -1264,31 +1284,42 @@ ENDDO
             !same formula negatives/positives for evap or formation
             ZFEVAPR_cov(JL,JK) =  -1._JPRB*MIN(ZFLXRB-ZFLXR,0._JPRB) ! [kg/m2.s]
             ZFSUBLS_cov(JL,JK) =  -1._JPRB*MIN(ZFLXSB-ZFLXS,0._JPRB) ! [kg/m2.s]
+            ZFPLCL(JL,JK) = 0.5_JPRB*(ZFLXR+ZFLXRB)
+            ZFPLCN(JL,JK) = 0.5_JPRB*(ZFLXS+ZFLXSB)
           END DO
         END DO
-
+        ! stratiform wet deposition values
         DO JK=1,KLEV
           DO JL=KIDIA,KFDIA
             ZFLXR=PFPLSL(JL,JK-1)
             ZFLXS=PFPLSN(JL,JK-1)
             ZFLXRB=PFPLSL(JL,JK)
             ZFLXSB=PFPLSN(JL,JK)
-            ZMRATEPR_str(JL,JK) = MAX(ZFLXRB-ZFLXR,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
-            ZMRATEPS_str(JL,JK) = MAX(ZFLXSB-ZFLXS,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
-            ZMRATEPR_str(JL,JK) = ZMRATEPR_str(JL,JK) * TIME_STEP_LEN ! time integrated
-            ZMRATEPS_str(JL,JK) = ZMRATEPS_str(JL,JK) * TIME_STEP_LEN ! time integrated
+            IF ( ZAP(JL,JK) >=0.001_JPRB ) THEN
+              ZTMPA = 1.0_JPRB/ZAP(JL,JK)
+              ZMRATEPR_str(JL,JK) = MAX(ZFLXRB-ZFLXR,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]
+              ZMRATEPS_str(JL,JK) = MAX(ZFLXSB-ZFLXS,1.E-10_JPRB)/ZDPG(JL,JK) ! [kg/kg/s]              
+              ZMRATEPR_str(JL,JK) = ZMRATEPR_str(JL,JK) * TIME_STEP_LEN * ZTMPA ! time integrated
+              ZMRATEPS_str(JL,JK) = ZMRATEPS_str(JL,JK) * TIME_STEP_LEN * ZTMPA ! time integrated
+            ELSE
+              ZMRATEPR_str(JL,JK) = 0.0_JPRB
+              ZMRATEPS_str(JL,JK) = 0.0_JPRB
+            END IF
             !same formula negatives/positives for evap or formation
-            ZFEVAPR_str(JL,JK) =  -1._JPRB*MIN(ZFLXRB-ZFLXR,0._JPRB) ! [kg/m2.s]
-            ZFSUBLS_str(JL,JK) =  -1._JPRB*MIN(ZFLXSB-ZFLXS,0._JPRB) ! [kg/m2.s]
+            IF ( PCOVPTOT(JL,JK) > ZEPSEC ) THEN
+              ZTMPA = 1.0_JPRB/PCOVPTOT(JL,JK)
+              ZFEVAPR_str(JL,JK) =  -1._JPRB*MIN(ZFLXRB-ZFLXR,0._JPRB) * ZTMPA ! [kg/m2.s]
+              ZFSUBLS_str(JL,JK) =  -1._JPRB*MIN(ZFLXSB-ZFLXS,0._JPRB) * ZTMPA ! [kg/m2.s]
+              ZFPLSL(JL,JK) = 0.5_JPRB*(ZFLXR+ZFLXRB) * ZTMPA
+              ZFPLSN(JL,JK) = 0.5_JPRB*(ZFLXS+ZFLXSB) * ZTMPA
+            ELSE
+              ZFEVAPR_str(JL,JK) = 0.0_JPRB
+              ZFSUBLS_str(JL,JK) = 0.0_JPRB
+              ZFPLSL(JL,JK) = 0.0_JPRB
+              ZFPLSN(JL,JK) = 0.0_JPRB
+            END IF
           END DO
         END DO
-
-        ZFPLCL(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLCL(KIDIA:KFDIA,0:KLEV-1)+PFPLCL(KIDIA:KFDIA,1:KLEV))
-        ZFPLCN(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLCN(KIDIA:KFDIA,0:KLEV-1)+PFPLCN(KIDIA:KFDIA,1:KLEV))
-        ZFPLSL(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLSL(KIDIA:KFDIA,0:KLEV-1)+PFPLSL(KIDIA:KFDIA,1:KLEV))
-        ZFPLSN(KIDIA:KFDIA,1:KLEV) = 0.5_JPRB*(PFPLSN(KIDIA:KFDIA,0:KLEV-1)+PFPLSN(KIDIA:KFDIA,1:KLEV))
-
-        ZMSNOWACL(KIDIA:KFDIA,1:KLEV) = PSP(KIDIA:KFDIA,1:KLEV) !?
 
         ZLFRAC_SO2(KIDIA:KFDIA,:) = 0._JPRB ! zlfrac_so2 only needed in gas scavenging and this is off for now (put this zero)
 
@@ -1296,8 +1327,8 @@ ENDDO
         !  So we use ZIPDUM to set the ice part to zero and use total condensate as liquid for the convective case of wetdep.
         !  In the future, it would be better to calculate the actual fraction based on 7.6. This may be important to describe the
         !  liquid and ice fractions correctly.
-        ZLP(KIDIA:KFDIA,1:KLEV) = PLP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud water content     (modified in wetdep - stratif case)
-        ZIP(KIDIA:KFDIA,1:KLEV) = PIP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud ice water content (modified in wetdep - stratif case)
+        ZLP(KIDIA:KFDIA,1:KLEV) = ZQLWP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud water content     (modified in wetdep - stratif case)
+        ZIP(KIDIA:KFDIA,1:KLEV) = ZQIWP(KIDIA:KFDIA,1:KLEV)  ! temporary variable for cloud ice water content (modified in wetdep - stratif case)
         ZIPDUM(KIDIA:KFDIA,1:KLEV) = 0._JPRB               ! temporary variable for cloud ice water content (modified in wetdep - convec case)
         ZLPU(KIDIA:KFDIA,1:KLEV) = PLU(KIDIA:KFDIA,1:KLEV) ! temporary variable for cloud water content     (modified in wetdep - convec case)
 
@@ -1325,10 +1356,10 @@ ENDDO
         IF (.NOT. LSTRAT) THEN
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .TRUE., ZDUMMY) ! call convective mass conserving (init zxtte_old)
                 
-          ZMFU(KIDIA:KFDIA,1:KLEV) = min(PMFU(KIDIA:KFDIA,1:KLEV),ZDPG(KIDIA:KFDIA,1:KLEV)/TIME_STEP_LEN)!constraing Conv. mass flux up
+          ZMFU(KIDIA:KFDIA,1:KLEV) = MIN(PMFU(KIDIA:KFDIA,1:KLEV),ZDPG(KIDIA:KFDIA,1:KLEV)/TIME_STEP_LEN)!constraing Conv. mass flux up
 
           CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, KTOP, ZKROW, LSTRAT, & ! ktop = cloud top level index, lstrat = FALSE for conv. case
-                  ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                  ZDPG,  ZMRATEPR_COV, ZMRATEPS_COV, ZMSNOWACL_cov,     & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                   ZLPU,  ZIPDUM,                                        & ! cloud water content, cloud ice water content
                   ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
                   REFFI,  REFFL,                                     & ! effective radii
@@ -1337,7 +1368,7 @@ ENDDO
                   ZXTTE, ZXTP10, ZXTP1C,                             & ! tendencies/mixing ratios (in/out)
                   ZFPLCL, ZFPLCN, ZFEVAPR_cov, ZFSUBLS_cov,          & ! rain flux, snow flux, 
                   ZMFU, ZFUXT3D,                                     & ! conv flux, updraft mass flux (updated in wetdep)
-                  ZAP,  ZDUM2D, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
+                  ZAP_COV,  ZDUM2D, ZRHO, ZDUMMY, ZWDEP_SCAV_IC, ZWDEP_SCAV_BC)  ! cloud frac., precip. frac., air dens., in/output*3
 
           CALL XT_CONV_MASSFIX(KFDIA, KLON, KLEV, KLEV+1, NTRAC, ZKROW, PRSF1, PRS1, ZXTTE, .FALSE., ZDUMMY) ! call convective mass conserving
         END IF
@@ -1376,7 +1407,7 @@ ENDDO
 
         LSTRAT = .TRUE. !True for strat case, large scale
         CALL WETDEP_INTERFACE(KFDIA, KLON, KLEV, KTOP, ZKROW, LSTRAT, & ! ktop = cloud top level index, lstrat = TRUE for strat. case
-                ZDPG,  ZMRATEPR_STR, ZMRATEPS_STR, ZMSNOWACL,      & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
+                ZDPG,  ZMRATEPR_STR, ZMRATEPS_STR, ZMSNOWACL_str,  & ! dp/g, evap. of rain, subl. of snow, accr. rate of snow with cl. drop in-cl.
                 ZLP,  ZIP,                                         & ! cloud water content, cloud ice water content
                 ZM6RP,  ZM6DRY,                                    & ! m7 aerosol: to replace rwet_m7, dry radius for soluble modes [cm]
                 REFFI,  REFFL,                                     & ! effective radii

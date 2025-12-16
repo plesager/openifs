@@ -40,7 +40,7 @@ SUBROUTINE CLOUDSC &
  & PFSQRF,   PFSQSF ,  PFCQRNG,  PFCQSNG, &
  & PFSQLTUR, PFSQITUR , &
  & PFPLSL,   PFPLSN,   PFHPSL,   PFHPSN, &
- & PEXTRA,   KFLDX)  
+ & PEXTRA,   KFLDX,    PSNOWACL)
 
 !===============================================================================
 !**** *CLOUDSC* -  ROUTINE FOR PARAMETRIZATION OF CLOUD PROCESSES
@@ -267,6 +267,7 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFPLSL(KLON,KLEV+1) ! liq+rain sedim flux
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFPLSN(KLON,KLEV+1) ! ice+snow sedim flux
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFHPSL(KLON,KLEV+1) ! Enthalpy flux for liq
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFHPSN(KLON,KLEV+1) ! Enthalp flux for ice
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSNOWACL(KLON,KLEV) ! accretion rate of snow with cloud droplets
 ! Extra fields for diagnostics
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXTRA(KLON,KLEV,KFLDX) ! extra fields
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFLDX ! Number of extra fields
@@ -3670,6 +3671,8 @@ ENDIF ! on ISUBLSNOW
     ZBUDI(JL,13)= -ZFALLSINK(JL,NCLDQI)*ZQXN(JL,NCLDQI)*ZQTMST
     ZBUDL(JL,21)= -ZSNOWRIME(JL)*ZQXN(JL,NCLDQL)*ZQTMST
     ZBUDI(JL,14)= -ZSNOWAUT(JL)*ZQXN(JL,NCLDQI)*ZQTMST
+
+    PSNOWACL(JL,JK) = ZSNOWRIME(JL)*ZQXN(JL,NCLDQL)
   ENDDO
 
 
