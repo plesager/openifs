@@ -1039,9 +1039,9 @@ CONTAINS
                 !gf: the former usage of nr(1:kproma,:,jwv,jclass) and ni(1:kproma,:,jwv,jclass)
                 !    directly in the call to ham_rad_refrac is causing architecture-dependent problems (Cray XT5)
                 !    Therefore intermediate variables znr2d and zni2d are introduced
-
-                znr2d(1:kproma,:) = nr(1:kproma,:,jwv,jclass)
-                zni2d(1:kproma,:) = ni(1:kproma,:,jwv,jclass)
+                !pls: no need to intialize them, they are intent(out) in ham_rad_refrac. Comment these 2 lines:
+                ! znr2d(1:kproma,:) = nr(1:kproma,:,jwv,jclass)
+                ! zni2d(1:kproma,:) = ni(1:kproma,:,jwv,jclass)
 
                 CALL ham_rad_refrac(kproma, kbdim, klev, krow, &
                                      ntrac,  jclass,  jwv,     &
@@ -1216,9 +1216,9 @@ CONTAINS
                 !gf: the former usage of nr(1:kproma,:,jwv,jclass) and ni(1:kproma,:,jwv,jclass)
                 !    directly in the call to ham_rad_refrac is causing architecture-dependent problems (Cray XT5)
                 !    Therefore intermediate variables znr2d and zni2d are introduced
-
-                znr2d(1:kproma,:) = nr(1:kproma,:,jlwv,jclass)
-                zni2d(1:kproma,:) = ni(1:kproma,:,jlwv,jclass)
+                !pls: no need to intialize them, they are intent(out) in ham_rad_refrac. Comment these 2 lines:
+                ! znr2d(1:kproma,:) = nr(1:kproma,:,jlwv,jclass)
+                ! zni2d(1:kproma,:) = ni(1:kproma,:,jlwv,jclass)
 
                 CALL ham_rad_refrac(kproma, kbdim, klev, krow,                                &
                      ntrac, jclass,  jlwv,                                       &
@@ -1347,9 +1347,7 @@ CONTAINS
                 !--- 1.1) Calculate volume averaged refractive index nr and ni:
 #ifdef HAMMOZ
                 IF (ltimer) CALL timer_start(timer_ham_rad_refrac)
-#endif  
-                znr2d(1:kproma,:) = nr_diag(1:kproma,:,jwv,jclass)
-                zni2d(1:kproma,:) = ni_diag(1:kproma,:,jwv,jclass)
+#endif
                 !  Fill znr2d(1:kproma,:) with interpolated values; to becopied into nr_diag(1:kproma,:,jwv,jclass)
                 !
                 !    3.46, 2.79, 2.33, 2.05, 1.78, 1.46, 1.27, 1.01, 0.70, 0.53, 0.39, 0.30, 0.23, 8.02 [um]
@@ -1548,22 +1546,14 @@ CONTAINS
     ! ---- Sort wl_in (insertion sort) ----
 
     ! nearest smaller/equal
-    !write(*,*)"wl_in",wl_in            
-    !write(*,*)"wl_out",wl_out             
     val_low = maxval(pack(wl_in, wl_in <= wl_out))
     idx_low = maxloc(wl_in, mask = wl_in == val_low, dim=1)
-    !write(*,*)"val_low ",val_low 
-    !write(*,*)"idx_low ",idx_low 
 
     ! nearest larger/equal
     val_high = minval(pack(wl_in, wl_in > wl_out))
     idx_high = maxloc(wl_in, mask = wl_in == val_high, dim=1)
-    !write(*,*)"val_high ",val_high 
-    !write(*,*)"idx_high ",idx_high
 
     weight = (wl_out-val_low)/(val_high-val_low)
-
-    !write(*,*)"wl_out",wl_out             
 
     nr_out(1:kproma,1:klev) = (1.0_dp - weight) * nr_in(1:kproma,:,idx_low)+ weight*nr_in(1:kproma,:,idx_high)
 
