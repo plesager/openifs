@@ -149,7 +149,7 @@ MODULE mo_ham_m7_emi_seasalt
   
       ! wet radius (um) at RH=80%
   
-      rm(:) = 1.814_dp*rd(:)*1.E+06_dp 
+      rm(:) = 2.0_dp*rd(:)*1.E+06_dp
 #ifdef HAMMOZ    
       ! B: monahan and guelle schemes, also for larger particle in Gong scheme
       bmn(:) = ( 0.380_dp - LOG10( rm(:) ) ) / 0.650_dp
