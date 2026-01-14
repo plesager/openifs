@@ -14,7 +14,8 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
- & PBLH,      PSNOWACL,  KCTOP,     KCBOT)
+ & PBLH,      PSNOWACL,  KCTOP,     KCBOT,                                    &
+ & PAEPM1,    PAEPM25,   PAEPM10)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 30-APR-2024) │
@@ -257,7 +258,10 @@ REAL(KIND=JPRB),INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM), P
 ! Simple sulfur scheme variables:
 REAL(KIND=JPRB),INTENT(INOUT)   :: PSO2DD(KLON)
 REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
-
+! PM output
+REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM1(KLON)
+REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM25(KLON)
+REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM10(KLON)
 
 !*   0.5    LOCAL VARIABLES
 !           ---------------
@@ -1951,6 +1955,11 @@ DO JL=KIDIA,KFDIA
 ENDDO
 
 
+CALL HAMM7_DIAG_PM &
+ &( YDMODEL, KIDIA  , KFDIA  , KLON   , KLEV , NAERO ,&
+ &  PAEROP, &
+ &  PAEPM1, PAEPM25, PAEPM10, &
+ &  ZRHO, ZM6DRY, ZM6RP, ZRHOP) 
 !*         7.     STORE IN AEROUTs
 !                 ------------------------------
 
