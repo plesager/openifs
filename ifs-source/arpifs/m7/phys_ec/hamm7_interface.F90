@@ -341,6 +341,7 @@ REAL(KIND=JPRB) :: ZTMP(KLON) !temporary array to accumulate diagnostics
 REAL(KIND=JPRB) :: ZXTM0(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTM1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTTE(KLON,KLEV,ntrac) !tracer tendency for HAM
+REAL(KIND=JPRB) :: ZXTTE_CLD(KLON,KLEV,ntrac) !tracer tendency for cloud vars for HAM
 REAL(KIND=JPRB) :: ZXTTEM1(KLON,KLEV,ntrac) !tracer tendency for HAM
 ! added here variables for HAM-M7 activation
 REAL(KIND=JPRB), ALLOCATABLE :: ZW(:,:,:) !mean or bins of updraft velocity [m s-1]
@@ -759,6 +760,7 @@ ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
 ZXTM0(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTE(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
+ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTEM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 
 !number
@@ -1177,8 +1179,8 @@ ENDDO
     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), RNICE) ! no conversion needed: already in #/cm3, just impose minimum value
 
     !eehol: update tendency of CDNC and ICNC (calculate only the newly formed droplets)
-    ZXTTE(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) - ZCDNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
-    ZXTTE(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) - ZICNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
+    ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) - ZCDNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
+    ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) - ZICNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
     
     !-----------------------------------------------------------------
     !--> Calculation of effective radii (Note: already done if NCLOUDACT=1)
@@ -1618,7 +1620,7 @@ ENDDO
     !cloud variables
     DO JCLOUD=1,2 !CDNC and ICNC
        !PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
-       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = (1.0E-6_JPRB) * ZRHO(KIDIA:KFDIA,1:KLEV) * ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
+       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = (1.0E-6_JPRB) * ZRHO(KIDIA:KFDIA,1:KLEV) * ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
     END DO
     !<-- End adding HAM modified tendency back to PTENC
     !-----------------------------------------------------------------
