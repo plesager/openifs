@@ -376,9 +376,9 @@ ZCNTRL(3) = HSTART
 
 ! Compute here 'roundoff' number - there is a paralellization
 ! issue when calling WLMACH as part of kpp-code.
-IF ( KSTEP == 0_JPIM ) THEN
+!IF ( KSTEP == 0_JPIM ) THEN  ! a more robust test on YDRIP%NSTADD instead of kstep, and done in a setup routine, should be devised
   CALL CIFS_KPP_WLAMCH(ROUNDOFF_STORE , 'E')
-ENDIF
+!ENDIF
 
 JAER_TRACER(1)=ISO4
 JAER_TRACER(2)=IMSA

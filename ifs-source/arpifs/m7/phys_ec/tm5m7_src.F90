@@ -224,6 +224,7 @@ ASSOCIATE(&
   & RSIVSRA => YDEAERSRC%RSIVSRA,       RCODECA   => YDEAERSRC%RCODECA,        &
   & RCOVSRA => YDEAERSRC%RCOVSRA,                                              &
   & NLOENG  => YDGEOMETRY%YRGEM%NLOENG, NGLOBALAT => YDGEOMETRY%YRMP%NGLOBALAT,&
+  & LVDFTRAC=> YDEPHY%LVDFTRAC,                                                &
   & YSURF   => YDEPHY%YSURF,            LAERCHEM  => YGFL%LAERCHEM)
 
 !VH maybe 43r3, only??  
@@ -442,17 +443,23 @@ DO JL=KIDIA,KFDIA
   ZCFLX(JL,KAERO(iduaci)) = emis_mass(mode_aci)%d3(JL,KLEV,1)*(-1._JPRB)
   ZCFLX(JL,KAERO(iducoi)) = emis_mass(mode_coi)%d3(JL,KLEV,1)*(-1._JPRB)
 
-  PTENC(JL,KLEV, KAERO(iacs_n)) = PTENC(JL,KLEV, KAERO(iacs_n)) + emis_number(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(icos_n)) = PTENC(JL,KLEV, KAERO(icos_n)) + emis_number(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(issacs)) = PTENC(JL,KLEV, KAERO(issacs)) + emis_mass(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(isscos)) = PTENC(JL,KLEV, KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV) 
-
-  PTENC(JL,KLEV, KAERO(iaci_n)) = PTENC(JL,KLEV, KAERO(iaci_n)) + emis_number(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(icoi_n)) = PTENC(JL,KLEV, KAERO(icoi_n)) + emis_number(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(iduaci)) = PTENC(JL,KLEV, KAERO(iduaci)) + emis_mass(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
-  PTENC(JL,KLEV, KAERO(iducoi)) = PTENC(JL,KLEV, KAERO(iducoi)) + emis_mass(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV) 
-
 ENDDO
+
+
+IF (.NOT.LVDFTRAC) THEN
+  DO JL=KIDIA,KFDIA
+    PTENC(JL,KLEV, KAERO(iacs_n)) = PTENC(JL,KLEV, KAERO(iacs_n)) + emis_number(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(icos_n)) = PTENC(JL,KLEV, KAERO(icos_n)) + emis_number(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(issacs)) = PTENC(JL,KLEV, KAERO(issacs)) + emis_mass(mode_acs)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(isscos)) = PTENC(JL,KLEV, KAERO(isscos)) + emis_mass(mode_cos)%d3(JL,KLEV,4) * RG / PDELP(JL,KLEV)
+
+    PTENC(JL,KLEV, KAERO(iaci_n)) = PTENC(JL,KLEV, KAERO(iaci_n)) + emis_number(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(icoi_n)) = PTENC(JL,KLEV, KAERO(icoi_n)) + emis_number(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(iduaci)) = PTENC(JL,KLEV, KAERO(iduaci)) + emis_mass(mode_aci)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV)
+    PTENC(JL,KLEV, KAERO(iducoi)) = PTENC(JL,KLEV, KAERO(iducoi)) + emis_mass(mode_coi)%d3(JL,KLEV,1) * RG / PDELP(JL,KLEV)
+  ENDDO
+ENDIF
+
 
 DO JL=KIDIA,KFDIA
   DO IMODE=1,NMOD                                 ! loop in each mode 
