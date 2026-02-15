@@ -1690,6 +1690,11 @@ DO JRL=1,RADGRID%NGPTOT,NRPROMA
 ENDDO
 !$OMP END PARALLEL DO
 
+! Reset the strat aero remap flag: remapping was done in RADIATION_SCHEME if
+! needed and does not need to be done until new data are read.
+! Reset here after ALL blocks have been processed to avoid race condition.
+YDERAD%LSTRATAERO_UPDATED = .FALSE.
+
 CALL GSTATS(1210,1)
 
 !  OUTPUT INTERPOLATION IF REQUIRED
