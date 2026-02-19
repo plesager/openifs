@@ -175,7 +175,7 @@ MODULE mo_ham_m7_emi_seasalt
     END SUBROUTINE start_emi_seasalt
       
 
-    SUBROUTINE seasalt_emissions_gong_SST(kproma, kbdim, krow , sst, wind10m, ss_density, slf, alake, seaice, pmassf_as, pmassf_cs, pnumf_as, pnumf_cs)
+    SUBROUTINE seasalt_emissions_gong_SST(kproma, kbdim, krow , sst, wind10m, ss_density, slf, alake, seaice, pmassf_as, pmassf_cs,pnumf_as, pnumf_cs, SSCAL)
 
         !  
         ! Description:
@@ -234,7 +234,7 @@ MODULE mo_ham_m7_emi_seasalt
         REAL(dp),INTENT(out)   :: pmassf_cs(kbdim)    ! mass flux of ss coa particles
         REAL(dp),INTENT(out)   :: pnumf_as(kbdim)    ! number flux of ss acc particles
         REAL(dp),INTENT(out)   :: pnumf_cs(kbdim)    ! number flux of ss coa particles
-      
+        REAL(dp), INTENT(in)   ::SSCAL          !SEASALT deactivation !Mch
         !--- Local:
       
         REAL(dp):: zseafrac(kbdim)         ! fraction of the gridcell covered by
@@ -395,13 +395,13 @@ MODULE mo_ham_m7_emi_seasalt
            END IF
       
            IF (dmt(m).GT.dbeg(2) .AND. dmt(m).LE.dend(2) ) THEN
-              pnumf_as(1:kproma) = pnumf_as(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)
-              pmassf_as(1:kproma) = pmassf_as(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)*zav
+              pnumf_as(1:kproma) = pnumf_as(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)    * SSCAL
+              pmassf_as(1:kproma) = pmassf_as(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)*zav * SSCAL
            END IF
       
            IF (dmt(m).GT.dbeg(3) .AND. dmt(m).LE.dend(3) ) THEN
-              pnumf_cs(1:kproma) = pnumf_cs(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)
-              pmassf_cs(1:kproma) = pmassf_cs(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)*zav
+              pnumf_cs(1:kproma) = pnumf_cs(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma) * SSCAL
+              pmassf_cs(1:kproma) = pmassf_cs(1:kproma) + fi(1:kproma,m)*zseafrac(1:kproma)*zav * SSCAL 
            END IF
       
         END DO

@@ -7,7 +7,7 @@
 ! nor does it submit to any jurisdiction
 
 SUBROUTINE AERINI_LAYER(YDGEOMETRY,YDSURF,&
-  & YDMODEL,KDIM,PAUX,STATE,R,S,PSURF,SURFL,GEMSL)
+  & YDMODEL,KDIM,PAUX,STATE,R,S,PSURF,SURFL,GEMSL,GPGAW)
 
 !**** *AERINI_LAYER* - Layer routine calling time stepping of first part
 !                      of prognostic aerosol computations
@@ -89,6 +89,7 @@ TYPE(VARIABLE_3D)              ,INTENT (IN)   :: R, S
 TYPE (SURF_AND_MORE_TYPE)      ,INTENT(INOUT) :: PSURF
 TYPE (SURF_AND_MORE_LOCAL_TYPE),INTENT(INOUT) :: SURFL
 TYPE (GEMS_LOCAL_TYPE)         ,INTENT(INOUT) :: GEMSL
+REAL(KIND=JPRB)                ,INTENT(IN)    :: GPGAW(KDIM%KLON)  
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JL, ISNH3_C,ISHNO3_C,JK,JT
 ! names begin with "IX" to avoid confusion with the species indices used in the chemical schemes
@@ -264,7 +265,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
         & GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
         & GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERMAP, GEMSL%ZAERFLX_M7, GEMSL%ZAERLIF,&
         & GEMSL%ZODMS, PSURF%PSD_XA, &
-        & PSO4SRC,PSO2SRC)
+        & PSO4SRC, PSO2SRC, GPGAW)
 
   CASE ("aer")
 

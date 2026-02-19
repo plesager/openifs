@@ -1,8 +1,8 @@
 SUBROUTINE TM5M7_SRC_SS &
   &( KIDIA, KFDIA, KLON, KLEV, &
   &  PCI  , PCLAKE, PLSM , PSST, PWIND, &
-  &  emis_mass, emis_number & 
-  &)
+  &  emis_mass, emis_number, & 
+  & YDEAERSRC)
 
 !*** * TM5M7_SRC_SS* - SOURCE TERMS FOR SEA SALT AEROSOLS
 
@@ -55,7 +55,7 @@ USE TM5M7_EMIS_DATA, ONLY : MODAL_EMISSIONS, radius_ssa, radius_ssc
 
 USE MO_HAM_M7_EMI_SEASALT, ONLY: seasalt_emissions_gong_SST
 USE MO_HAM,          ONLY: nseasalt
-
+USE YOEAERSRC, ONLY : TEAERSRC
 IMPLICIT NONE
 
 !-----------------------------------------------------------------------
@@ -70,7 +70,7 @@ REAL(KIND=JPRB),       INTENT(IN)    :: PCI(KLON), PCLAKE(KLON), PLSM(KLON), PSS
 REAL(KIND=JPRB),       INTENT(IN)    :: PWIND(KLON)  ! 10m wind speed, see tm5m7_src.F90
 TYPE(MODAL_EMISSIONS), INTENT(INOUT) :: emis_mass(NMOD)
 TYPE(MODAL_EMISSIONS), INTENT(INOUT) :: emis_number(NMOD)
-
+TYPE(TEAERSRC),        INTENT(IN)    :: YDEAERSRC
 
 !*       0.5   LOCAL VARIABLES
 !              ---------------
@@ -81,13 +81,20 @@ REAL(KIND=JPRB)    :: EMIS_FAC(KLON)
 REAL(KIND=JPRB)    :: NUMBER(KLON), MASS(KLON)
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+REAL(KIND=JPRB)   :: SSCAL  ! switch on/off seasalt emissions
 
 #include "abor1.intfb.h"
+!-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',0,ZHOOK_HANDLE)
-
+ASSOCIATE(NOSEASALT => YDEAERSRC%NOSEASALT)
 !ASSOCIATE(RSSFLX=>YDEAERSRC%RSSFLX)
+IF (NOSEASALT) THEN 
+ SSCAL=0.0_JPRB
+ELSE
+ SSCAL=1.0_JPRB
+END IF 
 
 IF (NSEASALT==0) THEN
     !>>> TvN
@@ -274,7 +281,7 @@ IF (NSEASALT==0) THEN
     ! CALL emission_vdist_by_sector( splittype, 'SS', region, emis_temp(region), emis3d, status )
     
     ! For now fill in surface layer
-    emis_number(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = number(KIDIA:KFDIA)  !#/m2/sec
+    emis_number(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = number(KIDIA:KFDIA) *SSCAL !#/m2/sec
     !write(6565,*) number(KIDIA:KFDIA)
     
     ! emitted mass
@@ -287,7 +294,7 @@ IF (NSEASALT==0) THEN
 
     ! vertically distribute according to sector
     ! CALL emission_vdist_by_sector( splittype, 'SS', region, emis_temp(region), emis3d, status )
-    emis_mass(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)   !kg/m2/sec
+    emis_mass(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA) *SSCAL  !kg/m2/sec
 
 
     !===================
@@ -352,7 +359,7 @@ IF (NSEASALT==0) THEN
     ENDDO
 
     !VH: For now emitted at surface, to be fixed
-    emis_number(mode_cos)%d3(KIDIA:KFDIA,KLEV,4)   = number(KIDIA:KFDIA)   !#/grid/month
+    emis_number(mode_cos)%d3(KIDIA:KFDIA,KLEV,4)   = number(KIDIA:KFDIA) *SSCAL  !#/grid/month
 
 
     ! emitted mass
@@ -362,14 +369,14 @@ IF (NSEASALT==0) THEN
     mass(KIDIA:KFDIA) = number(KIDIA:KFDIA)*RPI*4./3. *(rg2*1e-4)**3 * EXP(9./2.*log(sigma_lognormal(4))**2)*dens*1e-3  ! kg/m2/sec
 
     !For now introduce emissions in surface layer. Should be fixed.
-    emis_mass(mode_cos)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)    !kg/m2/sec
+    emis_mass(mode_cos)%d3(KIDIA:KFDIA,KLEV,4)   = mass(KIDIA:KFDIA)  *SSCAL  !kg/m2/sec
 
   ELSEIF (NSEASALT==8) THEN  !HAM gong_SST
      
     CALL SEASALT_EMISSIONS_GONG_SST(KFDIA, KLON, 1,&
          & PSST,PWIND, ss_density, PLSM, PCLAKE, PCI, &
          & emis_mass(mode_acs)%d3(KIDIA:KFDIA,KLEV,4)  , emis_mass(mode_cos)%d3(KIDIA:KFDIA,KLEV,4),&
-         & emis_number(mode_acs)%d3(KIDIA:KFDIA,KLEV,4), emis_number(mode_cos)%d3(KIDIA:KFDIA,KLEV,4))
+         & emis_number(mode_acs)%d3(KIDIA:KFDIA,KLEV,4), emis_number(mode_cos)%d3(KIDIA:KFDIA,KLEV,4),SSCAL)
   ELSE
 
     CALL ABOR1('ABORT: IN TM5_SRC_SS, NSEASALT is NOT 0 or 8!')
@@ -379,6 +386,7 @@ IF (NSEASALT==0) THEN
   ! RCHG -> In AER scheme there is a flag named LVDFTRAC that might be related with not vertical diffusion. In that case,
   !        the tendencies seems to be re-scaled in vertical layers "manually". The flux themselves are not changed.
 
+END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_SS',1,ZHOOK_HANDLE)
 END SUBROUTINE TM5M7_SRC_SS
 

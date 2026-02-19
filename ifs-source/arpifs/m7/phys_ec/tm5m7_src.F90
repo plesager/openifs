@@ -7,7 +7,7 @@ SUBROUTINE TM5M7_SRC( &
  & PLSM , PSST , PQ  , PRHO  , PSNS , PT  , PTL  , PTSPHY, PZ0M, KCHEM,                   &
  & PWIND, PWS1 ,PSOIL_TYPE,                                                               &
  & PCVL, PCVH, KTVL, KTVH,                                                                &
- & PLDAY,  PAERFLX, PCFLX, PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC )
+ & PLDAY,  PAERFLX, PCFLX, PCEN  , PTENC, PEMIDIAG, PSO2SRC,PSO4SRC, GPGAW)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 03-Jun-2024) │
@@ -60,6 +60,7 @@ USE YOMHOOK,      ONLY : LHOOK,  DR_HOOK, JPHOOK
 USE YOMLUN,       ONLY : NULOUT, NULERR
 USE YOMCST,       ONLY : RA,     RPI,     RDAY, RG
 USE YOMRIP0,      ONLY : NINDAT, NSSSSS
+USE YOEDUST,      ONLY : YDUSTCLIM  !(soiltype. soil ph ..ect)
 
 ! M7 modules -------------------------------------------------------------------
 
@@ -95,6 +96,7 @@ INTEGER(KIND=JPIM), INTENT(IN)    :: KSW
 INTEGER(KIND=JPIM), INTENT(IN)    :: KTRAC
 INTEGER(KIND=JPIM), INTENT(IN)    :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
 
+REAL(KIND=JPRB),    INTENT(IN)    :: GPGAW(KLON)
 REAL(KIND=JPRB),    INTENT(IN)    :: PALB(KLON), PALBD(KLON,KSW)
 REAL(KIND=JPRB),    INTENT(IN)    :: PAPHI(KLON,0:KLEV), PALTH(KLON,0:KLEV)
 REAL(KIND=JPRB),    INTENT(IN)    :: PAERDEP(KLON), PAERLTS(KLON), PAERSCC(KLON)
@@ -136,6 +138,12 @@ REAL(KIND=JPRB)    :: ZBCBF(KLON), ZBCFF(KLON), ZBCGF(KLON)     ! BC related
 REAL(KIND=JPRB)    :: ZOMBF(KLON), ZOMFF(KLON), ZOMGF(KLON)     ! OM related
 INTEGER(KIND=JPIM) :: JAER, JK, JL, IMODE, INMODE, JN, II, JGAS
 INTEGER(KIND=JPIM) :: IGLGLO, IHTST
+! soiltype. soil ph ..etc
+REAL(KIND=JPRB) :: ISOILTYPE(KLON)
+REAL(KIND=JPRB) :: ISOILPH1(KLON), ISOILPH2(KLON), ISOILPH3(KLON), ISOILPH4(KLON), ISOILPH5(KLON), &
+                   & IZ0AM(KLON), IPOTSRC(KLON), IAREA(KLON), ICULT(KLON)
+REAL(KIND=JPRB) :: IZ0M(KLON), IFPAR(KLON)
+REAL(KIND=JPRB) :: ILAI_MAX(KLON), ILAI_AVG(KLON)
 
 ! TM5-M7 data
 
@@ -227,12 +235,16 @@ ASSOCIATE(&
   & LVDFTRAC=> YDEPHY%LVDFTRAC,                                                &
   & YSURF   => YDEPHY%YSURF,            LAERCHEM  => YGFL%LAERCHEM)
 
+ASSOCIATE(NDDUST => YDEAERSRC%NDDUST)
+
 !VH maybe 43r3, only??  
 !& LAERODIU=>YDCOMPO%LAERODIU, YAERO=>YGFL%YAERO, LFIRE=>YDCOMPO%LFIRE, LINJ=>YDCOMPO%LINJ, &
 
 ! N.B.: In ECMWF model conventions, flux going upward from the surface 
 ! are negative
 ! All surface fluxes PCFLUX in kg m-2 s-1
+! PGEMU  : SINLAT  PGELAT(KLON) : LATITUDE (RADIANS)
+! PGELAM : LONGITUDE (RADIANS)
 
 !-----------------------------------------------------------------------
 
@@ -284,7 +296,7 @@ DO JK=1,KLEV
   ENDDO
 ENDDO
 
-ZDEGRAD= 180._JPRB/RPI
+ZDEGRAD= 180._JPRB/RPI          ! radians to degrees  
 ZDLAT  = 180._JPRB / NDGLG      ! distance in degrees between latitude lines
 ZGRDLAT= RPI / NDGLG            ! distance in radians between latitude lines
 ZGRDLAT2=ZGRDLAT*0.55_JPRB
@@ -296,10 +308,10 @@ DO JL=KIDIA,KFDIA
   ZGRDLON(JL)=ZDLON
   ZLAT=ASIN(YDCSGLEG%RMU(IGLGLO))             ! latitude in radians
 
-  ZGLON(JL)=PGELAM(JL)*ZDEGRAD
-  ZGLAT(JL)=ZLAT*ZDEGRAD
-  ZGDLAT(JL)=ZDLAT
-  ZGDLON(JL)=360._JPRB*Z1GP 
+  ZGLON(JL)=PGELAM(JL)*ZDEGRAD                ! Lon in Degrees 
+  ZGLAT(JL)=ZLAT*ZDEGRAD                      ! Lat in Degrees 
+  ZGDLAT(JL)=ZDLAT                            ! Lat  
+  ZGDLON(JL)=360._JPRB*Z1GP                   ! Lat spacing 
 
   ZLOCALTIM =RHGMT + ZGLON(JL)/360._JPRB*RDAY
   ZDIURN(JL)=COS( ((ZLOCALTIM-54000._JPRB)/RDAY) * 2._JPRB*RPI)+1._JPRB
@@ -380,9 +392,18 @@ ENDIF
 ! RCHG: PCI, PCLAKE, PLSM, PSST 
 CALL TM5M7_SRC_SS( KIDIA, KFDIA,  KLON, KLEV,         &
                  & PCI,   PCLAKE, PLSM, PSST, ZWNDSS, &
-                 & emis_mass, emis_number )
+                 & emis_mass, emis_number ,YDEAERSRC)
 
-
+!------------------------------------------------------------
+!    1.9 INTERPOLATION FIELDS DUST TEGEN ONLINE SCHEME 
+!        ---------
+IF (NDDUST == 8) THEN
+  CALL YDUSTCLIM%INTERPOLATION( &
+       KIDIA, KFDIA, KLON, &                       ! start/end, number of columns
+       PGELAT, PGELAM, & ! lat/lon in radians
+       ISOILPH1, ISOILPH2, ISOILPH3, ISOILPH4, ISOILPH5, &
+       IZ0AM, IPOTSRC, ISOILTYPE, IAREA, ICULT,IZ0M, IFPAR, IMM, ILAI_MAX, ILAI_AVG)
+ENDIF
 
 !-----------------------------------------------------------------------
 !*  2.0   DESERT DUST
@@ -400,8 +421,10 @@ CALL TM5M7_SRC_DUST( YDEPHY, YDEAERMAP, YDEAERSRC, KIDIA, KFDIA, KLON, KLEV, KTI
                    & PAP(:,KLEV), PTL,  PSOIL_TYPE, &
                    & PFRTI, PCVL, PCVH, KTVL, KTVH, &
                    & emis_mass, emis_number, PAERFLX, ZGLON, ZGLAT, &
-                   & ZRWPWP, ZRWSAT, ZAERMAP, PALB, PALBD, PWS1, PHSDFOR)
-
+                   & ZRWPWP, ZRWSAT, ZAERMAP, PALB, PALBD, PWS1, PHSDFOR, &
+                   & IMM,ISOILPH1, ISOILPH2, ISOILPH3, ISOILPH4, ISOILPH5, &
+                   & IZ0AM, IPOTSRC, ISOILTYPE, IAREA, ICULT,IZ0M, IFPAR, GPGAW, &
+                   & ILAI_MAX, ILAI_AVG)
 !-----------------------------------------------------------------------
 !*       3.0   PARTICULATE ORGANIC MATTER
 !              ---------------------------------------------------------
@@ -482,10 +505,8 @@ ENDDO
 
 END ASSOCIATE
 END ASSOCIATE
+END ASSOCIATE
 
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC',1,ZHOOK_HANDLE)
-
-
-
 END SUBROUTINE TM5M7_SRC
 

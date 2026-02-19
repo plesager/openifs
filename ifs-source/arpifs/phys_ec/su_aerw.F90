@@ -102,7 +102,7 @@ LOGICAL, POINTER :: LAERCLIMG, LAERCLIMZ, LAERCLIST, LAERDRYDP, LAERELVS,&
  & LAERSEDIM, LAERSURF, LAERGTOP, LAER6SDIA, LAERCCN, LAERSEDIMSS, &
  & LAERINIT, LAERCSTR, LAERRRTM, LAERDIAG1, LAERDIAG2, LAERUVP, LUVINDX, &
  & LAERVOL, LAERCALIP, LEPAERO, LAEROMIN, LOCNDMS ,LAERSCAV_CHEM,LAERSOA_CHEM, LDRYDEPVEL_DYN, &
- & LSEASALT_RH80, LAERDUSTSOURCE, LAERDUST_NEWBIN, LAERDUSTSIZEVAR
+ & LSEASALT_RH80, LAERDUSTSOURCE, LAERDUST_NEWBIN, LAERDUSTSIZEVAR, GUSTS,NOSEASALT
 
 INTEGER(KIND=JPIM), POINTER :: NAERCONF, NXT3DAER, NINIDAY, NBCOPTP,&
  & NDDOPTP, NOMOPTP, NSSOPTP, NSUOPTP, NVISWL, NDRYDEP,  NDRYDEPVEL_DYN, &
@@ -111,7 +111,7 @@ INTEGER(KIND=JPIM), POINTER :: NAERCONF, NXT3DAER, NINIDAY, NBCOPTP,&
  & NVOLERUZ(:), NVOLOPTP, NVOLHOMO, NINTERPT, NAER_BLNUCL, NVOLDATE(:), NAERSCAV
 REAL(KIND=JPRB), POINTER :: RAERDUB, RDDUAER(:), RFCTDUR, RFCTSSR, RLATVOL,&
  & RLONVOL, RSUCV1, RSUCV2, RAERDUST_REBOUND, &
- & RAERVOLC(:,:), RAERVOLE(:,:), RVOLERUZ(:)
+ & RAERVOLC(:,:), RAERVOLE(:,:), RVOLERUZ(:), DCAL
 
 TYPE(TYPE_AERO_DESC), POINTER :: YAERO_DESC(:)
 
@@ -202,6 +202,9 @@ LEPAERO   => YDEAERSRC%LEPAERO
 LAEROMIN  => YDEAERSRC%LAEROMIN
 LOCNDMS   => YDEAERSRC%LOCNDMS
 NDDUST    => YDEAERSRC%NDDUST
+DCAL      => YDEAERSRC%DCAL
+GUSTS     => YDEAERSRC%GUSTS
+NOSEASALT => YDEAERSRC%NOSEASALT
 NSO4SCHEME    => YDEAERSRC%NSO4SCHEME
 NAER_BLNUCL    => YDEAERATM%NAER_BLNUCL
 NSSALT    => YDEAERSRC%NSSALT
@@ -300,6 +303,11 @@ RDMSMIN = 0._JPRB
 
 ! Default to backwards compatibility for now
 LSEASALT_RH80 = .TRUE.
+
+! Applies to case of active aerosols:
+NOSEASALT = .FALSE. ! Switch on/off sea salt emissions 
+GUSTS = .FALSE.     ! Not used yet
+DCAL = 0._JPRB      ! Scale factor for Tegen dust (NDDUST==8) only
 
 IF (NAERO == 0) THEN
   LEPAERO  =.FALSE.
@@ -419,9 +427,13 @@ ELSE
   RDMSMIN = 5.E-11_JPRB
   NDMSO = 2
   NPIST = 1
-  ! Various other settings may/may not be used, see scheme 'aer' below
-
-!-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU 
+  ! -- Dust scheme (Recommend 3 as default, 8 for Tegen)
+  NDDUST =3
+  ! See scheme 'aer' below for other possible default
+  !NSSALT =3 ! not used - superseded by HAMM7 dedicated scheme
+  
+  !-- default value are for use of "plain" or "gusty" 10-m wind as predictor for SS and DU
+  ! Use 2 by default, and if Tegen (nddust=8) then use 0
   NAERWND  = 2
 !--  other values would be: (see *aer_src*)
 !- NAERWND = 0 for "plain" 10-m wind as predictor for sea salt and desert dust emissions
@@ -912,8 +924,8 @@ IF (NACTAERO > 0) THEN
    & ,'' LAERNITRATE = '',L5 &
    & ,'' NMAXTAER = '',I2 ,'' NDDUST = '',I1 &
    & ,'' NSSALT = '',I1,'' NSO4SCHEME = '',I1 &
-   & ,'' NINIDAY = '',I8)') &
-   & AERO_SCHEME,LEPAERO,LAERNITRATE,NMAXTAER,NDDUST,NSSALT,NSO4SCHEME,NINIDAY
+   & ,'' NINIDAY = '',I8,'' DCAL = '',F10.4,'' NOSEASALT = '',L5,'' GUSTS = '',L5)') &
+   & AERO_SCHEME,LEPAERO,LAERNITRATE,NMAXTAER,NDDUST,NSSALT,NSO4SCHEME,NINIDAY,DCAL,NOSEASALT,GUSTS
 
   WRITE(UNIT=NULOUT,FMT='('' NAERO = '',I2,'' NACTAERO = '',I2,&
    &'' NXT3DAER = '',I2,'' NAERCONF = '',I3)') &

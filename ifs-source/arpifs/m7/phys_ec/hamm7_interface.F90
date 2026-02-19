@@ -2178,7 +2178,45 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !** YAEROUT(37) : --
   !** YAEROUT(38) : --
   !** YAEROUT(39) : --
+  !** YAEROUT(46) 
+  !   !---------------DUST FIELDS DIAGNOSTICS-----------------------
+  ! !** YAEROUT(47) : --
+  ! !3D Dust DU_AI in KG/M3
+  !  JO=  20 ! JO -> index context OIFS``
+  !  JH=  20  ! JH -> index context HAM
+  !  JY=YAEROUT(47)%MP
+  !  DO JK=1,KLEV
+  !    PGFL(KIDIA:KFDIA,JK,JY)=  (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)) * ZDPG(KIDIA:KFDIA,JK)
+  !  END DO
+   
+
+  !  ! ** YAEROUT(48) : -- 
+  ! !DU_CI
+  !  JO=  26 ! JO -> index context OIFS``
+  !  JH=  21  ! JH -> index context HAM
+  !  JY=YAEROUT(48)%MP
+  !  DO JK=1,KLEV
+  !    PGFL(KIDIA:KFDIA,JK,JY)=  (ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)) * ZDPG(KIDIA:KFDIA,JK)
+  !  END DO
+
+  ! ! **YAEROUT(49)
+  !  !DU_AI NUM
+  !  JO=  19 ! JO -> index context OIFS``
+  !  JH=  27  ! JH -> index context HAM
+  !  JY=YAEROUT(49)%MP
+  !  DO JK=1,KLEV
+  !    PGFL(KIDIA:KFDIA,JK,JY)=  ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)
+  !  END DO
   
+  !  ! **YAEROUT(50)
+  !  !DU_CI NUM
+  !  JO=  25 ! JO -> index context OIFS``
+  !  JH=  28  ! JH -> index context HAM
+  !  JY=YAEROUT(50)%MP
+  !  DO JK=1,KLEV
+  !    PGFL(KIDIA:KFDIA,JK,JY)=  ZXTM1(KIDIA:KFDIA,JK,JH)+(ZXTTE(KIDIA:KFDIA,JK,JH)*TIME_STEP_LEN)
+  !  END DO
+   
 !Commented because of overlap      DO JGAS=1,SUBM_NGASSPEC
 !Commented because of overlap    !!! BUG: JL? JK? !!!    PGFL(KIDIA:KFDIA,JGAS,YAEROUT(28+JGAS)%MP)=ZCEN(JL,JK,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
 !Commented because of overlap        PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(29+JGAS)%MP)= PTENC(KIDIA:KFDIA,1:KLEV,KCHEM(ind_oifs_ham%ind_gas_OIFS(JGAS)))
