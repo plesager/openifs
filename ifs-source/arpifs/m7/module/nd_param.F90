@@ -571,7 +571,6 @@ CONTAINS
           ELSE
 
             EKTH    = EXP(9._JPRB/2._JPRB*DLGSG*DLGSG)
-            DLGSP1  = LOG(SG(J)/SSPLT1)                      ! ln(sg/sp1)
             ORISM4  = ORISM1 + 3._JPRB*DLGSG/SQTWO           ! u(sp2) + 3ln(sigmai)/sqrt(2)
             ERF1C   = erfc(ORISM1)
             ERF4C   = erfc(ORISM4)
@@ -579,21 +578,30 @@ CONTAINS
             intaux1p2 =  TP(J)*SPAR*(ERF1C - &
                  0.5_JPRB*((SG(J)/SPAR)**2)*EKTH*ERF4C)  ! I1(0,sp2)
 
-            ORISM1  = 2._JPRB*DLGSP1/(3._JPRB*SQTWO*DLGSG)       ! u(sp1)
-            ORISM4  = ORISM1 + 3._JPRB*DLGSG/SQTWO               ! u(sp1) + 3ln(sigmai)/sqrt(2)
-            ORISM6  = (SQTWO*DLGSP1/3._JPRB/DLGSG)-(1.5_JPRB*DLGSG/SQTWO)
+            
+            IF (SSPLT1.LT.TINY(SSPLT1)) THEN
 
-            ERF1C = erfc(ORISM1)
-            ERF4C = erfc(ORISM4)
-            ERF6C = erfc(ORISM6)
+              INTEG1(J) = intaux1p2
+              DW3 = 0.0_JPRB
+            ELSE
+              
+              DLGSP1  = LOG(SG(J)/SSPLT1)                      ! ln(sg/sp1)
+              ORISM1  = 2._JPRB*DLGSP1/(3._JPRB*SQTWO*DLGSG)       ! u(sp1)
+              ORISM4  = ORISM1 + 3._JPRB*DLGSG/SQTWO               ! u(sp1) + 3ln(sigmai)/sqrt(2)
+              ORISM6  = (SQTWO*DLGSP1/3._JPRB/DLGSG)-(1.5_JPRB*DLGSG/SQTWO)
 
-            intaux1p1 = TP(J)*SPAR*(ERF1C - &
-                 0.5_JPRB*((SG(J)/SPAR)**2)*EKTH*ERF4C)    ! I1(0,sp1)
+              ERF1C = erfc(ORISM1)
+              ERF4C = erfc(ORISM4)
+              ERF6C = erfc(ORISM6)
 
-            INTEG1(J) = (intaux1p2-intaux1p1)                   ! I1(sp1,sp2) = I1(0,sp2) - I1(0,sp1)
-            !
-            DW3 = TP(j)*DEQ*EXP(9._JPRB/8._JPRB*DLGSG*DLGSG)* &           ! 'inertially' limited particles.
-                 ERF6C*((BET2*ALFA*WPARCEL)**0.5_JPRB)
+              intaux1p1 = TP(J)*SPAR*(ERF1C - &
+                   0.5_JPRB*((SG(J)/SPAR)**2)*EKTH*ERF4C)    ! I1(0,sp1)
+
+              INTEG1(J) = (intaux1p2-intaux1p1)                   ! I1(sp1,sp2) = I1(0,sp2) - I1(0,sp1)
+
+              DW3 = TP(j)*DEQ*EXP(9._JPRB/8._JPRB*DLGSG*DLGSG)* &           ! 'inertially' limited particles.
+                   ERF6C*((BET2*ALFA*WPARCEL)**0.5_JPRB)
+            ENDIF
 
           ENDIF
 

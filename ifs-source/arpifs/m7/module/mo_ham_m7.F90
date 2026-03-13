@@ -4094,7 +4094,7 @@ END SUBROUTINE m7_concoag
   INTEGER :: jspec, isoans, isoaks, isoaas, isoacs, jn2
   !<<dod 
 
-    REAL(dp), PARAMETER :: zmin_coag = 1.e-15 !gf #240 homogenized minimum value for coagulation coeffs
+  REAL(dp), PARAMETER :: zmin_coag = 1.e-15_dp !gf #240 homogenized minimum value for coagulation coeffs
 
   !--- 0) Initialisations: ------------------------------------------------ 
  
@@ -4388,14 +4388,18 @@ END SUBROUTINE m7_concoag
                        !--- exp(-Rt):
                        ze1=EXP(-zr1*2.0_dp*pa(jl,jk,jclass)*ztmst)
                        !--- n(t):
-                       zf1=(paernl(jl,jk,jclass)+zr1)/(paernl(jl,jk,jclass)-zr1) 
-                       ztop=zr1*(zf1+ze1) 
-                       zbot=zf1-ze1 
-                       IF (zbot < zmin_coag) THEN 
-                          zaernt=zansum 
-                       ELSE 
-                          zaernt=ztop/zbot 
-                       END IF 
+                       IF (ABS(paernl(jl,jk,jclass)-zr1) < SPACING(MAX(paernl(jl,jk,jclass),zr1))) THEN
+                         zaernt=zr1
+                       ELSE
+                         zf1=(paernl(jl,jk,jclass)+zr1)/(paernl(jl,jk,jclass)-zr1) 
+                         ztop=zr1*(zf1+ze1) 
+                         zbot=zf1-ze1 
+                         IF (zbot < zmin_coag) THEN 
+                           zaernt=zansum 
+                         ELSE 
+                           zaernt=ztop/zbot 
+                         END IF
+                       ENDIF
                        !--- Limit n(t+dt) to available particle in the mode:
                        zaernt=MIN(zaernt, zansum) 
                        !--- Number of particles moved by the inter-modal coagulation:
