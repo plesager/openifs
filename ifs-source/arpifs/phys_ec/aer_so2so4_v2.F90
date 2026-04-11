@@ -10,7 +10,7 @@ SUBROUTINE AER_SO2SO4_V2 &
   &( YDRIP, KIDIA , KFDIA , KLON  , KLEV  ,         &
   &  PTSPHY, PTP   , PRSF1 , PNEB  , PQLI  , PGELAT, PGELAM, &
   &  PSO2  , PITSO2, POH, PO3, PH2O2    ,         &
-  &  PTSO2 , PTSO4, PFSO2, PFSO4, PDP )
+  &  PTSO2 , PTSO4, PTSO4_AQ, PFSO2, PFSO4, PFSO4_AQ, PDP )
 
 !*** *AER_SO2SO4_V2* - GAS-TO-PARTICLE (SULPHATE AEROSOLS)
 
@@ -58,7 +58,7 @@ IMPLICIT NONE
 !*       0.1   ARGUMENTS
 !              ---------
 
-TYPE(TRIP)        ,INTENT(INOUT) :: YDRIP
+TYPE(TRIP)        ,INTENT(IN)    :: YDRIP
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
@@ -80,8 +80,8 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PO3(KLON,KLEV)    ! oxidants [kg / kg]
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PDP(KLON,KLEV) 
 
 
-REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PTSO2(KLON,KLEV), PTSO4(KLON,KLEV) ! new tendencies       [kg / kg(air) / s]
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSO2(KLON), PFSO4(KLON)
+REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PTSO2(KLON,KLEV), PTSO4(KLON,KLEV), PTSO4_AQ(KLON,KLEV)! new tendencies       [kg / kg(air) / s]
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSO2(KLON), PFSO4(KLON), PFSO4_AQ(KLON)
 
 
 !*       0.3   LOCAL PARAMETERS
@@ -306,10 +306,11 @@ JPTS = INT(PTSPHY/ZPTSCHEM)
 
 ! Split PCHEMSULF1 array
 
-!! Initialise tendencies (necessary when using sub-timesteps for chemistry,
-!!  since the total tendency will be the sum of "sub-tendencies"
-PTSO2(:,:) = 0._JPRB
-PTSO4(:,:) = 0._JPRB
+! Initialise tendencies (necessary when using sub-timesteps for chemistry,
+!  since the total tendency will be the sum of "sub-tendencies"). These arrays could be declared "intent(out)" then
+PTSO2(KIDIA:KFDIA,:) = 0._JPRB
+PTSO4(KIDIA:KFDIA,:) = 0._JPRB
+PTSO4_AQ(KIDIA:KFDIA,:) = 0._JPRB
 
 CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEOH, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
 CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEO3, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
@@ -430,7 +431,7 @@ DO JK=1,KLEV
          !    using PTSPHY=sum(ZPTSCHEM)
          PTSO2(JL,JK) = PTSO2(JL,JK) - ZTend_OH_Sum * ZRMSO2 / ZAIR_DENS / PTSPHY
          PTSO4(JL,JK) =  PTSO4(JL,JK)+ ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
-
+         PTSO4_AQ(JL,JK) =  0._JPRB ! PLS: No accumulation here?
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
@@ -660,8 +661,11 @@ DO JK=1,KLEV
 
          ZTend_Sum = ZTend_Aq_Sum + ZTend_OH_Sum
 
-         PTSO2(JL,JK) = PTSO2(JL,JK) -ZTend_Sum * ZRMSO2 / ZAIR_DENS / PTSPHY
-         PTSO4(JL,JK) =  PTSO4(JL,JK) + ZTend_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
+         ! Separate wet and dry production of SO4 to allow wet SO4 distribution to M7 modes
+         ! For "aer" case, dry and wet production are summed in AER_PHY3 (FIXME TODO IF POSSIBLE)
+         PTSO2(JL,JK)    =  PTSO2(JL,JK)    - ZTend_Sum    * ZRMSO2 / ZAIR_DENS / PTSPHY
+         PTSO4(JL,JK)    =  PTSO4(JL,JK)    + ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
+         PTSO4_AQ(JL,JK) =  PTSO4_AQ(JL,JK) + ZTend_Aq_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
@@ -672,15 +676,17 @@ DO JK=1,KLEV
 ENDDO
 
 DO JL=KIDIA,KFDIA
-  PFSO4(JL)=0.0_JPRB
-  PFSO2(JL)=0.0_JPRB
+  PFSO4(JL)   =0.0_JPRB
+  PFSO4_AQ(JL)=0.0_JPRB
+  PFSO2(JL)   =0.0_JPRB
 ENDDO
 
 
 DO JK=1,KLEV
    DO JL=KIDIA,KFDIA
-      PFSO4(JL) = PFSO4(JL) + PTSO4(JL,JK)*(PDP(JL,JK))/RG
-      PFSO2(JL) = PFSO2(JL) + PTSO2(JL,JK)*(PDP(JL,JK))/RG
+      PFSO4(JL)    = PFSO4(JL)    + PTSO4(JL,JK)*(PDP(JL,JK))/RG
+      PFSO4_AQ(JL) = PFSO4_AQ(JL) + PTSO4_AQ(JL,JK)*(PDP(JL,JK))/RG
+      PFSO2(JL)    = PFSO2(JL)    + PTSO2(JL,JK)*(PDP(JL,JK))/RG
    ENDDO
 ENDDO
 

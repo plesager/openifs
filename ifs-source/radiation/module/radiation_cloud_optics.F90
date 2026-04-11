@@ -466,9 +466,13 @@ contains
                  &                   + od_lw_ice - scat_od_lw_ice
           end if
           od_sw_cloud(:,jlev,jcol) = od_sw_liq + od_sw_ice
-          g_sw_cloud(:,jlev,jcol) = (g_sw_liq * scat_od_sw_liq &
-               &  + g_sw_ice * scat_od_sw_ice) &
-               &  / (scat_od_sw_liq + scat_od_sw_ice)
+          where (scat_od_sw_liq+scat_od_sw_ice > 0.0_jprb)
+             g_sw_cloud(:,jlev,jcol) = (g_sw_liq * scat_od_sw_liq &
+                  &  + g_sw_ice * scat_od_sw_ice) &
+                  &  / (scat_od_sw_liq + scat_od_sw_ice)
+          elsewhere
+             g_sw_cloud(:,jlev,jcol) = 0.0_jprb
+          end where
           ssa_sw_cloud(:,jlev,jcol) &
                &  = (scat_od_sw_liq + scat_od_sw_ice) / (od_sw_liq + od_sw_ice)
         end if ! Cloud present

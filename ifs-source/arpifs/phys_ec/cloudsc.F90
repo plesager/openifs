@@ -40,7 +40,7 @@ SUBROUTINE CLOUDSC &
  & PFSQRF,   PFSQSF ,  PFCQRNG,  PFCQSNG, &
  & PFSQLTUR, PFSQITUR , &
  & PFPLSL,   PFPLSN,   PFHPSL,   PFHPSN, &
- & PEXTRA,   KFLDX)  
+ & PEXTRA,   KFLDX,    PSNOWACL)
 
 !===============================================================================
 !**** *CLOUDSC* -  ROUTINE FOR PARAMETRIZATION OF CLOUD PROCESSES
@@ -267,6 +267,7 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFPLSL(KLON,KLEV+1) ! liq+rain sedim flux
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFPLSN(KLON,KLEV+1) ! ice+snow sedim flux
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFHPSL(KLON,KLEV+1) ! Enthalpy flux for liq
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFHPSN(KLON,KLEV+1) ! Enthalp flux for ice
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSNOWACL(KLON,KLEV) ! accretion rate of snow with cloud droplets
 ! Extra fields for diagnostics
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXTRA(KLON,KLEV,KFLDX) ! extra fields
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFLDX ! Number of extra fields
@@ -663,7 +664,8 @@ ASSOCIATE(LAERICEAUTO=>YDECLDP%LAERICEAUTO, LAERICESED=>YDECLDP%LAERICESED, &
  & RCL_INHOMOGAUT    => YDECLDP%RCL_INHOMOGAUT, &
  & RCL_INHOMOGACC    => YDECLDP%RCL_INHOMOGACC, &
  & RCL_OVERLAPLIQICE => YDECLDP%RCL_OVERLAPLIQICE, &
- & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME )
+ & RCL_EFFRIME       => YDECLDP%RCL_EFFRIME, &
+ & NCLOUDACT         => YDERAD%NCLOUDACT)
 !===============================================================================
 
 
@@ -2008,20 +2010,36 @@ DO JK=NCLDTOP,KLEV
 
       IF (LLPERT_RCLCRIT) THEN  !Apply SPP perturbations
         IF (PLSM(JL) > 0.5_JPRB) THEN
-          ZCONST = RCL_KK_CLOUD_NUM_LAND
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
+          END IF
           ! perturbed land value of RCLCRIT
           ZLCRIT = RCLCRIT_LAND*EXP(PN1RCLCRIT%MU(1)+PN1RCLCRIT%XMAG(1)*PGP2DSPP(JL, IPRCLCRIT))
         ELSE
-          ZCONST = RCL_KK_CLOUD_NUM_SEA
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean
+          END IF
           ! perturbed ocean value of RCLCRIT
           ZLCRIT = RCLCRIT_SEA *EXP(PN1RCLCRIT%MU(2)+PN1RCLCRIT%XMAG(2)*PGP2DSPP(JL, IPRCLCRIT))
         ENDIF
       ELSE
         IF (PLSM(JL) > 0.5_JPRB) THEN ! land  (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_LAND
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
+          END IF
           ZLCRIT = RCLCRIT_LAND
         ELSE                          ! ocean (unperturbed)
-          ZCONST = RCL_KK_CLOUD_NUM_SEA
+          IF (NCLOUDACT > 0) THEN
+             ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
+          ELSE
+             ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean
+          END IF
           ZLCRIT = RCLCRIT_SEA
         ENDIF
       ENDIF
@@ -2390,7 +2408,7 @@ DO JK=NCLDTOP,KLEV
     !--------------------------------------------------------------
     ZSUPERSATICE = (ZQSLIQ(JL,JK)-ZQSICE(JL,JK))/ZQSICE(JL,JK)
 
-    IF (ZTP1(JL,JK)<(RTT-5._JPRB) .AND. ZQXFG(JL,NCLDQL)>RLMIN) THEN  ! T<273K
+    IF (ZTP1(JL,JK)>=RTHOMO .AND. ZTP1(JL,JK)<(RTT-5._JPRB) .AND. ZQXFG(JL,NCLDQL)>RLMIN) THEN  ! 235.15=<T<273K
 
       ZVPICE=FOEEICE(ZTP1(JL,JK))*RV/RD
       ZVPLIQ=ZVPICE*FOKOOP(ZTP1(JL,JK))
@@ -2496,7 +2514,7 @@ DO JK=NCLDTOP,KLEV
       
         ZVPICE = FOEEICE(ZTP1(JL,JK))*RV/RD
         ZVPLIQ = ZVPICE*FOKOOP(ZTP1(JL,JK))
-        ZICENUCLEI(JL)=1000.0_JPRB*EXP(12.96_JPRB*(ZVPLIQ-ZVPICE)/ZVPLIQ-0.639_JPRB)
+        ZICENUCLEI(JL)=1000.0_JPRB*EXP(12.96_JPRB*(ZVPLIQ-ZVPICE)/ZVPICE-0.639_JPRB)
 
         !-----------------------------------------------------
         ! RICEINIT=1.E-12_JPRB is initial mass of ice particle
@@ -3653,6 +3671,8 @@ ENDIF ! on ISUBLSNOW
     ZBUDI(JL,13)= -ZFALLSINK(JL,NCLDQI)*ZQXN(JL,NCLDQI)*ZQTMST
     ZBUDL(JL,21)= -ZSNOWRIME(JL)*ZQXN(JL,NCLDQL)*ZQTMST
     ZBUDI(JL,14)= -ZSNOWAUT(JL)*ZQXN(JL,NCLDQI)*ZQTMST
+
+    PSNOWACL(JL,JK) = ZSNOWRIME(JL)*ZQXN(JL,NCLDQL)
   ENDDO
 
 

@@ -3,8 +3,20 @@ set -x
 
 module load forge
 
-if [[ ${ECPLATFORM:-unset} == "hpc2020" ]]; then
-  ./ifs-run --launcher='ddt srun --qos=np '
+if [[ $1 == "gdb" ]]; then
+ 
+  if [[ ${ECPLATFORM:-unset} == "hpc2020" ]]; then
+     ./ifs-run --launcher='gdb'
+  else
+     ./ifs-run --launcher=gdb
+  fi     
+
 else
-  ./ifs-run --launcher=ddt
-fi    
+
+  if [[ ${ECPLATFORM:-unset} == "hpc2020" ]]; then
+     ./ifs-run --launcher='ddt srun --qos=np '
+  else
+     ./ifs-run --launcher=ddt
+  fi
+
+fi

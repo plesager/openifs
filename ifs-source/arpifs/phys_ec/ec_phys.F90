@@ -586,7 +586,6 @@ ENDIF
 ! -------------------------------------------------------------------------------------
 
 !*     4.2  CALL ECMWF PHYSICS
-
 CALL CALLPAR(YDGEOMETRY,YDVARS,YDSURF,YDMODEL,DIMS,&
  & PAUX, PRAD, FLUX, ZDIAG, PSURF, &
  & PCGPP, PCREC, ZAG, ZRECO,&

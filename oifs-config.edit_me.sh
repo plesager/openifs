@@ -24,7 +24,10 @@
 export OIFS_HOST="local"
 export OIFS_PLATFORM="local"
 
-#--- set principal OIFS variables ------------------------------
+#--- if OIFS_DEBUGGER is set, oifs-run can use it to activate debugger ---------
+export OIFS_DEBUGGER="DDT"
+
+#--- set principal OIFS variables ----------------------------------------------
 
 export OIFS_CYCLE=48r1
 export OIFS_CLIMATE="climate.v020"

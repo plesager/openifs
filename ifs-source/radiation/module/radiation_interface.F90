@@ -194,7 +194,7 @@ contains
   ! to reverse the order for the computation and then reverse the
   ! order of the output fluxes to match the inputs.
   subroutine radiation(ncol, nlev, istartcol, iendcol, config, &
-       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+       &  single_level, thermodynamics, gas, cloud, aerosol, strat_aerosol, flux)
 
     use parkind1,                 only : jprb
     use yomhook,  only           : lhook, dr_hook, jphook
@@ -233,7 +233,7 @@ contains
 #endif
     use radiation_ifs_rrtm,       only : gas_optics
     use radiation_cloud_optics,   only : cloud_optics
-    use radiation_aerosol_optics, only : add_aerosol_optics
+    use radiation_aerosol_optics, only : add_aerosol_optics, add_aerosol_aod_ssa_asym
 
     ! Inputs
     integer, intent(in) :: ncol               ! number of columns
@@ -244,7 +244,7 @@ contains
     type(thermodynamics_type),intent(in)   :: thermodynamics
     type(gas_type),           intent(in)   :: gas
     type(cloud_type),         intent(inout):: cloud
-    type(aerosol_type),       intent(in)   :: aerosol
+    type(aerosol_type),       intent(in)   :: aerosol,strat_aerosol
     ! Output
     type(flux_type),          intent(inout):: flux
 
@@ -311,7 +311,7 @@ contains
       ! call the radiation scheme and then reverses the returned
       ! fluxes
       call radiation_reverse(ncol, nlev, istartcol, iendcol, config, &
-           &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+           &  single_level, thermodynamics, gas, cloud, aerosol, strat_aerosol, flux)
     else
 
       ! Input arrays arranged in order of increasing pressure /
@@ -385,6 +385,11 @@ contains
         else
           call add_aerosol_optics(nlev,istartcol,iendcol, &
                &  config, thermodynamics, gas, aerosol, & 
+               &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
+
+          ! optical properties from aerosol model if provided
+          call add_aerosol_aod_ssa_asym(ncol,nlev,istartcol,iendcol, &
+               &  config, strat_aerosol, &
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
@@ -511,7 +516,7 @@ contains
   ! subroutine calls, and is called by "radiation", it must be in this
   ! module to avoid circular dependencies.
   subroutine radiation_reverse(ncol, nlev, istartcol, iendcol, config, &
-       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+       &  single_level, thermodynamics, gas, cloud, aerosol, strat_aerosol, flux)
  
     use parkind1, only : jprb
 
@@ -533,7 +538,7 @@ contains
     type(thermodynamics_type),intent(in) :: thermodynamics
     type(gas_type),           intent(in) :: gas
     type(cloud_type),         intent(in) :: cloud
-    type(aerosol_type),       intent(in) :: aerosol
+    type(aerosol_type),       intent(in) :: aerosol, strat_aerosol
     ! Output
     type(flux_type),          intent(inout):: flux
 
@@ -541,7 +546,7 @@ contains
     type(thermodynamics_type) :: thermodynamics_rev
     type(gas_type)            :: gas_rev
     type(cloud_type)          :: cloud_rev
-    type(aerosol_type)        :: aerosol_rev
+    type(aerosol_type)        :: aerosol_rev, strat_aerosol_rev
     type(flux_type)           :: flux_rev
 
     ! Start and end levels for aerosol data
@@ -560,6 +565,11 @@ contains
       iendlev   = nlev + 1 - aerosol%istartlev
       call aerosol_rev%allocate(ncol, istartlev, iendlev, &
            &                    config%n_aerosol_types)
+    end if
+    if (aerosol%is_direct) then
+      istartlev = nlev + 1 - aerosol%iendlev
+      iendlev   = nlev + 1 - aerosol%istartlev
+      call aerosol_rev%allocate_direct(config, ncol, istartlev, iendlev)
     end if
 
     ! Fill reversed thermodynamic arrays
@@ -604,10 +614,36 @@ contains
            &  = aerosol%mixing_ratio(:,aerosol%iendlev:aerosol%istartlev:-1,:)
     end if
 
+    if (allocated(aerosol%od_sw)) then
+      aerosol_rev%od_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%od_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%ssa_sw)) then
+      aerosol_rev%ssa_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%ssa_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%g_sw)) then
+      aerosol_rev%g_sw(:,istartlev:iendlev,:) &
+           &  = aerosol%g_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+
+    if (allocated(strat_aerosol%od_sw)) then
+      strat_aerosol_rev%od_sw(:,istartlev:iendlev,:) &
+           &  = strat_aerosol%od_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+    if (allocated(strat_aerosol%ssa_sw)) then
+      strat_aerosol_rev%ssa_sw(:,istartlev:iendlev,:) &
+           &  = strat_aerosol%ssa_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%g_sw)) then
+      strat_aerosol_rev%g_sw(:,istartlev:iendlev,:) &
+           &  = strat_aerosol%g_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+
     ! Run radiation scheme on reversed profiles
     call radiation(ncol, nlev,istartcol,iendcol, &
          &  config, single_level, thermodynamics_rev, gas_rev, &
-         &  cloud_rev, aerosol_rev, flux_rev)
+         &  cloud_rev, aerosol_rev, strat_aerosol_rev, flux_rev)
 
     ! Reorder fluxes
     if (allocated(flux%lw_up)) then
@@ -648,10 +684,8 @@ contains
     call gas_rev%deallocate
     call cloud_rev%deallocate
     call flux_rev%deallocate
-    if (allocated(aerosol%mixing_ratio)) then
-      call aerosol_rev%deallocate
-    end if
-
+    call aerosol_rev%deallocate
+    call strat_aerosol_rev%deallocate
   end subroutine radiation_reverse
 
 end module radiation_interface
