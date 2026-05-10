@@ -153,6 +153,8 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   REAL(dp)  :: paclc   (kbdim,klev)       ! cloud cover [0,1]
   REAL(dp)  :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
   REAL(dp)  :: ppbl    (kbdim)            ! Planetary boundary layer top level
+  REAL(dp), OPTIONAL :: pforest(kbdim)    ! forest fraction
+  REAL(dp), OPTIONAL :: pout_dnuc(kbdim,klev,4)
 
   REAL(dp)  :: pm6rp(kbdim,klev,nclass),     & ! mean mode actual radius (wet for soluble and dry for insoluble modes) [m]
                         pm6dry(kbdim,klev,nsol),      & ! dry radius for soluble modes [m]

@@ -2361,7 +2361,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   REAL(dp):: ppbl(kbdim)                 ! Planetary boundary layer top level
 
   REAL(dp), OPTIONAL :: pforest(kbdim)   ! forest fraction
-  REAL(dp),OPTIONAL  :: pout_dnuc(kbdim,klev,5)   ! nucleation diagnostics
+  REAL(dp), OPTIONAL :: pout_dnuc(kbdim,klev,5)   ! nucleation diagnostics
 
   !
   ! Local variables:

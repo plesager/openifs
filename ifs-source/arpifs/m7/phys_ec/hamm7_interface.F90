@@ -56,7 +56,7 @@ SUBROUTINE HAMM7_INTERFACE( &
 ! │     May.  2020 - V. Huijnen     : Modifications for TM5M7                  │
 ! │     Sep.  2020 - T. Bergman     : TM5M7 work                               │
 ! │     Apr.  2024 - Lianghai Wu    : revision for CY48r1                      │
-! │     May.  2024 - R. Checa-Garcia: revision for CY48r1 and refactory        │
+! │     May.  2024 - R. Checa-Garcia: revision for CY48r1 and refactoring      │
 ! │                                                                            │
 ! ╰────────────────────────────────────────────────────────────────────────────╯
 
@@ -289,7 +289,6 @@ REAL(KIND=JPRB) :: ZQSAT(KLON,KLEV), ZRHO(KLON,KLEV)
 REAL(KIND=JPRB) :: ZTAER(KLON,KLEV)
 REAL(KIND=JPRB) :: ZTAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZRH(KLON,KLEV),ZTENC0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NCHEM)!,ZTSO4(KLON,KLEV)
-!REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)! NMOD=7
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
@@ -321,7 +320,6 @@ REAL(KIND=JPRB) :: ZTMPA
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
-
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
 REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=10.0_JPRB               !eehol: minimum CDNC (can be changed but for now 10 cm-3)
@@ -380,7 +378,7 @@ REAL(KIND=JPRB) :: ZFUXT3D(KLON,KLEV,ntrac) !updraft mass flux (for conv case on
 REAL(KIND=JPRB) :: ZDUM2D(KLON,KLEV) !convective flux needed only for conv. case (see cuflx)
 REAL(KIND=JPRB) :: ZLFRAC_SO2(KLON,KLEV) !liquid tracer fraction (SO2) -ham specific-
 REAL(KIND=JPRB) :: ZDPG(KLON,KLEV) !dp/g
-REAL(KIND=JPRB) :: ZQP(KLON,KLEV) !full level humidity with treshold
+REAL(KIND=JPRB) :: ZQP(KLON,KLEV) !full level humidity with threshold
 
 LOGICAL :: LSTRAT  !logical switch for stratiform or convective case (TRUE for strat., FALSE for conv.)
 REAL(KIND=JPRB) :: ZFEVAPR_cov(KLON,KLEV) !evaporation of rain, convective case [kg/m2/s]
@@ -625,16 +623,14 @@ DO JEXT=1,NAERO
   ENDDO
 ENDDO
 
-!NOT-AN-OPTION-WITH-M7  IF(LAERCHEM) then 
 DO JEXT=1,NCHEM
-    ITRC=ITRC+1
-    DO JK=1,KLEV
-      DO JL=KIDIA,KFDIA
-        ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YCHEM(JEXT)%MP9_PH)
-      ENDDO
+  ITRC=ITRC+1
+  DO JK=1,KLEV
+    DO JL=KIDIA,KFDIA
+      ZCEN(JL,JK,ITRC) = PGFL(JL,JK,YCHEM(JEXT)%MP9_PH)
     ENDDO
   ENDDO
-!NOT-AN-OPTION-WITH-M7  ENDIF
+ENDDO
   
 !DO JAER=1,NACTAERO
 !  DO JK=1,KLEV
@@ -865,9 +861,6 @@ ENDDO
  
 ! --> calling the microphysics scheme
  
-!THIS-IS-NOT-NEEDED   SELECT CASE (TRIM(AERO_SCHEME))
-!THIS-IS-NOT-NEEDED   
-!THIS-IS-NOT-NEEDED     CASE("hamm7")
     ! Initializations for submodel interface
     ZGRVOL(KIDIA:KFDIA,1:KLEV) = 1.79e12_JPRB ! ZGRVOL is only used for diagnostics (only when HAMMOZ is on)
     ZPBL = 1 ! boundary layer top = 1 (ITOP=1)
@@ -926,9 +919,11 @@ ENDDO
 
     ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero for now as it is not used (YET!)
 
+    ! LWP
     DO JK=1,KLEV
-       DO JL=KIDIA,KFDIA
-          ZTMPA = 1.0_JPRB/MAX(ZAP(JL,JK),ZEPSEC)
+      DO JL=KIDIA,KFDIA
+        IF ( ZAP(JL,JK) >=0.001_JPRB ) THEN
+          ZTMPA = 1.0_JPRB/ZAP(JL,JK)
           LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
           LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
           ZQLWP(JL,JK)   = MIN(MAX(0._JPRB, PLP(JL,JK)*ZTMPA), RCLDMAX)   ! lwc
@@ -980,15 +975,9 @@ ENDDO
                     &  ZSMAXMN, ZM6DRY, ZXTP1, KTRAC, ZSIGMA_W, ZFRACN, ZMIN_CDNC, ZDEF_CDNC, &
                     &  ZQLWP, LLIQCLD, LICECLD, ZDEF_RE_LIQ, ZDEF_RE_ICE)
        
-       !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
-       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC
-       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-       
-       PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX(((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV)),ZMIN_CDNC) ! add CDNC to PGFL field (convert from #/m3 to #/cm3) and treshold minimum value
-       PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = ZICNC(KIDIA:KFDIA,1:KLEV) ! add ICNC to PGFL field (does not need convert)
-       ! add effective radii to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
+       ! Store effective radii in PGFL
+       PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters
+       PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters
        
     ELSE IF (NCLOUDACT == 2) THEN ! AR&G scheme
 
@@ -1001,7 +990,7 @@ ENDDO
        !---calculate updraft velocity
        ZWCAPE(KIDIA:KFDIA) = 0._JPRB !  CAPE as zero as it is not used
        
-       CALL activ_updraft(KFDIA, KLON, KLEV, ZKROW, & ! krow = 1
+       CALL ACTIV_UPDRAFT(KFDIA, KLON, KLEV, ZKROW, & ! krow = 1
             ZTKEM1, ZWCAPE, PVERVEL, ZRHO, & ! turbulent kinetic energy, CAPE contr. to conv. vert. veloc. [m s-1], large scale vert. veloc.
             ZW, ZWPDF)
        
@@ -1009,13 +998,13 @@ ENDDO
           ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
        END DO
        
-       IF (ncd_activ == 2 .OR. nccndiag > 0) THEN
-          CALL ham_activ_koehler_ab(KFDIA, KLON, KLEV, ZKROW, KTDIA, & ! krow=1 ktdia=1
+       IF (NCD_ACTIV == 2 .OR. NCCNDIAG > 0) THEN
+          CALL HAM_ACTIV_KOEHLER_AB(KFDIA, KLON, KLEV, ZKROW, KTDIA, & ! krow=1 ktdia=1
                ZXTP1, PTP, ZA, ZB)
        END IF
        
-       DO JCLASS = 1,nclass! nclass=7
-          IF (sizeclass(jclass)%lsoluble) THEN 
+       DO JCLASS = 1,NCLASS
+          IF (SIZECLASS(JCLASS)%LSOLUBLE) THEN 
              ZRDRY(KIDIA:KFDIA,1:KLEV,JCLASS) = ZM6DRY(KIDIA:KFDIA,1:KLEV,JCLASS) !soluble modes rdry from rdry_m7
           ELSE
              ZRDRY(KIDIA:KFDIA,1:KLEV,JCLASS) = ZM6RP(KIDIA:KFDIA,1:KLEV,JCLASS)  !insoluble modes rdry from rwet_m7
@@ -1029,7 +1018,7 @@ ENDDO
           ENDDO
        ENDDO
 
-       ZWPDF(KIDIA:KFDIA,1:KLEV,:) = MAX(ZWPDF(KIDIA:KFDIA,1:KLEV,:),1.0E-6_JPRB) !eehol: treshold vvel PDF to 1e-6 to get rid of 0 division
+       ZWPDF(KIDIA:KFDIA,1:KLEV,:) = MAX(ZWPDF(KIDIA:KFDIA,1:KLEV,:),1.0E-6_JPRB) !eehol: threshold vvel PDF to 1e-6 to get rid of 0 division
        
        CALL HAM_ACTIV_ABDULRAZZAK_GHAN( KFDIA, KLON, KLEV, ZKROW, KTDIA,  & ! in original 1 = ktdia... for diagnostics so krow=1 and ktdia=1
                                       & ZCDNCACT, ZESW, ZRHO,             & ! number of activated particles, saturation vapor pressure, air density
@@ -1037,50 +1026,16 @@ ENDDO
                                       & ZW, ZWPDF, ZA, ZB, ZRDRY,         & ! mean udr veloc, pdf of udr. veloc, Koehler A, Koehler B, dry radius
                                       & ZNACT, ZFRACN, ZSC, ZRC, ZSMAX)     ! num. act. part. per mode, frac ", crit. ssat., crit. radius, max ssat
 
-       !<-- End activation for HAM-M7
-       !-----------------------------------------------------------------
-      
-       ! treshold fraction of activated particles to gridcells with only liquid clouds
+       ! threshold fraction of activated particles to gridcells with only liquid clouds
        DO JCLASS = 1,NCLASS
-          ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS) = MERGE(ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS),0._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
+         ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS) = MERGE(ZFRACN(KIDIA:KFDIA,1:KLEV,JCLASS),0._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
        ENDDO
 
        ! threshold CDNC and ICNC to grid cells with only liquid or ice clouds
        ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZDEF_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV), RNICE, LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
 
-       !-----------------------------------------------------------------
-       !--> Calculation for effective radii and put to PGFL fields
-       
-       ! put default values for effective radii
-       reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
-       reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
-       
-       ! liquid effective radius
-       DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA             
-             ! effective radius calculated similarly as in radlswr.F90
-             ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-             ZRE_LIQ(JL,JK) = 1.0E+6_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),ZMIN_CDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
-          END DO
-       END DO
-       ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
-       REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
-       CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
-            &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
-            &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
-       
-       ! only if there is ice cloud else minimum value
-       REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
-       
-       ! add effective radii to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-
-       !<-- End calculation for effective radii
-       !-----------------------------------------------------------------
-       
-    ELSE !eehol: default values if neither activation is used
+    ELSE !Default values if no activation scheme is used
       
        ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !init
 
@@ -1131,41 +1086,6 @@ ENDDO
        ZCDNCACT(KIDIA:KFDIA,1:KLEV) = MERGE(ZCDNCACT(KIDIA:KFDIA,1:KLEV),1.0E6_JPRB*ZDEF_CDNC,LLIQCLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside liq cloud
        ZICNC(KIDIA:KFDIA,1:KLEV) = MERGE(ZICNC(KIDIA:KFDIA,1:KLEV), RNICE, LICECLD(KIDIA:KFDIA,1:KLEV)) !mask only values inside ice cloud
 
-       !<-- Store CDNC (number of activated particles) and ICNC as a number mixing ratio to tracer values
-       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_cdnc) = (MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV),((1.0E6_JPRB)*ZMIN_CDNC)))/ZRHO(KIDIA:KFDIA,1:KLEV) ! [#/kg] and treshold CDNC to 1 cm-3
-       ZXTM1(KIDIA:KFDIA,1:KLEV,idt_icnc) = (1.0E6_JPRB)*ZICNC(KIDIA:KFDIA,1:KLEV)/ZRHO(KIDIA:KFDIA,1:KLEV) !ice crystal number conc = #/cm3 --> number mix rat [#/kg]
-       
-       PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = 1.0E-6_JPRB*( MAX(ZCDNCACT(KIDIA:KFDIA,1:KLEV), ZMIN_CDNC*1.0E+6_JPRB)) ! convert from #/m3 to #/cm3 and treshold minimum value to 1 cm-3
-       PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), 0.027_JPRB) ! no conversion needed: already in #/cm3, just max of default value (RNICE in sucldp.F90) and icnc
-
-       ! put default values for effective radii
-       reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
-       reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
-
-       !liquid effective radius
-       DO JK=1,KLEV
-          DO JL=KIDIA,KFDIA
-             ! effective radius calculated similarly as in radlswr.F90
-             ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-             ZRE_LIQ(JL,JK) = 1.E+6_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/(MAX(PGFL(JL,JK,YCDNC%MP9_PH),ZMIN_CDNC)))**0.333_JPRB ! calculate effective radius in um (use minimum value for CDNC if CDNC is small)
-          END DO
-       END DO
-
-       ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
-       REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),4._JPRB,LLIQCLD(KIDIA:KFDIA,1:KLEV))
-
-       !ice effective radius
-       CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
-            &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
-            &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
-       
-       ! only if there is ice cloud else minimum value
-       REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
-
-       ! add effective radii to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-       PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-
     END IF CLDACT
 
     CALL GSTATS(2502,1)
@@ -1209,55 +1129,11 @@ ENDDO
     ENDIF
 
     !-----------------------------------------------------------------
-    !--> Calculation of effective radii and put to PGFL fields
-
-    ! put default values for effective radii
-    reffl(KIDIA:KFDIA,1:KLEV,ZKROW) = 4._JPRB ! comes from liquid effective radius routine (PP_MIN_RE_UM)
-    reffi(KIDIA:KFDIA,1:KLEV,ZKROW) = 80._JPRB*0.64952_JPRB ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
-
-    ! liquid effective radius
-    DO JK=1,KLEV
-      DO JL=KIDIA,KFDIA
-        IF ( ZAP(JL,JK) >=0.001_JPRB ) THEN
-          ZTMPA = 1.0_JPRB/ZAP(JL,JK)
-          LLIQCLD(JL,JK) = ( PLP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for liquid cloud
-          LICECLD(JL,JK) = ( PIP(JL,JK)*ZTMPA  ) > ZEPSEC ! logical for ice cloud
-          ZQLWP2 = MAX(0._JPRB, PLP(JL,JK)*ZTMPA)         ! lwp
-          
-          ! effective radius (in um) calculated similarly as in radlswr.F90 
-          ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP2/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
-        ELSE
-          LLIQCLD(JL,JK) = .FALSE.
-          LICECLD(JL,JK) = .FALSE.
-        END IF
-      END DO
-    END DO
-
-    ! Add liq. eff. rad. to HAM variables (only if there is liquid cloud else minimum value)
-    REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV), 4._JPRB, LLIQCLD(KIDIA:KFDIA,1:KLEV))
-
-    CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
-         &  PRSF1, PTP, ZAP, PIP, PSP, PGEMU, & ! pressure, temp, cloud fr., IWC, SWC, sine of latitude
-         &  reffi(1:KLON,1:KLEV,ZKROW)) ! ice effective radius (updated to mo_activ variable 'reffi' which used in mo_ham_wetdep)
-
-    ! only if there is ice cloud else minimum value
-    REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = MERGE(REFFI(KIDIA:KFDIA,1:KLEV,ZKROW), 20._JPRB, LICECLD(KIDIA:KFDIA,1:KLEV))
-
-    ! add effective radii to PGFL fields
-    PGFL(KIDIA:KFDIA,1:KLEV,YRE_LIQ%MP9_PH) = 1.0E-06_JPRB * reffl(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-    PGFL(KIDIA:KFDIA,1:KLEV,YRE_ICE%MP9_PH) = 1.0E-06_JPRB * reffi(KIDIA:KFDIA,1:KLEV,ZKROW) ! convert um to meters and save to PGFL fields
-
-    !<-- End calculation of effective radii
-    !-----------------------------------------------------------------
-
     !--- Mass conserving correction of negative tracer values:
     CALL XT_BORROW(KFDIA, KLON,  KLEV, KLEV+1, NTRAC, &
          PRSF1, PRS1, &
          ZXTM1, ZXTTE)
 
-    ! RCHG -> This is wetdep interface it can be a subroutine afer "CONTAINS" 
-    !
     !-----------------------------------------------------------------
     !--> Wet deposition for HAM-M7
     CALL GSTATS(2503,0)
@@ -1532,7 +1408,7 @@ ENDDO
             ZLOLAND(JL) = .TRUE.
             ZAZ0W(JL) = 0._JPRB
           END IF
-          ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! treshold roughness length to min value
+          ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! threshold roughness length to min value
           ZFRW(JL)   = MAX(0.,1.-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
           ZCVS(JL)   = PFRTI(JL,5)+PFRTI(JL,7)     ! snow cover fraction = Snow on low-veg + snow on bare-soil + snow under high-veg
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
@@ -1624,11 +1500,6 @@ ENDDO
     !<-- End adding HAM modified tendency back to PTENC
     !-----------------------------------------------------------------
     
-!THIS-IS-NOT-NEEDED     CASE DEFAULT
-!THIS-IS-NOT-NEEDED       ! this case should never occur, as it is handled in the calling subroutine
-!THIS-IS-NOT-NEEDED       CALL ABOR1(" AEROSOL SCHEME "//TRIM(AERO_SCHEME)//" IS NOT HANDLED IN HAMM7" )
-!THIS-IS-NOT-NEEDED   
-!THIS-IS-NOT-NEEDED   END SELECT
 
 ! ZTSO4 is filled only if LAERCHEM=F, which is not possible with M7 - Commented out
 !THIS-IS-NEVER-USED   
@@ -1650,12 +1521,12 @@ IF (LAERNGAT) THEN
 
   DO JAER=1,NACTAERO
 
-      DO JK=1,KLEV
-        DO JL=KIDIA,KFDIA
-          ZAER(JL,JK) = ZCEN(JL,JK,KAERO(JAER))
-          ZTAER(JL,JK)= PTENC(JL,JK,KAERO(JAER))
-        ENDDO
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        ZAER(JL,JK) = ZCEN(JL,JK,KAERO(JAER))
+        ZTAER(JL,JK)= PTENC(JL,JK,KAERO(JAER))
       ENDDO
+    ENDDO
 
     CALL AER_NEGAT &
          & ( YREAERATM, KIDIA   , KFDIA, KLON , KLEV, &
@@ -1680,13 +1551,10 @@ IF (LAERNGAT) THEN
          &    ZDP, PTSPHY, ZTAERO ,ZTAERO0, PEXTRA(:,NCHEM+1:NCHEM+NACTAERO,IEXTR_NG))
   ENDIF
 
-
-! do not fix the tendencies for now, number concentration fixes will break the 
-! correlation between mass and number
+  ! do not fix the tendencies for now, number concentration fixes will break the
+  ! correlation between mass and number
   PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO)) = ZTAERO(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
 
-!ELSE
-!  ZAERNGT(:,:)=0._JPRB  
 ENDIF
 
 !------------------------------------------------------------------------------
@@ -1695,7 +1563,7 @@ ENDIF
 
 DO JAER=1,NACTAERO
   DO JL=KIDIA,KFDIA
-    PAERODDF(JL,JAER,1)=PAERSRC(JL,JAER) !aerosol so4 source term 
+    PAERODDF(JL,JAER,1)=PAERSRC(JL,JAER) ! aerosol so4 source term
     PAERODDF(JL,JAER,2)=PAERDDP(JL,JAER) ! aerosol dry deposition
     PAERODDF(JL,JAER,3)=PAERSDM(JL,JAER) ! aerosol sedimentation 
     PAERODDF(JL,JAER,4)=0.0              ! (todo) so2 sink added to scavenging
