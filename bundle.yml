@@ -30,7 +30,7 @@ projects :
 
     - ecbuild :
         git     : https://github.com/ecmwf/ecbuild
-        version : 3.7.0
+        version : 3.7.2
         bundle  : false
 
     - eccodes :
@@ -67,7 +67,7 @@ projects :
 
     - metkit :
         git     : https://github.com/ecmwf/metkit
-        version : 1.8.10
+        version : 1.9.0
         require : eckit
 
     - fdb5 :
@@ -80,13 +80,14 @@ projects :
 
     - atlas :
         git     : https://github.com/ecmwf/atlas
-        version : 0.34.0
+        version : 0.44.0
         require : eckit fckit
         cmake   : >
             ATLAS_ENABLE_TESSELATION=OFF
             ATLAS_ENABLE_TRANS=OFF
             ATLAS_ENABLE_CLANG_TIDY=OFF
             ATLAS_ENABLE_GRIDTOOLS_STORAGE=OFF
+            ATLAS_ENABLE_CUDA=OFF
 
     - multio :
         git     : https://github.com/ecmwf/multio/
