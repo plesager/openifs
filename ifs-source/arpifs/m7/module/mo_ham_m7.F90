@@ -4177,12 +4177,9 @@ END SUBROUTINE m7_concoag
               !           nucleation mode (transfers to the soluble modes
               !           of the particles coagulating with the nucleation mode 
               !           are done in m7_concoag):
- 
-              paerml(jl,jk,ibcki)=( zaernt + zansq + pbfract5(jl,jk,1)*zanli(jl,jk,iaiti) ) * & 
-                                    pttn(jl,jk,ibcki)*1.e12_dp 
+              paerml(jl,jk,ibcki) = zaernt * pttn(jl,jk,ibcki) * 1.e12_dp
+              paerml(jl,jk,iocki) = zaernt * pttn(jl,jk,iocki) * 1.e12_dp
 
-              paerml(jl,jk,iocki)=( zaernt + zansq + pbfract5(jl,jk,1)*zanli(jl,jk,iaiti) ) * & 
-                                    pttn(jl,jk,iocki)*1.e12_dp 
              
               !--- 1.2.4) Change the numbers of the insoluble aitken mode due to 
               !           intra-modal coagulation:
@@ -4208,9 +4205,9 @@ END SUBROUTINE m7_concoag
                        jn = speclist(jspec)%iaerocomp(iaiti)
                        !<<dod
                        zsoamass = 1.E12_dp*pttn(jl,jk,jn)
-                       paerml(jl,jk,jn) = ( zaernt + zansq +       &
-                                             pbfract5(jl,jk,1)*zanli(jl,jk,iaiti) ) * &
-                                             zsoamass
+                       ! HK FIX: donor mode retains only remaining mass
+                       zsoamass = 1.E12_dp * pttn(jl,jk,jn)
+                       paerml(jl,jk,jn) = zaernt * zsoamass
 
                        !>>dod deleted isoa_ix
                        jn = speclist(jspec)%iaerocomp(iaits)
