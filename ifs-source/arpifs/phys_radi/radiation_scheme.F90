@@ -6,26 +6,29 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction
 SUBROUTINE RADIATION_SCHEME &
-     & (YDMODEL,KIDIA, KFDIA, KLON, KLEV, KAEROSOL, &
-     &  PSOLAR_IRRADIANCE, &
-     &  PMU0, PTEMPERATURE_SKIN, PALBEDO_DIF, PALBEDO_DIR, &
-     &  PSPECTRALEMISS, &
-     &  PCCN_LAND, PCCN_SEA, &
-     &  PGELAM, PGEMU, PLAND_SEA_MASK, &
-     &  PPRESSURE, PTEMPERATURE, &
-     &  PPRESSURE_H, PTEMPERATURE_H, &
-     &  PQ, PCO2, PCH4, PN2O, PNO2, PCFC11, PCFC12, PHCFC22, PCCL4, PO3_DP, &
-     &  PCLOUD_FRAC, PQ_LIQUID, PQ_ICE, PQ_RAIN, PQ_SNOW, &
-     &  PAEROSOL_OLD, PAEROSOL, &
-     &  PFLUX_SW, PFLUX_LW, PFLUX_SW_CLEAR, PFLUX_LW_CLEAR, &
-     &  PFLUX_SW_DN, PFLUX_LW_DN, PFLUX_SW_DN_CLEAR, PFLUX_LW_DN_CLEAR, &
-     &  PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN, &
-     &  PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
-     &  PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
-     &  PSWDIFFUSEBAND, PSWDIRECTBAND, PPERT, PFSD)
+     & (YDMODEL,KIDIA, KFDIA, KLON, KLEV, KBL, KAEROSOL,                   &
+     & PSOLAR_IRRADIANCE,                                                  &
+     & PMU0, PTEMPERATURE_SKIN, PALBEDO_DIF, PALBEDO_DIR,                  &
+     & PSPECTRALEMISS,                                                     &
+     & PCCN_LAND, PCCN_SEA,                                                &
+     & PGELAM, PGEMU, PLAND_SEA_MASK,                                      &
+     & PPRESSURE, PTEMPERATURE,                                            &
+     & PPRESSURE_H, PTEMPERATURE_H,                                        &
+     & PQ, PCO2, PCH4, PN2O, PNO2, PCFC11, PCFC12, PHCFC22, PCCL4, PO3_DP, &
+     & PCLOUD_FRAC, PQ_LIQUID, PQ_ICE, PQ_RAIN, PQ_SNOW,                   &
+     & PAEROSOL_OLD, PAEROSOL,                                             &
+     & PFLUX_SW, PFLUX_LW, PFLUX_SW_CLEAR, PFLUX_LW_CLEAR,                 &
+     & PFLUX_SW_DN, PFLUX_LW_DN, PFLUX_SW_DN_CLEAR, PFLUX_LW_DN_CLEAR,     &
+     & PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN,                     &
+     & PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR,                               &
+     & PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE,                          &
+     & PSWDIFFUSEBAND, PSWDIRECTBAND,                                      &
+     & PAEROM7_TAU, PAEROM7_SSA, PAEROM7_ASYM, PAEROM7_TAULW,              & ! added for M7 aerosol
+     & PRE_LIQ, PRE_ICE,                                                   &
+     & PPERT, PFSD)
 
 ! RADIATION_SCHEME - Interface to modular radiation scheme
-!
+! 
 ! PURPOSE
 ! -------
 !   The modular radiation scheme is contained in a separate
@@ -71,7 +74,7 @@ USE YOMHOOK        , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMRIP0        , ONLY : NINDAT
 USE YOMCT3         , ONLY : NSTEP
 USE YOMCST         , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
-USE YOMLUN         , ONLY : NULERR
+USE YOMLUN         , ONLY : NULERR, NULOUT
 USE SPP_GEN_MOD    , ONLY : SPP_PERT
 USE MPL_MYRANK_MOD , ONLY : MPL_MYRANK
 USE RADIATION_SETUP, ONLY : ITYPE_TROP_BG_AER, ITYPE_STRAT_BG_AER
@@ -80,14 +83,18 @@ USE RADIATION_SETUP, ONLY : ITYPE_TROP_BG_AER, ITYPE_STRAT_BG_AER
 USE RADIATION_CONFIG,         ONLY : ISOLVERSPARTACUS
 USE RADIATION_SINGLE_LEVEL,   ONLY : SINGLE_LEVEL_TYPE
 USE RADIATION_THERMODYNAMICS, ONLY : THERMODYNAMICS_TYPE
-USE RADIATION_GAS,            ONLY : GAS_TYPE,&
-     &                               IMASSMIXINGRATIO, IVOLUMEMIXINGRATIO,&
-     &                               IH2O, ICO2, ICH4, IN2O, ICFC11, ICFC12, IHCFC22, ICCL4, IO3, IO2
+USE RADIATION_GAS,            ONLY : GAS_TYPE,                                 &
+     &                               IMASSMIXINGRATIO, IVOLUMEMIXINGRATIO,     &
+     &                               IH2O, ICO2, ICH4, IN2O, ICFC11, ICFC12,   &
+     &                               IHCFC22, ICCL4, IO3, IO2
 USE RADIATION_CLOUD,          ONLY : CLOUD_TYPE
 USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
 USE RADIATION_FLUX,           ONLY : FLUX_TYPE
 USE RADIATION_INTERFACE,      ONLY : RADIATION, SET_GAS_UNITS
 USE RADIATION_SAVE,           ONLY : SAVE_INPUTS, SAVE_FLUXES
+
+! CMIP6/7 straotspheric aerosols
+USE YOEAEROP, ONLY: STRATO_CMIP_NMONTH, STRATO_CMIP_NTB, STRATO_CMIP_NSB 
 
 IMPLICIT NONE
 
@@ -99,6 +106,7 @@ INTEGER(KIND=JPIM),INTENT(IN)   :: KIDIA    ! Start column to process
 INTEGER(KIND=JPIM),INTENT(IN)   :: KFDIA    ! End column to process
 INTEGER(KIND=JPIM),INTENT(IN)   :: KLON     ! Number of columns
 INTEGER(KIND=JPIM),INTENT(IN)   :: KLEV     ! Number of levels
+INTEGER(KIND=JPIM),INTENT(IN)   :: KBL      ! Block to read strat aerosols
 INTEGER(KIND=JPIM),INTENT(IN)   :: KAEROSOL ! Number of aerosol types
 
 ! *** Single-level fields
@@ -145,6 +153,11 @@ REAL(KIND=JPRB),   INTENT(IN) :: PQ_SNOW(KLON,KLEV)
 ! *** Aerosol mass mixing ratios
 REAL(KIND=JPRB),   INTENT(IN) :: PAEROSOL_OLD(KLON,6,KLEV)
 REAL(KIND=JPRB),   INTENT(IN) :: PAEROSOL(KLON,KLEV,KAEROSOL)
+
+REAL(KIND=JPRB),   INTENT(IN), OPTIONAL :: PAEROM7_TAU(KLON,KLEV,14)
+REAL(KIND=JPRB),   INTENT(IN), OPTIONAL :: PAEROM7_SSA(KLON,KLEV,14)
+REAL(KIND=JPRB),   INTENT(IN), OPTIONAL :: PAEROM7_ASYM(KLON,KLEV,14)
+REAL(KIND=JPRB),   INTENT(IN), OPTIONAL :: PAEROM7_TAULW(KLON,KLEV,16)
 
 REAL(KIND=JPRB),   INTENT(IN) :: PCCN_LAND(KLON) 
 REAL(KIND=JPRB),   INTENT(IN) :: PCCN_SEA(KLON) 
@@ -193,6 +206,9 @@ REAL(KIND=JPRB),  INTENT(OUT) :: PLWDERIVATIVE(KLON,KLEV+1)
 REAL(KIND=JPRB),  INTENT(OUT) :: PSWDIFFUSEBAND(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NSW)
 REAL(KIND=JPRB),  INTENT(OUT) :: PSWDIRECTBAND (KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NSW)
 
+REAL(KIND=JPRB),  INTENT(IN), OPTIONAL :: PRE_LIQ(KLON,KLEV)
+REAL(KIND=JPRB),  INTENT(IN), OPTIONAL :: PRE_ICE(KLON,KLEV)
+
 ! SPP perturbations
 REAL(KIND=JPRB),  INTENT(IN), OPTIONAL :: PPERT(KLON, YDMODEL%YRML_GCONF%YRSPP_CONFIG%SM%NRFTOTAL_RADGRID)
 
@@ -205,6 +221,7 @@ TYPE(THERMODYNAMICS_TYPE) :: THERMODYNAMICS
 TYPE(GAS_TYPE)            :: GAS
 TYPE(CLOUD_TYPE)          :: YLCLOUD
 TYPE(AEROSOL_TYPE)        :: AEROSOL
+TYPE(AEROSOL_TYPE)        :: STRAT_AEROSOL
 TYPE(FLUX_TYPE)           :: FLUX
 
 ! Mass mixing ratio of ozone (kg/kg)
@@ -241,7 +258,7 @@ REAL(KIND=JPRB)           :: ZFACTOR
 INTEGER(KIND=JPIM) :: ITIM, IDAY
 
 ! Loop indices
-INTEGER(KIND=JPIM) :: JLON, JLEV, JBAND, JAER
+INTEGER(KIND=JPIM) :: JLON, JLEV, JBAND, JAER, JIW, IJLEV, JSW_ORDERED_BIS
 
 ! Have any fluxes been returned that are out of a physically
 ! reasonable range? This integer stores the number of blocks of fluxes
@@ -260,6 +277,16 @@ CHARACTER(LEN=512) :: CL_FILE_NAME
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+! CMIP6/7 stratospheric aerosols - ALaakso
+REAL(KIND=JPRB)       :: ZAODSTRAT_M    (KLON,KLEV, STRATO_CMIP_NSB, STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_M   (KLON,KLEV, STRATO_CMIP_NSB, STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZREFAODSTRAT_M (KLON,KLEV, STRATO_CMIP_NSB, STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_LW_M(KLON,KLEV, STRATO_CMIP_NTB, STRATO_CMIP_NMONTH)
+REAL(KIND=JPRB)       :: ZAODSTRAT      (KLON,KLEV, STRATO_CMIP_NSB)
+REAL(KIND=JPRB)       :: ZAAODSTRAT     (KLON,KLEV, STRATO_CMIP_NSB)
+REAL(KIND=JPRB)       :: ZREFAODSTRAT   (KLON,KLEV, STRATO_CMIP_NSB)
+REAL(KIND=JPRB)       :: ZAAODSTRAT_LW  (KLON,KLEV, STRATO_CMIP_NTB)
+INTEGER(KIND=JPIM)    :: KTROPPAUSE(KLON)
 
 ! Import time functions for iseed calculation
 #include "fcttim.func.h"
@@ -270,34 +297,59 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "satur.intfb.h"
 !#include "abor1.intfb.h"
 
+!CMIP7 stratospheric aerosols 
+#include "cmip_strato_aero_interp.intfb.h"
+#include "cmip_strato_aero_process.intfb.h"
+
 IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME',0,ZHOOK_HANDLE)
 
-ASSOCIATE(YDRADIATION=>YDMODEL%YRML_PHY_RAD%YRADIATION, &
-     &    YRERAD=>YDMODEL%YRML_PHY_RAD%YRERAD, &
-     &    YDSPP_CONFIG=>YDMODEL%YRML_GCONF%YRSPP_CONFIG)
-ASSOCIATE(RAD_CONFIG=>YDRADIATION%RAD_CONFIG, &
-     &    NWEIGHT_UV=>YDRADIATION%NWEIGHT_UV, &
-     &    IBAND_UV  =>YDRADIATION%IBAND_UV(:), &
-     &    WEIGHT_UV =>YDRADIATION%WEIGHT_UV(:), &
-     &    NWEIGHT_PAR=>YDRADIATION%NWEIGHT_PAR, &
-     &    IBAND_PAR =>YDRADIATION%IBAND_PAR(:), &
-     &    WEIGHT_PAR=>YDRADIATION%WEIGHT_PAR(:), &
-     &    TROP_BG_AER_MASS_EXT=>YDRADIATION%TROP_BG_AER_MASS_EXT, &
-     &    STRAT_BG_AER_MASS_EXT=>YDRADIATION%STRAT_BG_AER_MASS_EXT)
+ASSOCIATE(YDRADIATION           => YDMODEL%YRML_PHY_RAD%YRADIATION,   &
+     &    YRERAD                => YDMODEL%YRML_PHY_RAD%YRERAD,       &
+     &    YDSPP_CONFIG          => YDMODEL%YRML_GCONF%YRSPP_CONFIG,   &
+     &    YDEAERATM             => YDMODEL%YRML_PHY_RAD%YREAERATM,    &
+     &    YDCOMPO               => YDMODEL%YRML_CHEM%YRCOMPO)
+ASSOCIATE(NCLOUDACT             => YRERAD%NCLOUDACT,                  &
+     &    RAD_CONFIG            => YDRADIATION%RAD_CONFIG,            &
+     &    NWEIGHT_UV            => YDRADIATION%NWEIGHT_UV,            &
+     &    IBAND_UV              => YDRADIATION%IBAND_UV(:),           &
+     &    WEIGHT_UV             => YDRADIATION%WEIGHT_UV(:),          &
+     &    NWEIGHT_PAR           => YDRADIATION%NWEIGHT_PAR,           &
+     &    IBAND_PAR             => YDRADIATION%IBAND_PAR(:),          &
+     &    WEIGHT_PAR            => YDRADIATION%WEIGHT_PAR(:),         &
+     &    TROP_BG_AER_MASS_EXT  => YDRADIATION%TROP_BG_AER_MASS_EXT,  &
+     &    STRAT_BG_AER_MASS_EXT => YDRADIATION%STRAT_BG_AER_MASS_EXT, &
+     &    AERO_SCHEME           => YDCOMPO%AERO_SCHEME)
+
+ASSOCIATE(YDPHYAER   => YDMODEL%YRML_PHY_AER )
+ASSOCIATE(YDAERSTRAT => YDPHYAER%YREAEROSTRAT )
+
 ! Allocate memory in radiation objects
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
      &                     USE_SW_ALBEDO_DIRECT=.TRUE.)
 CALL THERMODYNAMICS%ALLOCATE(KLON, KLEV, USE_H2O_SAT=.TRUE.)
 CALL GAS%ALLOCATE(KLON, KLEV)
 CALL YLCLOUD%ALLOCATE(KLON, KLEV)
-IF (YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCCN &
-     &  .OR. YDMODEL%YRML_PHY_RAD%YREAERATM%LAERRRTM &
-     &  .OR. YRERAD%NAERMACC == 1) THEN
-  CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, KAEROSOL) ! MACC aerosols
+
+! LAERCCN  -> .T. if we use prognostic aerosols to define the Re of liq.wat.clds
+! LAERRRTM -> .T. if RRTM uses information from prognostic aerosols
+! NAERMACC -> 0 => Tegen climatology || 1 => MACC based climatology
+IF (YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) THEN
+  !  For "aer" and MACC clim. -> allocates arrays  mixing-ratio -> used to calc. opt. prop.
+  !  For "hamm7" -> allocates directly arrays of optical properties if used by RRTM
+  !                 else we fallback on MACC clim.
+  IF ( TRIM(AERO_SCHEME) == "hamm7" .AND. YDEAERATM%LAERRRTM ) THEN
+    CALL AEROSOL%ALLOCATE_DIRECT(RAD_CONFIG, KLON, 1, KLEV) 
+  ELSE
+    CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, KAEROSOL)
+    ! MACC aerosols (Number of columns, istartlev, iendlev, number of SW+LW bands)
+  ENDIF
 ELSE
   CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, 6) ! Tegen climatology
 ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
+
+! Stratospheric aerosols. Fields are 0 if LCMIP6_STRATAER_FULL = FALSE
+CALL STRAT_AEROSOL%ALLOCATE_DIRECT(RAD_CONFIG, KLON, 1, KLEV)
 
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
@@ -341,7 +393,7 @@ CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, YDMODEL%YRML_PHY_SLIN%YREPHLI%LPHYLIN, &
 ! the thermodynamics structure
 !CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
 
-! Set single-level fileds
+! Set single-level fields
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
 SINGLE_LEVEL%COS_SZA(KIDIA:KFDIA)          = PMU0(KIDIA:KFDIA)
 SINGLE_LEVEL%SKIN_TEMPERATURE(KIDIA:KFDIA) = PTEMPERATURE_SKIN(KIDIA:KFDIA)
@@ -404,20 +456,27 @@ YLCLOUD%Q_LIQ(KIDIA:KFDIA,:)    = PQ_LIQUID(KIDIA:KFDIA,:)
 YLCLOUD%Q_ICE(KIDIA:KFDIA,:)    = PQ_ICE(KIDIA:KFDIA,:) + PQ_SNOW(KIDIA:KFDIA,:)
 YLCLOUD%FRACTION(KIDIA:KFDIA,:) = PCLOUD_FRAC(KIDIA:KFDIA,:)
 
+! Get/Compute effective radii and convert to metres
+IF(NCLOUDACT > 0) THEN
+   ZRE_LIQUID_UM(KIDIA:KFDIA,:) = MAX(2.0E-06_JPRB, PRE_LIQ(KIDIA:KFDIA,:)) * 1.E6_JPRB
+   ZRE_ICE_UM(KIDIA:KFDIA,:) = PRE_ICE(KIDIA:KFDIA,:) * 1.E6_JPRB
+ELSE
 ! Compute effective radii and convert to metres
 
-CALL LIQUID_EFFECTIVE_RADIUS(YDMODEL%YRML_PHY_RAD%YRERAD, &
-     &  YDMODEL%YRML_PHY_EC%YRECLDP,YDSPP_CONFIG,YDMODEL%YRML_GCONF%YGFL, &
-     &  KIDIA, KFDIA, KLON, KLEV, &
-     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQUID, PQ_RAIN, &
-     &  PLAND_SEA_MASK, PCCN_LAND, PCCN_SEA, &
-     &  ZRE_LIQUID_UM, PPERT=PPERT)
-YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+   CALL LIQUID_EFFECTIVE_RADIUS(YDMODEL%YRML_PHY_RAD%YRERAD, &
+        &  YDMODEL%YRML_PHY_EC%YRECLDP,YDSPP_CONFIG,YDMODEL%YRML_GCONF%YGFL, &
+        &  KIDIA, KFDIA, KLON, KLEV, &
+        &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQUID, PQ_RAIN, &
+        &  PLAND_SEA_MASK, PCCN_LAND, PCCN_SEA, &
+        &  ZRE_LIQUID_UM, PPERT=PPERT)
+   
+   CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
+        &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
+        &  ZRE_ICE_UM, PPERT=PPERT)
+ENDIF
 
-CALL ICE_EFFECTIVE_RADIUS(YRERAD, YDSPP_CONFIG, KIDIA, KFDIA, KLON, KLEV, &
-     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
-     &  ZRE_ICE_UM, PPERT=PPERT)
-YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = MIN((MAX((ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),2.0E-6_JPRB)), 50.0E-6_JPRB) ! threshold liq effective radius 2-50 um
+YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = MIN((MAX((ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),  10.0E-6_JPRB)),150.0E-6_JPRB) ! threshold ice effective radius 10-150 um
 
 ! Get the cloud overlap decorrelation length (for cloud boundaries),
 ! in km, according to the parameterization specified by NDECOLAT,
@@ -427,7 +486,6 @@ YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
 CALL CLOUD_OVERLAP_DECORR_LEN(YDMODEL%YRML_PHY_EC%YRECLD,KIDIA,KFDIA,KLON, &
      &  PGEMU,YRERAD%NDECOLAT, &
      &  PDECORR_LEN_EDGES_KM=ZDECORR_LEN_KM, PDECORR_LEN_RATIO=ZDECORR_LEN_RATIO)
-
 ! prepare SPP
 IF (YDSPP_CONFIG%LSPP) THEN
   
@@ -461,9 +519,9 @@ ENDIF
 ! Compute cloud overlap parameter from decorrelation length
 RAD_CONFIG%CLOUD_INHOM_DECORR_SCALING = ZDECORR_LEN_RATIO
 DO JLON = KIDIA,KFDIA
-  CALL YLCLOUD%SET_OVERLAP_PARAM(THERMODYNAMICS,&
-       &                       ZDECORR_LEN_KM(JLON)*1000.0_JPRB,&
-       &                       ISTARTCOL=JLON, IENDCOL=JLON)
+  CALL YLCLOUD%SET_OVERLAP_PARAM( THERMODYNAMICS,                   &
+       &                          ZDECORR_LEN_KM(JLON)*1000.0_JPRB, &
+       &                          ISTARTCOL=JLON, IENDCOL=JLON)
 ENDDO
 
 ! Cloud water content fractional standard deviation is configurable
@@ -506,41 +564,77 @@ ENDIF
 ! kg m-2, needed to scale some of the aerosol inputs
 CALL THERMODYNAMICS%GET_LAYER_MASS(KIDIA,KFDIA,ZLAYER_MASS)
 
-! Copy over aerosol mass mixing ratio
-IF (YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCCN &
-     &  .OR. YDMODEL%YRML_PHY_RAD%YREAERATM%LAERRRTM &
-     &  .OR. YRERAD%NAERMACC == 1) THEN
+! Copy over aerosol mass mixing ratio or optical properties 
+IF ( YDEAERATM%LAERCCN .OR. YDEAERATM%LAERRRTM .OR. YRERAD%NAERMACC == 1) then
 
-
-  ! MACC aerosol from climatology or prognostic aerosol variables -
-  ! this is already in mass mixing ratio units with the required array
-  ! orientation so we can copy it over directly
-  ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability 
-  ! in case of negative values in input
-  DO JAER = 1,KAEROSOL  
-    DO JLEV = 1,KLEV    
-      DO JLON = KIDIA,KFDIA
-        AEROSOL%MIXING_RATIO(JLON,JLEV,JAER) = MAX(PAEROSOL(JLON,JLEV,JAER),0.0_JPRB)
+  IF ( .NOT. AEROSOL%is_direct) THEN
+    ! MACC aerosol from climatology or prognostic AER aerosol variables -
+    ! this is already in mass mixing ratio units with the required array
+    ! orientation so we can copy it over directly
+    ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability 
+    ! in case of negative values in input
+    DO JAER = 1,KAEROSOL
+      DO JLEV = 1,KLEV
+        DO JLON = KIDIA,KFDIA
+          AEROSOL%MIXING_RATIO(JLON,JLEV,JAER) = MAX(PAEROSOL(JLON,JLEV,JAER),0.0_JPRB)
+        ENDDO
       ENDDO
     ENDDO
-  ENDDO
 
-  IF (YRERAD%NAERMACC == 1) THEN
-    ! Add the tropospheric and stratospheric backgrounds contained in the
-    ! old Tegen arrays - this is very ugly!
-    IF (TROP_BG_AER_MASS_EXT > 0.0_JPRB) THEN
-      AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
-           &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
-           &  + PAEROSOL_OLD(KIDIA:KFDIA,1,:)&
-           &  / (ZLAYER_MASS * TROP_BG_AER_MASS_EXT)
+    IF (YRERAD%NAERMACC == 1) THEN
+      ! Add the tropospheric and stratospheric backgrounds contained in the
+      ! old Tegen arrays - this is very ugly!
+      IF (TROP_BG_AER_MASS_EXT > 0.0_JPRB) THEN
+        AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
+             &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_TROP_BG_AER)&
+             &  + PAEROSOL_OLD(KIDIA:KFDIA,1,:)&
+             &  / (ZLAYER_MASS * TROP_BG_AER_MASS_EXT)
+      ENDIF
+      IF (STRAT_BG_AER_MASS_EXT > 0.0_JPRB) THEN
+        AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
+             &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
+             &  + PAEROSOL_OLD(KIDIA:KFDIA,6,:)&
+             &  / (ZLAYER_MASS * STRAT_BG_AER_MASS_EXT)
+      ENDIF
     ENDIF
-    IF (STRAT_BG_AER_MASS_EXT > 0.0_JPRB) THEN
-      AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
-           &  = AEROSOL%MIXING_RATIO(KIDIA:KFDIA,:,ITYPE_STRAT_BG_AER)&
-           &  + PAEROSOL_OLD(KIDIA:KFDIA,6,:)&
-           &  / (ZLAYER_MASS * STRAT_BG_AER_MASS_EXT)
-    ENDIF
-  ENDIF
+  ELSE ! AEROSOL%IS_DIRECT=TRUE, which occurs only if "hamm7" .and. LAERRRTM=T
+    
+    ! Copy optical properties of HAMM7 aerosols
+
+      ! reset
+      IF (RAD_CONFIG%DO_SW) THEN
+        AEROSOL%OD_SW(1:YRERAD%NTSW,:,KIDIA:KFDIA)  = 0.0_JPRB
+        AEROSOL%SSA_SW(1:YRERAD%NTSW,:,KIDIA:KFDIA) = 0.0_JPRB
+        AEROSOL%G_SW(1:YRERAD%NTSW,:,KIDIA:KFDIA)   = 0.0_JPRB
+      ENDIF
+      IF (RAD_CONFIG%DO_LW) THEN
+        AEROSOL%OD_LW(1:STRATO_CMIP_NTB,:,KIDIA:KFDIA)  = 0.0_JPRB
+      ENDIF
+
+      ! fill with M7 values
+      IF (YRERAD%NAEROOPT>0) THEN
+        IF (RAD_CONFIG%DO_SW) THEN
+          DO JAER = 1,YRERAD%NTSW
+            DO JLEV = 1,KLEV
+              DO JLON = KIDIA,KFDIA
+                AEROSOL%OD_SW(JAER,JLEV,JLON)  = PAEROM7_TAU(JLON,JLEV,JAER)
+                AEROSOL%SSA_SW(JAER,JLEV,JLON) = PAEROM7_SSA(JLON,JLEV,JAER)
+                AEROSOL%G_SW(JAER,JLEV,JLON)   = PAEROM7_ASYM(JLON,JLEV,JAER)
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+        IF (RAD_CONFIG%DO_LW) THEN
+          DO JAER = 1,STRATO_CMIP_NTB
+            DO JLEV = 1,KLEV
+              DO JLON = KIDIA,KFDIA
+                AEROSOL%OD_LW(JAER,JLEV,JLON)  = PAEROM7_TAULW(JLON,JLEV,JAER)
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+      ENDIF
+  ENDIF 
 ELSE
 
   ! Tegen aerosol climatology - the array PAEROSOL_OLD contains the
@@ -560,6 +654,118 @@ ELSE
     ENDDO
   ENDDO
 
+ENDIF 
+
+!CMIP6/7 Stratospheric aerosols
+ZAODSTRAT(:,:,:)=0.0_JPRB
+ZAAODSTRAT(:,:,:)=0.0_JPRB
+ZREFAODSTRAT(:,:,:)=0.0_JPRB
+ZAAODSTRAT_LW(:,:,:)=0.0_JPRB
+IF (YRERAD%LCMIP_STRATAER_CMIP6 .OR. YRERAD%LCMIP_STRATAER_CMIP7) THEN
+
+  ! Interpolate only if new data have been read
+  IF (YRERAD%LSTRATAERO_UPDATED) THEN
+      
+    CALL  CMIP_STRATO_AERO_INTERP (YDMODEL,  KIDIA,  KFDIA,  KLON, KLEV, 1 , 0,  &
+                          &     PPRESSURE_H,   PGELAM, PGEMU,                    &
+                          &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M)
+
+    YDAERSTRAT%STRAT_AOD(KIDIA:KFDIA,:,:,:,KBL) = ZAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+    YDAERSTRAT%STRAT_AAOD(KIDIA:KFDIA,:,:,:,KBL) = ZAAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+    YDAERSTRAT%STRAT_REFAOD(KIDIA:KFDIA,:,:,:,KBL)= ZREFAODSTRAT_M(KIDIA:KFDIA,:,:,:)
+    YDAERSTRAT%STRAT_AAOD_LW(KIDIA:KFDIA,:,:,:,KBL) = ZAAODSTRAT_LW_M(KIDIA:KFDIA,:,:,:)
+  ELSE
+    ! no new data, use the last computed values
+    ZAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AOD(KIDIA:KFDIA,:,:,:,KBL)
+    ZAAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AAOD(KIDIA:KFDIA,:,:,:,KBL)
+    ZREFAODSTRAT_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_REFAOD(KIDIA:KFDIA,:,:,:,KBL)
+    ZAAODSTRAT_LW_M(KIDIA:KFDIA,:,:,:) = YDAERSTRAT%STRAT_AAOD_LW(KIDIA:KFDIA,:,:,:,KBL)
+  ENDIF
+
+   ! Time interpolation and excluding the data below the tropopause, each timestep.
+   CALL CMIP_STRATO_AERO_PROCESS (YDMODEL,KIDIA, KFDIA, KLON, KLEV, 1 , 0,                      &
+                        &     NINDAT, YDMODEL%YRML_GCONF%YRRIP%NSTADD,                          &
+                        &     PPRESSURE, PPRESSURE_H, PTEMPERATURE, PTEMPERATURE_H, PGELAM,     &
+                        &     ZAODSTRAT_M, ZAAODSTRAT_M, ZREFAODSTRAT_M, ZAAODSTRAT_LW_M,       &
+                        &     ZAODSTRAT, ZAAODSTRAT, ZREFAODSTRAT, ZAAODSTRAT_LW, KTROPPAUSE)
+
+   ! Excluding optical properties of M7 aerosols above stratosphere
+   IF ( AEROSOL%IS_DIRECT ) THEN
+     DO JLON=KIDIA,KFDIA
+       IF (RAD_CONFIG%DO_SW) THEN
+         AEROSOL%OD_SW (1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+         AEROSOL%SSA_SW(1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+         AEROSOL%G_SW  (1:YRERAD%NTSW, 1:KTROPPAUSE(JLON)-1, JLON) = 0.0_JPRB
+       ENDIF
+       IF (RAD_CONFIG%DO_LW) THEN
+         AEROSOL%OD_LW(1:STRATO_CMIP_NTB, 1:KTROPPAUSE(JLON)-1, JLON)  = 0.0_JPRB
+       ENDIF
+     ENDDO
+   ELSE
+     ! TODO: this needs to be confirmed
+     DO JAER = 1,KAEROSOL
+       DO JLON = KIDIA,KFDIA
+         AEROSOL%MIXING_RATIO(JLON, 1:KTROPPAUSE(JLON)-1, JAER) = 0.0_JPRB
+       ENDDO
+     ENDDO
+   ENDIF
+
+ELSE
+   ZAODSTRAT(:,:,:)=0.0_JPRB
+   ZAAODSTRAT(:,:,:)=0.0_JPRB
+   ZREFAODSTRAT(:,:,:)=0.0_JPRB
+   ZAAODSTRAT_LW(:,:,:)=0.0_JPRB
+ENDIF
+
+STRAT_AEROSOL%OD_SW(:,:,KIDIA:KFDIA)=0.0_JPRB               
+STRAT_AEROSOL%SSA_SW(:,:,KIDIA:KFDIA) = 0.0_JPRB
+STRAT_AEROSOL%G_SW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%OD_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%SSA_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+STRAT_AEROSOL%G_LW(:,:,KIDIA:KFDIA)   = 0.0_JPRB
+IF (RAD_CONFIG%DO_SW) THEN
+  IF (YRERAD%LCMIP_STRATAER_CMIP6) THEN
+    DO JLEV = 1,KLEV
+      IJLEV=KLEV+1-JLEV
+      DO JAER=1,YRERAD%NTSW  ! SW radiation     
+        !      ! IFS wavelength intervals 1..14 as defined in SUSRTAER correspond to 2..14,1 in the CMIP6 forcing
+        JSW_ORDERED_BIS=JAER+1 
+        IF (JAER==14) THEN 
+          JSW_ORDERED_BIS=1
+        ENDIF
+        STRAT_AEROSOL%OD_SW(JAER,JLEV,KIDIA:KFDIA)=ZAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)               
+        STRAT_AEROSOL%SSA_SW(JAER,JLEV,KIDIA:KFDIA) = &
+             &ZAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)-ZAAODSTRAT(KIDIA:KFDIA,JLEV,JSW_ORDERED_BIS)
+        STRAT_AEROSOL%G_SW(JAER,JLEV,KIDIA:KFDIA)   = ZREFAODSTRAT(KIDIA:KFDIA,IJLEV,JSW_ORDERED_BIS)
+
+      ENDDO
+    ENDDO
+
+  ELSEIF(YRERAD%LCMIP_STRATAER_CMIP7) THEN
+    DO JLEV = 1,KLEV
+      IJLEV=KLEV+1-JLEV
+      DO JAER=1,YRERAD%NTSW  ! SW radiation     
+        ! CMIP7 wavelengts are already in right order
+        STRAT_AEROSOL%OD_SW(JAER,JLEV,KIDIA:KFDIA)=ZAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)               
+        STRAT_AEROSOL%SSA_SW(JAER,JLEV,KIDIA:KFDIA) = &
+             &ZAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)-ZAAODSTRAT(KIDIA:KFDIA,JLEV,JAER)
+        STRAT_AEROSOL%G_SW(JAER,JLEV,KIDIA:KFDIA)   = ZREFAODSTRAT(KIDIA:KFDIA,IJLEV,JAER)
+
+      ENDDO
+    ENDDO
+
+  ENDIF
+ENDIF
+
+IF (RAD_CONFIG%DO_LW) THEN
+  DO JLEV = 1,KLEV
+    IJLEV=KLEV+1-JLEV
+    DO JAER=1,STRATO_CMIP_NTB  !LW radiation
+        STRAT_AEROSOL%OD_LW(JAER,JLEV,KIDIA:KFDIA)=ZAAODSTRAT_LW(KIDIA:KFDIA,IJLEV,JAER)
+        STRAT_AEROSOL%SSA_LW(JAER,JLEV,KIDIA:KFDIA)=0.0_JPRB !only absorbtion for LW
+        STRAT_AEROSOL%G_LW(JAER,JLEV,KIDIA:KFDIA)=0.0_JPRB
+    ENDDO 
+  ENDDO
 ENDIF
 
 
@@ -588,8 +794,8 @@ CALL GAS%PUT_WELL_MIXED(IO2, IVOLUMEMIXINGRATIO, 0.20944_JPRB)
 CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
 
 ! Call radiation scheme
-CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
-     &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
+CALL RADIATION( KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,                          &
+     &          SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, STRAT_AEROSOL, FLUX)
 
 ! Check fluxes are within physical bounds
 IF (YRERAD%NDUMPBADINPUTS /= 0 &
@@ -720,11 +926,13 @@ CALL THERMODYNAMICS%DEALLOCATE
 CALL GAS%DEALLOCATE
 CALL YLCLOUD%DEALLOCATE
 CALL AEROSOL%DEALLOCATE
+CALL STRAT_AEROSOL%DEALLOCATE
 CALL FLUX%DEALLOCATE
 
 END ASSOCIATE
 END ASSOCIATE
-
+END ASSOCIATE
+END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME',1,ZHOOK_HANDLE)
 
 END SUBROUTINE RADIATION_SCHEME

@@ -10,7 +10,7 @@ SUBROUTINE AER_SO2SO4_V2 &
   &( YDRIP, KIDIA , KFDIA , KLON  , KLEV  ,         &
   &  PTSPHY, PTP   , PRSF1 , PNEB  , PQLI  , PGELAT, PGELAM, &
   &  PSO2  , PITSO2, POH, PO3, PH2O2    ,         &
-  &  PTSO2 , PTSO4, PFSO2, PFSO4, PDP )
+  &  PTSO2 , PTSO4, PTSO4_AQ, PFSO2, PFSO4, PFSO4_AQ, PDP )
 
 !*** *AER_SO2SO4_V2* - GAS-TO-PARTICLE (SULPHATE AEROSOLS)
 
@@ -31,7 +31,8 @@ SUBROUTINE AER_SO2SO4_V2 &
 !        28-Mar-2017 : in this test version, oxidants are not depleted
 !                      reason: C-IFS climatologies are already depleted after S(iv) oxidation, thus input oxidants concentration
 !                              can be considered as "background" concentrations, which should not be depleted during oxidation
-
+!        2026-05-14: Force computation in double precision, and modify condition to account for aqueous phase reaction, P. Le Sager (KNMI)
+!
 !     FUTURE IMPROVEMENTS / To Do LIST
 !     --------------------------------
 !        - check that SO2 (g) + OH (g) is the limiting step: see notebook p. 93
@@ -42,23 +43,19 @@ SUBROUTINE AER_SO2SO4_V2 &
 !        - notebook p. 24: oxidants limitation
 !-----------------------------------------------------------------------
 
-USE PARKIND1    ,ONLY : JPIM     ,JPRB
-USE YOMHOOK     ,ONLY : LHOOK,   DR_HOOK, JPHOOK
-USE YOMRIP   , ONLY : TRIP
-
-USE YOMCST      ,ONLY : &
-  & RNAVO, & ! Avogadro number      [mol**-1]
-  & R, &     ! gas constant         [J / K / mol]
-  & RD,RG         ! dry air gas constant [J / K / kg]
-
+USE PARKIND1, ONLY : JPIM, JPRB, JPRD
+USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMRIP,   ONLY : TRIP
+USE YOMCST,   ONLY : &
+  & DR, &     ! gas constant         [J / K / mol]
+  & DRD, RG   ! dry air gas constant [J / K / kg]
 
 IMPLICIT NONE
-
 
 !*       0.1   ARGUMENTS
 !              ---------
 
-TYPE(TRIP)        ,INTENT(INOUT) :: YDRIP
+TYPE(TRIP)        ,INTENT(IN)    :: YDRIP
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
@@ -75,13 +72,12 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PGELAT (KLON)    ! Latitude
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSO2(KLON,KLEV)   ! SO2 mass mixing ratio                 [kg / kg(air)]
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PITSO2(KLON,KLEV) ! previous tendency for SO2             [kg / kg(air) / s]
 REAL(KIND=JPRB)   ,INTENT(IN)    :: POH(KLON,KLEV)    ! oxidants [kg / kg]
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PH2O2(KLON,KLEV)    ! oxidants [kg / kg]
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PH2O2(KLON,KLEV)  ! oxidants [kg / kg]
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PO3(KLON,KLEV)    ! oxidants [kg / kg]
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PDP(KLON,KLEV) 
 
-
-REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PTSO2(KLON,KLEV), PTSO4(KLON,KLEV) ! new tendencies       [kg / kg(air) / s]
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSO2(KLON), PFSO4(KLON)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTSO2(KLON,KLEV), PTSO4(KLON,KLEV), PTSO4_AQ(KLON,KLEV) ! new tendencies [kg / kg(air) / s]
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSO2(KLON), PFSO4(KLON), PFSO4_AQ(KLON)
 
 
 !*       0.3   LOCAL PARAMETERS
@@ -91,98 +87,87 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSO2(KLON), PFSO4(KLON)
 ! Henry's law data !
 !==================!
 ! reference temperature for Henry's law solubility coefficients                                   [K]
-REAL(KIND=JPRB), PARAMETER :: ZTREF_H = 298.15_JPRB
+REAL(KIND=JPRD), PARAMETER :: ZTREF_H = 298.15_JPRD
 ! inverse reference temperature for Henry's law solubility coefficients, and some rate constants  [K**-1]
-REAL(KIND=JPRB), PARAMETER :: ZITREF_H = 1._JPRB / ZTREF_H
+REAL(KIND=JPRD), PARAMETER :: ZITREF_H = 1._JPRD / ZTREF_H
 
 ! Henry's law solubility coefficients at T=Tref, and their temperature dependency (if relevant)
-REAL(KIND=JPRB), PARAMETER :: ZHCP_H2O2_REF = 9.1E+2_JPRB ! H^cp(H2O2), Sander, ACP 2015          [mol/m3/Pa]
-REAL(KIND=JPRB), PARAMETER :: ZHCP_H2O2_TD = 6600._JPRB   ! temperature dependency for H^cp(H2O2) [K]
-REAL(KIND=JPRB), PARAMETER :: ZHCP_O3_REF = 1.0E-4_JPRB   ! H^cp(O3), Sander, ACP 2015            [mol/m3/Pa]
-REAL(KIND=JPRB), PARAMETER :: ZHCP_O3_TD = 2800._JPRB     ! temperature dependency for H^cp(O3)   [K]
-REAL(KIND=JPRB), PARAMETER :: ZHCP_OH_REF = 3.8E-1_JPRB   ! H^cp(OH), Sander, ACP 2015            [mol/m3/Pa]
-!REAL(KIND=JPRB), PARAMETER :: ZHCP_OH_TD =                ! no temperature dependency for H^cp(OH)
-REAL(KIND=JPRB), PARAMETER :: ZHCP_SO2_REF = 1.3E-2_JPRB  ! H^cp(SO2), Sander, ACP 2015           [mol/m3/Pa]
-REAL(KIND=JPRB), PARAMETER :: ZHCP_SO2_TD = 2100._JPRB    ! temperature dependency for H^cp(SO2)  [K]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_REF = 9.1E+2_JPRD ! H^cp(H2O2), Sander, ACP 2015          [mol/m3/Pa]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_TD = 6600._JPRD   ! temperature dependency for H^cp(H2O2) [K]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_REF = 1.0E-4_JPRD   ! H^cp(O3), Sander, ACP 2015            [mol/m3/Pa]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_TD = 2800._JPRD     ! temperature dependency for H^cp(O3)   [K]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_REF = 3.8E-1_JPRD   ! H^cp(OH), Sander, ACP 2015            [mol/m3/Pa]
+!REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_TD =                ! no temperature dependency for H^cp(OH)
+REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_REF = 1.3E-2_JPRD  ! H^cp(SO2), Sander, ACP 2015           [mol/m3/Pa]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_TD = 2100._JPRD    ! temperature dependency for H^cp(SO2)  [K]
 
 !=================================!
 ! Acid-base equilibrium constants !
 !=================================!
 ! Keq_1(SO2(aq)<=>HSO3-)   Seinfeld & Pandis, 1998, table 6.A.1 p.394
-REAL(KIND=JPRB), PARAMETER :: ZKEQ1_SO2_REF = 1.3E-2_JPRB ! Keq_1(SO2(aq)<=>HSO3-) at T=Tref      [mol / L]
-REAL(KIND=JPRB), PARAMETER :: ZKEQ1_SO2_TD = 1960._JPRB   ! temperature dependency for Keq_1      [K]
+REAL(KIND=JPRD), PARAMETER :: ZKEQ1_SO2_REF = 1.3E-2_JPRD ! Keq_1(SO2(aq)<=>HSO3-) at T=Tref      [mol / L]
+REAL(KIND=JPRD), PARAMETER :: ZKEQ1_SO2_TD = 1960._JPRD   ! temperature dependency for Keq_1      [K]
 ! Keq_2(HSO3-<=>SO3=)      Seinfeld & Pandis, 1998, table 6.A.1 p.394
-REAL(KIND=JPRB), PARAMETER :: ZKEQ2_SO2_REF = 6.6E-8_JPRB ! Keq_2(HSO3-<=>SO3=) at T=Tref         [mol / L]
-REAL(KIND=JPRB), PARAMETER :: ZKEQ2_SO2_TD = 1500._JPRB   ! temperature dependency for Keq_2      [K]
+REAL(KIND=JPRD), PARAMETER :: ZKEQ2_SO2_REF = 6.6E-8_JPRD ! Keq_2(HSO3-<=>SO3=) at T=Tref         [mol / L]
+REAL(KIND=JPRD), PARAMETER :: ZKEQ2_SO2_TD = 1500._JPRD   ! temperature dependency for Keq_2      [K]
 
 
 !=========================!
 ! Reaction rate constants !
 !=========================!
-! <jjb 10-02-2017  technical note: RNAVO is declared in YOMCST, but initialised in sucst.
-!                  Thus, it is not a parameter, and this hinders using it in parameters initialisations.
-!                  As a consequence, the next 3 variables cannot be defined as parameters (while they are parameters...)
-!                  nor be initialised in the declaration part of the subroutine.
-!  jjb 10-02-2017>
+! Avogadro number - Copied from YOMCST because you can't create parameters from protected variables
+REAL(KIND=JPRD), PARAMETER :: ZNAVO=6.0221367E+23_JPRD      ! [mol**-1]
 
 ! conversion factor, multiply by ZCONV1 to convert cm**3/molec into m**3/mol
-!REAL(KIND=JPRB), PARAMETER :: ZCONV1 = 1.E-6_JPRB * RNAVO ! doesn't work, cf comment above
-!REAL(KIND=JPRB)            :: ZCONV1 = 1.E-6_JPRB * RNAVO ! doesn't work, cf comment above
-REAL(KIND=JPRB)            :: ZCONV1
-! conversion factor, multiply by ZCONV3 to convert L into m3
-!   for instance, 2nd order reaction rate in aqueous phase [L / mol / s] into SI units [m3 / mol / s]
-REAL(KIND=JPRB)            :: ZCONV3 = 1.E-3_JPRB ! [m**3 / L]
-
+!REAL(KIND=JPRD), PARAMETER :: ZCONV1 = 1.E-6_JPRD * ZNAVO   ! [m3 / cm3 / mol]
+REAL(KIND=JPRD), PARAMETER :: ZCONV1 = 6.0221367E+17_JPRD    ! [m3 / cm3 / mol]
 
 ! k_OH reaction rate, low pressure limit, at 300 K, converted in [m**6 / (mol**2 * s)]
-!REAL(KIND=JPRB), PARAMETER :: ZKOH_LOW300 = 3.3E-31_JPRB * ZCONV1 * ZCONV1 ! doesn't work, cf comment above
-!REAL(KIND=JPRB)            :: ZKOH_LOW300 = 3.3E-31_JPRB * ZCONV1 * ZCONV1 ! doesn't work, cf comment above
-REAL(KIND=JPRB)            :: ZKOH_LOW300
-! k_OH reaction rate, high pressure limit, no temp. dependency, converted in [m**3 / (mol * s)]
-!REAL(KIND=JPRB), PARAMETER :: ZKOH_HIGH   = 1.6E-12_JPRB * ZCONV1 ! doesn't work, cf comment above
-!REAL(KIND=JPRB)            :: ZKOH_HIGH   = 1.6E-12_JPRB * ZCONV1 ! doesn't work, cf comment above
-REAL(KIND=JPRB)            :: ZKOH_HIGH
+!REAL(KIND=JPRD), PARAMETER :: ZKOH_LOW300 = 3.3E-31_JPRD * ZCONV1 * ZCONV1 ! now in [m**6 / mol**2 / s]
+REAL(KIND=JPRD), PARAMETER :: ZKOH_LOW300 = 119.678230431E+3_JPRD           ! now in [m**6 / mol**2 / s]
 
+! k_OH reaction rate, high pressure limit, no temp. dependency, converted in [m**3 / (mol * s)]
+REAL(KIND=JPRD), PARAMETER :: ZKOH_HIGH   = 1.6E-12_JPRD * ZCONV1          ! now in [m**3 / mol    / s]
+
+! conversion factor, multiply by ZCONV3 to convert L into m3
+!   for instance, 2nd order reaction rate in aqueous phase [L / mol / s] into SI units [m3 / mol / s]
+REAL(KIND=JPRD)            :: ZCONV3 = 1.E-3_JPRD ! [m**3 / L]
 
 ! Reaction rate constant k_(S(iv)+H2O2(aq))   Seinfeld & Pandis, 1998, pp.366, 378, and 396
 !   second one: see for instance Berglen et al 2004, JGR vol. 109, D19310
 !   Notice the different units!
 !   note: in S & P, there is a mistake on the unit of k, which is a 3rd order rate constant (not a 2nd order)
 INTEGER(KIND=JPIM), PARAMETER :: IKH2O2_select = 1           ! Case selector, choose one of the following kinetics
-REAL(KIND=JPRB), PARAMETER :: ZKH2O2_REF_v1 = 7.5E+7_JPRB    ! k_(S(iv)+H2O2) at Tref=298.15 K       [L**2 / mol**2 / s]
-REAL(KIND=JPRB), PARAMETER :: ZKH2O2_TD_v1 = -4430._JPRB     ! temperature dependency                [K]
-REAL(KIND=JPRB), PARAMETER :: ZKH2O2_REF_v2 = 8.0E+4_JPRB    ! k_(S(iv)+H2O2) at Tref=298.15 K       [L / mol / s]
-REAL(KIND=JPRB), PARAMETER :: ZKH2O2_TD_v2 = -3650._JPRB     ! temperature dependency                [K]
-
-
+REAL(KIND=JPRD), PARAMETER :: ZKH2O2_REF_v1 = 7.5E+7_JPRD    ! k_(S(iv)+H2O2) at Tref=298.15 K       [L**2 / mol**2 / s]
+REAL(KIND=JPRD), PARAMETER :: ZKH2O2_TD_v1 = -4430._JPRD     ! temperature dependency                [K]
+REAL(KIND=JPRD), PARAMETER :: ZKH2O2_REF_v2 = 8.0E+4_JPRD    ! k_(S(iv)+H2O2) at Tref=298.15 K       [L / mol / s]
+REAL(KIND=JPRD), PARAMETER :: ZKH2O2_TD_v2 = -3650._JPRD     ! temperature dependency                [K]
 
 ! Reaction rate constants O3(aq) + S(iv)(aq) is split in 3 parts (reaction with SO2(aq), HSO3-(aq) and SO3=(aq)
-REAL(KIND=JPRB), PARAMETER :: ZKO3_REF1 = 2.4E+4_JPRB    ! k_(SO2(aq))+O3(aq))                    [L / mol / s]
-REAL(KIND=JPRB), PARAMETER :: ZKO3_REF2 = 3.7E+5_JPRB    ! k_(HSO3-(aq))+O3(aq)) at Tref=298.15 K [L / mol / s]
-REAL(KIND=JPRB), PARAMETER :: ZKO3_TD2 = -5530._JPRB     ! temperature dependency                 [K]
-REAL(KIND=JPRB), PARAMETER :: ZKO3_REF3 = 1.5E+9_JPRB    ! k_(SO3=(aq))+O3(aq)) at Tref=298.15 K  [L / mol / s]
-REAL(KIND=JPRB), PARAMETER :: ZKO3_TD3 = -5280._JPRB     ! temperature dependency                 [K]
-
+REAL(KIND=JPRD), PARAMETER :: ZKO3_REF1 = 2.4E+4_JPRD    ! k_(SO2(aq))+O3(aq))                    [L / mol / s]
+REAL(KIND=JPRD), PARAMETER :: ZKO3_REF2 = 3.7E+5_JPRD    ! k_(HSO3-(aq))+O3(aq)) at Tref=298.15 K [L / mol / s]
+REAL(KIND=JPRD), PARAMETER :: ZKO3_TD2 = -5530._JPRD     ! temperature dependency                 [K]
+REAL(KIND=JPRD), PARAMETER :: ZKO3_REF3 = 1.5E+9_JPRD    ! k_(SO3=(aq))+O3(aq)) at Tref=298.15 K  [L / mol / s]
+REAL(KIND=JPRD), PARAMETER :: ZKO3_TD3 = -5280._JPRD     ! temperature dependency                 [K]
 
 !==============!
 ! Molar masses !
 !==============!
-!REAL(KIND=JPRB), PARAMETER :: ZRMD    = 28.9644E-3_JPRB ! air  molar mass      [kg / mol]
-REAL(KIND=JPRB), PARAMETER :: ZRMH2O2 = 34.0147E-3_JPRB ! H2O2 molar mass      [kg / mol]
-REAL(KIND=JPRB), PARAMETER :: ZRMO3   = 47.9982E-3_JPRB ! O3   molar mass      [kg / mol]
-REAL(KIND=JPRB), PARAMETER :: ZRMOH   = 17.008E-3_JPRB  ! OH   molar mass      [kg / mol]
-REAL(KIND=JPRB), PARAMETER :: ZRMSO2  = 64.056E-3_JPRB  ! SO2  molar mass      [kg / mol] ! jjb quick fix: change unit in sucst.F90
-REAL(KIND=JPRB), PARAMETER :: ZRMSO4  = 96.052E-3_JPRB  ! SO4= molar mass      [kg / mol]
+!REAL(KIND=JPRD), PARAMETER :: ZRMD    = 28.9644E-3_JPRD ! air  molar mass      [kg / mol]
+REAL(KIND=JPRD), PARAMETER :: ZRMH2O2 = 34.0147E-3_JPRD ! H2O2 molar mass      [kg / mol]
+REAL(KIND=JPRD), PARAMETER :: ZRMO3   = 47.9982E-3_JPRD ! O3   molar mass      [kg / mol]
+REAL(KIND=JPRD), PARAMETER :: ZRMOH   = 17.008E-3_JPRD  ! OH   molar mass      [kg / mol]
+REAL(KIND=JPRD), PARAMETER :: ZRMSO2  = 64.056E-3_JPRD  ! SO2  molar mass      [kg / mol] ! jjb quick fix: change unit in sucst.F90
+REAL(KIND=JPRD), PARAMETER :: ZRMSO4  = 96.052E-3_JPRD  ! SO4= molar mass      [kg / mol]
 
 ! Other parameters
 ! ----------------
-REAL(KIND=JPRB), PARAMETER :: ZRHOLW = 1000._JPRB ! liquid water density                          [kg / m3]
+REAL(KIND=JPRD), PARAMETER :: ZRHOLW = 1000._JPRD ! liquid water density                          [kg / m3]
 
-!REAL(KIND=JPRB), PARAMETER :: ZPH = 5._JPRB         ! pH of cloud liquid water, assumed
-REAL(KIND=JPRB), PARAMETER :: ZHP = 1.0E-5_JPRB     ! proton concentration                        [mol / L]
+!REAL(KIND=JPRD), PARAMETER :: ZPH = 5._JPRD         ! pH of cloud liquid water, assumed
+REAL(KIND=JPRD), PARAMETER :: ZHP = 1.0E-5_JPRD     ! proton concentration                        [mol / L]
 
-REAL(KIND=JPRB), PARAMETER :: ZPTSCHEM = 2._JPRB   ! timestep for chemistry                              [s]
-
+REAL(KIND=JPRD), PARAMETER :: ZPTSCHEM = 2._JPRD   ! timestep for chemistry                              [s]
 
 
 !*       0.5   LOCAL VARIABLES
@@ -192,174 +177,195 @@ INTEGER(KIND=JPIM) :: JL, JK    ! running indexes for latitude and level
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
-! jjb
-!
-REAL(KIND=JPRB) :: ZTEMPERAT ! grid cell temperature [K]
-REAL(KIND=JPRB) :: ZPRESSURE ! grid cell pressure [Pa]
+REAL(KIND=JPRD) :: ZTEMPERAT ! grid cell temperature [K]
+REAL(KIND=JPRD) :: ZPRESSURE ! grid cell pressure [Pa]
 
-REAL(KIND=JPRB) :: ZAIR_CONC ! air concentration [mol / m3]
-REAL(KIND=JPRB) :: ZAIR_DENS ! air density       [kg  / m3]
+REAL(KIND=JPRD) :: ZAIR_CONC ! air concentration [mol / m3]
+REAL(KIND=JPRD) :: ZAIR_DENS ! air density       [kg  / m3]
 
-REAL(KIND=JPRB) :: ZCLW_VFRAC ! volume fraction of cloud liquid water [m3(aq) / m3(g)]
+REAL(KIND=JPRD) :: ZCLW_VFRAC ! volume fraction of cloud liquid water [m3(aq) / m3(g)]
 
 ! conversion factor, ZCONV2 = R * T. Multiply by ZCONV2 to convert H^cp (in mol/m3/Pa) into H^cc (in m3(g) / m3(aq))
-REAL(KIND=JPRB) :: ZCONV2   !                    [J/mol]
+REAL(KIND=JPRD) :: ZCONV2   !                    [J/mol]
 
-! Oxidants concentrations. Local arrays to split PCHEMSULF1
+! Oxidants concentrations
 
-REAL(KIND=JPRB) :: ZFACT1   ! intermediate factor 1
-REAL(KIND=JPRB) :: ZFACT2   ! intermediate factor 2
+REAL(KIND=JPRD) :: ZFACT1   ! intermediate factor 1
+REAL(KIND=JPRD) :: ZFACT2   ! intermediate factor 2
 
-REAL(KIND=JPRB) :: ZFAQ_H2O2 ! fraction of H2O2 dissolved in aqueous phase  [dimensionless]
-REAL(KIND=JPRB) :: ZFAQ_O3   ! fraction of O3   dissolved in aqueous phase  [dimensionless]
-REAL(KIND=JPRB) :: ZFAQ_OH   ! fraction of OH   dissolved in aqueous phase  [dimensionless]
-REAL(KIND=JPRB) :: ZFAQ_SO2  ! fraction of SO2  dissolved in aqueous phase  [dimensionless]
+REAL(KIND=JPRD) :: ZFAQ_H2O2 ! fraction of H2O2 dissolved in aqueous phase  [dimensionless]
+REAL(KIND=JPRD) :: ZFAQ_O3   ! fraction of O3   dissolved in aqueous phase  [dimensionless]
+REAL(KIND=JPRD) :: ZFAQ_OH   ! fraction of OH   dissolved in aqueous phase  [dimensionless]
+REAL(KIND=JPRD) :: ZFAQ_SO2  ! fraction of SO2  dissolved in aqueous phase  [dimensionless]
 
-REAL(KIND=JPRB) :: ZHCC_H2O2    ! dimensionless Henry's law solubility for H2O2 [m3(g) / m3(aq)]
-REAL(KIND=JPRB) :: ZHCC_O3      ! dimensionless Henry's law solubility for O3   [m3(g) / m3(aq)]
-REAL(KIND=JPRB) :: ZHCC_OH      ! dimensionless Henry's law solubility for OH   [m3(g) / m3(aq)]
-REAL(KIND=JPRB) :: ZHCC_SO2     ! dimensionless Henry's law solubility for SO2  [m3(g) / m3(aq)]
-REAL(KIND=JPRB) :: ZHCC_SO2_EFF ! dimensionless Henry's law effective solubility for SO2 [m3(g) / m3(aq)]
+REAL(KIND=JPRD) :: ZHCC_H2O2    ! dimensionless Henry's law solubility for H2O2 [m3(g) / m3(aq)]
+REAL(KIND=JPRD) :: ZHCC_O3      ! dimensionless Henry's law solubility for O3   [m3(g) / m3(aq)]
+REAL(KIND=JPRD) :: ZHCC_OH      ! dimensionless Henry's law solubility for OH   [m3(g) / m3(aq)]
+REAL(KIND=JPRD) :: ZHCC_SO2     ! dimensionless Henry's law solubility for SO2  [m3(g) / m3(aq)]
+REAL(KIND=JPRD) :: ZHCC_SO2_EFF ! dimensionless Henry's law effective solubility for SO2 [m3(g) / m3(aq)]
 
-REAL(KIND=JPRB) :: ZKEQ1_SO2 ! equilibrium constant SO2(aq) <=> HSO3-   [mol / L]
-REAL(KIND=JPRB) :: ZKEQ2_SO2 ! equilibrium constant HSO3- <=> SO3=      [mol / L]
-REAL(KIND=JPRB) :: ZKEQ1_FACT
-REAL(KIND=JPRB) :: ZKEQ2_FACT
+REAL(KIND=JPRD) :: ZKEQ1_SO2 ! equilibrium constant SO2(aq) <=> HSO3-   [mol / L]
+REAL(KIND=JPRD) :: ZKEQ2_SO2 ! equilibrium constant HSO3- <=> SO3=      [mol / L]
+REAL(KIND=JPRD) :: ZKEQ1_FACT
+REAL(KIND=JPRD) :: ZKEQ2_FACT
 
-REAL(KIND=JPRB) :: ZKOH_LOW  ! low pressure limit = f(T)          [m**6 / (mol**2 * s)]
-REAL(KIND=JPRB) :: ZKOH      ! gas phase reaction rate SO2 + OH         [m**3 / (mol * s)]
-!REAL(KIND=JPRB) :: ZKPOH     ! modified gas phase reaction rate SO2 + OH  including OH and SO2 gas fractions  [m**3 / (mol * s)]
+REAL(KIND=JPRD) :: ZKOH_LOW  ! low pressure limit = f(T)          [m**6 / (mol**2 * s)]
+REAL(KIND=JPRD) :: ZKOH      ! gas phase reaction rate SO2 + OH         [m**3 / (mol * s)]
+!REAL(KIND=JPRD) :: ZKPOH     ! modified gas phase reaction rate SO2 + OH  including OH and SO2 gas fractions  [m**3 / (mol * s)]
 
-REAL(KIND=JPRB) :: ZKH2O2    ! Reaction rate constant k_(S(iv)+H2O2(aq))   [mol**2 / L**2 / s]
+REAL(KIND=JPRD) :: ZKH2O2    ! Reaction rate constant k_(S(iv)+H2O2(aq))   [mol**2 / L**2 / s]
 
-REAL(KIND=JPRB) :: ZKO3_1    ! Reaction rate constant k_(O3+SO2(aq)) (T)   [mol / m3 / s]
-REAL(KIND=JPRB) :: ZKO3_2    ! Reaction rate constant k_(O3+HSO3-(aq)) (T) [mol / m3 / s]
-REAL(KIND=JPRB) :: ZKO3_3    ! Reaction rate constant k_(O3+SO3--(aq)) (T) [mol / m3 / s]
+REAL(KIND=JPRD) :: ZKO3_1    ! Reaction rate constant k_(O3+SO2(aq)) (T)   [mol / m3 / s]
+REAL(KIND=JPRD) :: ZKO3_2    ! Reaction rate constant k_(O3+HSO3-(aq)) (T) [mol / m3 / s]
+REAL(KIND=JPRD) :: ZKO3_3    ! Reaction rate constant k_(O3+SO3--(aq)) (T) [mol / m3 / s]
 
-REAL(KIND=JPRB) :: ZTFACT ! temperature factor for Henry's law solubility calculation [K**-1]
+REAL(KIND=JPRD) :: ZTFACT ! temperature factor for Henry's law solubility calculation [K**-1]
 
-REAL(KIND=JPRB) :: ZC_H2O2_gas ! concentration of H2O2 in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_O3_gas   ! concentration of O3   in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_OH_gas   ! concentration of OH   in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_SO2_gas  ! concentration of SO2  in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_SO2_tot  ! total concentration of SO2              [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_H2O2_gas ! concentration of H2O2 in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_O3_gas   ! concentration of O3   in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_OH_gas   ! concentration of OH   in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_SO2_gas  ! concentration of SO2  in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_SO2_tot  ! total concentration of SO2              [mol/m3(air)]
 
-REAL(KIND=JPRB) :: ZC_H2O2_gas_ini ! initial concentration of H2O2 in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_O3_gas_ini   ! initial concentration of O3   in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZC_OH_gas_ini   ! initial concentration of OH   in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_H2O2_gas_ini ! initial concentration of H2O2 in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_O3_gas_ini   ! initial concentration of O3   in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_OH_gas_ini   ! initial concentration of OH   in the gas phase  [mol/m3(air)]
 
-REAL(KIND=JPRB) :: ZC_H2O2_aqp  ! "potential" concentration of H2O2  in the aqueous phase  [mol/m3(aq)]
-REAL(KIND=JPRB) :: ZC_O3_aqp    ! "potential" concentration of O3    in the aqueous phase  [mol/m3(aq)]
-REAL(KIND=JPRB) :: ZC_Siv_aqp   ! "potential" concentration of S(iv) in the aqueous phase  [mol/m3(aq)]
-REAL(KIND=JPRB) :: ZC_SO2_aqp   ! "potential" concentration of SO2   in the aqueous phase  [mol/m3(aq)]
-REAL(KIND=JPRB) :: ZC_HSO3m_aqp ! "potential" concentration of HSO3- in the aqueous phase  [mol/m3(aq)]
-REAL(KIND=JPRB) :: ZC_SO3mm_aqp ! "potential" concentration of SO3=  in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_H2O2_aqp  ! "potential" concentration of H2O2  in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_O3_aqp    ! "potential" concentration of O3    in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_Siv_aqp   ! "potential" concentration of S(iv) in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_SO2_aqp   ! "potential" concentration of SO2   in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_HSO3m_aqp ! "potential" concentration of HSO3- in the aqueous phase  [mol/m3(aq)]
+REAL(KIND=JPRD) :: ZC_SO3mm_aqp ! "potential" concentration of SO3=  in the aqueous phase  [mol/m3(aq)]
 
-REAL(KIND=JPRB) :: ZTend_OH     ! tendency for S(iv) + OH(g)                  [mol/m3(air)]
-REAL(KIND=JPRB) :: ZTend_H2O2   ! tendency for S(iv) + H2O2(aq)               [mol/m3(air)]  <== final unit
-REAL(KIND=JPRB) :: ZTend_O3     ! tendency for S(iv) + O3(aq)                 [mol/m3(air)]  <== final unit
-REAL(KIND=JPRB) :: ZTend_O3_r1  ! tendency for SO2(aq) + O3(aq)                 [mol/m3(air)]  <== final unit
-REAL(KIND=JPRB) :: ZTend_O3_r2  ! tendency for HS03m + O3(aq)                 [mol/m3(air)]  <== final unit
-REAL(KIND=JPRB) :: ZTend_O3_r3  ! tendency for SO3mm + O3(aq)                 [mol/m3(air)]  <== final unit
-REAL(KIND=JPRB) :: ZTend_O3_ul  ! unlimited
-REAL(KIND=JPRB) :: ZTend_O3_li  ! limited
-REAL(KIND=JPRB) :: ZLimit_fact_O3
-REAL(KIND=JPRB) :: ZSum_HSO3m_ox_ul
-REAL(KIND=JPRB) :: ZSum_HSO3m_ox_li
-REAL(KIND=JPRB) :: ZLimit_fact_HSO3m
-!REAL(KIND=JPRB) :: ZTend_TOT_1  ! tendency for S(iv) --> S(vi) including oxidants and "branch-specific" S(iv) limitation
-!REAL(KIND=JPRB) :: ZTend_TOT_2  ! tendency for S(iv) --> S(vi) further including total S(iv) limitation
-REAL(KIND=JPRB) :: ZTend_H2O2_Sum  !
-REAL(KIND=JPRB) :: ZTend_O3_Sum  !
-REAL(KIND=JPRB) :: ZTend_OH_Sum  !
-REAL(KIND=JPRB) :: ZTend_Gas  !
-REAL(KIND=JPRB) :: ZTend_Aq  !
-REAL(KIND=JPRB) :: ZTend_Aq_Sum  !
-REAL(KIND=JPRB) :: ZTend_Sum  !
+REAL(KIND=JPRD) :: ZTend_OH     ! tendency for S(iv) + OH(g)                  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZTend_H2O2   ! tendency for S(iv) + H2O2(aq)               [mol/m3(air)]  <== final unit
+REAL(KIND=JPRD) :: ZTend_O3     ! tendency for S(iv) + O3(aq)                 [mol/m3(air)]  <== final unit
+REAL(KIND=JPRD) :: ZTend_O3_r1  ! tendency for SO2(aq) + O3(aq)                 [mol/m3(air)]  <== final unit
+REAL(KIND=JPRD) :: ZTend_O3_r2  ! tendency for HS03m + O3(aq)                 [mol/m3(air)]  <== final unit
+REAL(KIND=JPRD) :: ZTend_O3_r3  ! tendency for SO3mm + O3(aq)                 [mol/m3(air)]  <== final unit
+REAL(KIND=JPRD) :: ZTend_O3_ul  ! unlimited
+REAL(KIND=JPRD) :: ZTend_O3_li  ! limited
+REAL(KIND=JPRD) :: ZLimit_fact_O3
+REAL(KIND=JPRD) :: ZSum_HSO3m_ox_ul
+REAL(KIND=JPRD) :: ZSum_HSO3m_ox_li
+REAL(KIND=JPRD) :: ZLimit_fact_HSO3m
+!REAL(KIND=JPRD) :: ZTend_TOT_1  ! tendency for S(iv) --> S(vi) including oxidants and "branch-specific" S(iv) limitation
+!REAL(KIND=JPRD) :: ZTend_TOT_2  ! tendency for S(iv) --> S(vi) further including total S(iv) limitation
+REAL(KIND=JPRD) :: ZTend_H2O2_Sum  !
+REAL(KIND=JPRD) :: ZTend_O3_Sum  !
+REAL(KIND=JPRD) :: ZTend_OH_Sum  !
+REAL(KIND=JPRD) :: ZTend_Gas  !
+REAL(KIND=JPRD) :: ZTend_Aq  !
+REAL(KIND=JPRD) :: ZTend_Aq_Sum  !
+REAL(KIND=JPRD) :: ZTend_Sum  !
 
-REAL(KIND=JPRB) :: ZPNEB, ZSCALEO3(KLON), ZSCALEOH(KLON)
+REAL(KIND=JPRB) :: ZSCALEO3(KLON), ZSCALEOH(KLON)
+REAL(KIND=JPRD) :: ZPNEB, DSCALEO3(KLON), DSCALEOH(KLON)
 
-REAL(KIND=JPRB) :: ZmmrH2O2
-REAL(KIND=JPRB) :: ZmmrO3
-REAL(KIND=JPRB) :: ZmmrOH
-REAL(KIND=JPRB) :: ZmmrSO2
+REAL(KIND=JPRD) :: ZmmrH2O2
+REAL(KIND=JPRD) :: ZmmrO3
+REAL(KIND=JPRD) :: ZmmrOH
+REAL(KIND=JPRD) :: ZmmrSO2
 
 INTEGER(KIND=JPIM) :: JPTS ! Number of sub-timesteps for chemistry
 INTEGER(KIND=JPIM) :: JTS  ! Running index for chemistry do-loop
 
-#include "compo_diurnal.intfb.h"
+! Recast input/output
+REAL(KIND=JPRD) :: ZTSPHY
+REAL(KIND=JPRD) :: ZSO2, ZITSO2, ZOH, ZO3, ZH2O2
+REAL(KIND=JPRD) :: ZTSO2(KLON,KLEV), ZTSO4(KLON,KLEV), ZTSO4_AQ(KLON,KLEV)
+
+REAL(KIND=JPRD) :: ZRPI, ZLTRAD(KLON)
+
+!PLS #include "compo_diurnal.intfb.h"
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('AER_SO2SO4_V2',0,ZHOOK_HANDLE)
 
-! Initialisation of "parameters" that cannot be initialised in the declaration part (cf. remarks above)
-ZCONV1 = 1.E-6_JPRB * RNAVO                  ! [m3 / cm3 / mol]
-ZKOH_LOW300 = 3.3E-31_JPRB * ZCONV1 * ZCONV1 ! now in [m**6 / mol**2 / s]
-ZKOH_HIGH   = 1.6E-12_JPRB * ZCONV1          ! now in [m**3 / mol    / s]
 
 ! Define the number of intermediate timesteps for chemistry
-IF(MODULO(PTSPHY,ZPTSCHEM) > 0._JPRB) THEN
+ZTSPHY = REAL(PTSPHY, KIND=JPRD)
+IF(MODULO(ZTSPHY,ZPTSCHEM) > 0._JPRD) THEN
    CALL ABOR1('ABORT: IN AER_SO2SO4_V2, ZPTSCHEM must divide PTSTEMP')
 ENDIF
-JPTS = INT(PTSPHY/ZPTSCHEM)
+JPTS = INT(ZTSPHY/ZPTSCHEM)
 
+! Initialise tendencies (necessary when using sub-timesteps for chemistry,
+!  since the total tendency will be the sum of "sub-tendencies")
+ZTSO2(KIDIA:KFDIA,:) = 0._JPRD
+ZTSO4(KIDIA:KFDIA,:) = 0._JPRD
+ZTSO4_AQ(KIDIA:KFDIA,:) = 0._JPRD
 
-! Split PCHEMSULF1 array
+!PLS CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEOH, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
+!PLS CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEO3, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
+!PLS DO JL=KIDIA,KFDIA
+!PLS   DSCALEOH(JL) = REAL(ZSCALEOH(JL), KIND=JPRD)
+!PLS   DSCALEO3(JL) = REAL(ZSCALEO3(JL), KIND=JPRD)
+!PLS ENDDO
 
-!! Initialise tendencies (necessary when using sub-timesteps for chemistry,
-!!  since the total tendency will be the sum of "sub-tendencies"
-PTSO2(:,:) = 0._JPRB
-PTSO4(:,:) = 0._JPRB
-
-CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEOH, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
-CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, 'Sine', PGELAM, PGELAT, ZSCALEO3, PAMPLITUDE=0.7_JPRB, PHOURPEAK=15.0_JPRB)
+! Diurnal cycle in JPRD precision
+ZRPI=2.0_JPRD*ASIN(1.0_JPRD)
+ZLTRAD(KIDIA:KFDIA) = REAL( (YDRIP%RWSOVR + PGELAM(KIDIA:KFDIA)), KIND=JPRD)
+DSCALEOH(KIDIA:KFDIA) = 1.0_JPRD + COS(ZLTRAD(KIDIA:KFDIA) - 15.0_JPRD/12.0_JPRD * ZRPI) * 0.7_JPRD
+DSCALEO3(KIDIA:KFDIA) = DSCALEOH(KIDIA:KFDIA)
 
 DO JK=1,KLEV
    DO JL=KIDIA,KFDIA
-      ! Initialise all scalar variables to 0._JPRB (for debug only)
-      ZmmrH2O2 = 0._JPRB
-      ZmmrO3   = 0._JPRB
-      ZC_H2O2_gas = 0._JPRB
-      ZC_O3_gas   = 0._JPRB
-      ZFAQ_H2O2 = 0._JPRB
-      ZFAQ_O3 = 0._JPRB
-      ZFAQ_OH = 0._JPRB
-      ZFAQ_SO2 = 0._JPRB
-      ZHCC_H2O2 = 0._JPRB
-      ZHCC_OH = 0._JPRB
-      ZHCC_O3 = 0._JPRB
-      ZHCC_SO2 = 0._JPRB
-      ZHCC_SO2_EFF = 0._JPRB
-      ZTend_OH_Sum = 0._JPRB
-      ZTend_Gas = 0._JPRB
-      ZTend_Aq = 0._JPRB
-      ZTend_O3_Sum =  0._JPRB
-      ZTend_H2O2_Sum =  0._JPRB
+      ! Initialise all scalar variables to 0._JPRD (for debug only)
+      ZmmrH2O2 = 0._JPRD
+      ZmmrO3   = 0._JPRD
+      ZC_H2O2_gas = 0._JPRD
+      ZC_O3_gas   = 0._JPRD
+      ZFAQ_H2O2 = 0._JPRD
+      ZFAQ_O3 = 0._JPRD
+      ZFAQ_OH = 0._JPRD
+      ZFAQ_SO2 = 0._JPRD
+      ZHCC_H2O2 = 0._JPRD
+      ZHCC_OH = 0._JPRD
+      ZHCC_O3 = 0._JPRD
+      ZHCC_SO2 = 0._JPRD
+      ZHCC_SO2_EFF = 0._JPRD
+      ZTend_OH_Sum = 0._JPRD
+      ZTend_Gas = 0._JPRD
+      ZTend_Aq = 0._JPRD
+      ZTend_O3_Sum =  0._JPRD
+      ZTend_H2O2_Sum =  0._JPRD
 
 ! -- Miscellaneous variables
-      ! -- pressure and temperature copied in scalars
-      ZPRESSURE = PRSF1(JL,JK)
-      ZTEMPERAT = PTP  (JL,JK)
-      ! -- air concentration and density
-      ZAIR_CONC = ZPRESSURE / (R *ZTEMPERAT) ! [mol / m3]
-      ZAIR_DENS = ZPRESSURE / (RD*ZTEMPERAT) ! [kg  / m3]
-      ! -- fractional cloudiness
-      ZPNEB = PNEB(JL,JK)
-      ! -- liquid volume fraction in the cloudy part [m3(aq) / m3(g)]
 
-      ZCLW_VFRAC = 0._JPRB
-      IF (ZPNEB > 1.0E-12_JPRB) THEN
-        ZCLW_VFRAC = PQLI(JL,JK) / ZPNEB * ZAIR_DENS / ZRHOLW
+      ! -- pressure and temperature copied in scalars
+      ZPRESSURE = REAL(PRSF1(JL,JK), KIND=JPRD)
+      ZTEMPERAT = REAL(PTP(JL,JK), KIND=JPRD)
+
+      ! -- air concentration and density
+      ZAIR_CONC = ZPRESSURE / (DR *ZTEMPERAT) ! [mol / m3]
+      ZAIR_DENS = ZPRESSURE / (DRD*ZTEMPERAT) ! [kg  / m3]
+
+      ! -- fractional cloudiness
+      ZPNEB = REAL(PNEB(JL,JK), KIND=JPRD)
+
+      ! -- liquid volume fraction in the cloudy part [m3(aq) / m3(g)]
+      ZCLW_VFRAC = 0._JPRD
+      ! Note: The smallest cloud fraction PNEB is ~1e-8 in JPRD, and ~1e-12 in JPRB [2-day tests at TL255L91]
+      !       The latter (and values below ~1.e-9) can create unrealistic large  ZCLW_VFRAC.
+      IF (ZPNEB > 1.0E-6_JPRD) THEN
+        ZCLW_VFRAC = REAL(PQLI(JL,JK), KIND=JPRD) / ZPNEB * ZAIR_DENS / ZRHOLW
       ENDIF
 
+      ! Cast other input into double precision
+      ZSO2   = REAL(PSO2  (JL,JK), KIND=JPRD)
+      ZITSO2 = REAL(PITSO2(JL,JK), KIND=JPRD)
+      ZOH    = REAL(POH   (JL,JK), KIND=JPRD)
+      ZO3    = REAL(PO3   (JL,JK), KIND=JPRD)
+      ZH2O2  = REAL(PH2O2 (JL,JK), KIND=JPRD)
 
-      !write (*,*) "SO2SO4",JL,JK,ZPNEB,ZCLW_VFRAC,POH(JL,JK),PO3(JL,JK),PH2O2(JL,JK)
 !=======================================================================
 ! Two cases:
 !   - gas phase reaction only (if no cloud, or no liquid water)
 !   - gas + aqueous phase reactions
 !=======================================================================
-      IF (.NOT.(ZPNEB > 1.0E-12_JPRB )) THEN  ! 1.0E-12 is the default PNEB value
+      IF ( ZCLW_VFRAC < 1.0E-10_JPRD ) THEN
 
 !=======================================================================
 !    GAS PHASE ONLY:
@@ -367,27 +373,24 @@ DO JK=1,KLEV
 
 ! -- Reactants concentration (gas phase only)
          ! -- mmr [kg / kg]
-         IF (POH(JL,JK) > 1.0E-14_JPRB ) THEN  
-           ZmmrOH   = POH(JL,JK)*ZSCALEOH(JL)
+         IF (ZOH > 1.0E-14_JPRD ) THEN  
+           ZmmrOH   = ZOH * DSCALEOH(JL)
          ELSE
-           ZmmrOH   = 0.0_JPRB
+           ZmmrOH   = 0.0_JPRD
          ENDIF
-         ZmmrSO2  = PSO2(JL,JK) + PTSPHY * PITSO2(JL,JK)
+         ZmmrSO2  = ZSO2 + ZTSPHY * ZITSO2
          ! -- gas phase concentration [mol / m3]
          ZC_OH_gas   = ZmmrOH   * ZAIR_DENS / ZRMOH   ! OH concentration from climatology is a gas concentration
          ZC_SO2_tot  = ZmmrSO2  * ZAIR_DENS / ZRMSO2  ! SO2 concentration : in this case, ZC_SO2_gas = ZC_SO2_tot
          ZC_SO2_gas  = ZC_SO2_tot
 
-         IF (ZC_OH_gas < 1E-18_JPRB) THEN
-           ZC_OH_gas=0._JPRB
+         IF (ZC_OH_gas < 1E-18_JPRD) THEN
+           ZC_OH_gas=0._JPRD
          ENDIF
-         IF (ZC_SO2_gas < 1E-18_JPRB) THEN
-           ZC_SO2_gas=0._JPRB
+         IF (ZC_SO2_gas < 1E-18_JPRD) THEN
+           ZC_SO2_gas=0._JPRD
+           ZC_SO2_tot=0._JPRD
          ENDIF
-         IF (ZC_SO2_tot < 1E-18_JPRB) THEN
-           ZC_SO2_tot=0._JPRB
-         ENDIF
-
 
          ZC_OH_gas_ini = ZC_OH_gas
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -397,19 +400,18 @@ DO JK=1,KLEV
          !         reference: JPL Pub. 15-10, Eval Nb 18
 
          ! low pressure limit depends on temperature
-         ZKOH_LOW = ZKOH_LOW300 * (300._JPRB / ZTEMPERAT)**4.3_JPRB
+         ZKOH_LOW = ZKOH_LOW300 * (300._JPRD / ZTEMPERAT)**4.3_JPRD
 
          ! complete expression: see doc
          ZFACT1 = ZKOH_LOW * ZAIR_CONC
          ZFACT2 = ZFACT1 / ZKOH_HIGH
 
-         ZKOH = ZFACT1 / (1._JPRB + ZFACT2)
-         ZKOH = ZKOH * .6_JPRB ** (1._JPRB / (1._JPRB + LOG10(ZFACT2)**2) )
+         ZKOH = ZFACT1 / (1._JPRD + ZFACT2)
+         ZKOH = ZKOH * .6_JPRD ** (1._JPRD / (1._JPRD + LOG10(ZFACT2)**2) )
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-         IF (ZKOH < 1E-18_JPRB) THEN
-           ZKOH=0._JPRB
+         IF (ZKOH < 1E-18_JPRD) THEN
+           ZKOH=0._JPRD
          ENDIF
-
 
          DO JTS=1,JPTS
 
@@ -428,9 +430,9 @@ DO JK=1,KLEV
 
          ! -- PT(xxx) in [kg(xxx) / kg(air) / s]
          !    using PTSPHY=sum(ZPTSCHEM)
-         PTSO2(JL,JK) = PTSO2(JL,JK) - ZTend_OH_Sum * ZRMSO2 / ZAIR_DENS / PTSPHY
-         PTSO4(JL,JK) =  PTSO4(JL,JK)+ ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
-
+         ZTSO2(JL,JK) = ZTSO2(JL,JK) - ZTend_OH_Sum * ZRMSO2 / ZAIR_DENS / ZTSPHY
+         ZTSO4(JL,JK) =  ZTSO4(JL,JK)+ ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / ZTSPHY
+         ZTSO4_AQ(JL,JK) =  0._JPRD
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
@@ -442,13 +444,13 @@ DO JK=1,KLEV
 
 ! -- Miscellaneous variables only used in aqueous phase
          ! -- temperature factor for Henry's law and reaction rates
-         ZTFACT = 1._JPRB / ZTEMPERAT - ZITREF_H
+         ZTFACT = 1._JPRD / ZTEMPERAT - ZITREF_H
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
 ! -- dimensionless Henry's law solubility constants [m3(g) / m3(aq)]
          ! -- Conversion factor, to get dimensionless Henry coefficients (H^cc)
-         ZCONV2 = R * ZTEMPERAT
+         ZCONV2 = DR * ZTEMPERAT
 
          ! -- of H2O2
          ZHCC_H2O2 = ZHCP_H2O2_REF * EXP(ZHCP_H2O2_TD * ZTFACT) * ZCONV2
@@ -469,35 +471,35 @@ DO JK=1,KLEV
          ZKEQ1_FACT = ZKEQ1_SO2 / ZHP
          ZKEQ2_FACT = ZKEQ2_SO2 / ZHP
          ! Effective Henry solubility coefficient for SO2
-         ZHCC_SO2_EFF = ZHCC_SO2 * ( 1._JPRB + ZKEQ1_FACT + ZKEQ1_FACT * ZKEQ2_FACT )
+         ZHCC_SO2_EFF = ZHCC_SO2 * ( 1._JPRD + ZKEQ1_FACT + ZKEQ1_FACT * ZKEQ2_FACT )
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 ! -- aqueous fractions in the cloudy part [dimensionless]
-         ZFAQ_H2O2 = 1._JPRB / (1._JPRB + 1._JPRB / (ZHCC_H2O2    * ZPNEB ) )
-         ZFAQ_O3   = 1._JPRB / (1._JPRB + 1._JPRB / (ZHCC_O3      * ZPNEB ) )
-         ZFAQ_OH   = 1._JPRB / (1._JPRB + 1._JPRB / (ZHCC_OH      * ZPNEB ) )
-         ZFAQ_SO2  = 1._JPRB / (1._JPRB + 1._JPRB / (ZHCC_SO2_EFF * ZPNEB ) )
+         ZFAQ_H2O2 = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_H2O2    * ZPNEB ) )
+         ZFAQ_O3   = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_O3      * ZPNEB ) )
+         ZFAQ_OH   = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_OH      * ZPNEB ) )
+         ZFAQ_SO2  = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_SO2_EFF * ZPNEB ) )
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
 ! -- Oxidants concentrations / partial pressure / ...
          ! -- mmr [kg / kg]
-         IF (PH2O2(JL,JK) > 1.0E-14_JPRB ) THEN  
-           ZmmrH2O2   = PH2O2(JL,JK)
+         IF (ZH2O2 > 1.0E-14_JPRD ) THEN  
+           ZmmrH2O2   = ZH2O2
          ELSE
-           ZmmrH2O2   = 0.0_JPRB
+           ZmmrH2O2   = 0.0_JPRD
          ENDIF
-         IF (PO3(JL,JK) > 1.0E-14_JPRB ) THEN  
-           ZmmrO3   = PO3(JL,JK)*ZSCALEO3(JL)
+         IF (ZO3 > 1.0E-14_JPRD ) THEN  
+           ZmmrO3   = ZO3 * DSCALEO3(JL)
          ELSE
-           ZmmrO3   = 0.0_JPRB
+           ZmmrO3   = 0.0_JPRD
          ENDIF
-         IF (POH(JL,JK) > 1.0E-14_JPRB ) THEN  
-           ZmmrOH   = POH(JL,JK)*ZSCALEOH(JL)
+         IF (ZOH > 1.0E-14_JPRD ) THEN  
+           ZmmrOH   = ZOH * DSCALEOH(JL)
          ELSE
-           ZmmrOH   = 0.0_JPRB
+           ZmmrOH   = 0.0_JPRD
          ENDIF
-         ZmmrSO2  = PSO2(JL,JK) + PTSPHY * PITSO2(JL,JK)
+         ZmmrSO2  = ZSO2 + ZTSPHY * ZITSO2
     
 ! -- gas phase concentration [mol / m3(g)]
          ! -- oxidants concentrations from climatologies are gas phase concentration.
@@ -521,25 +523,25 @@ DO JK=1,KLEV
          !         reference: JPL Pub. 15-10, Eval Nb 18
 
          ! low pressure limit depends on temperature
-         ZKOH_LOW = ZKOH_LOW300 * (300._JPRB / ZTEMPERAT)**4.3_JPRB
+         ZKOH_LOW = ZKOH_LOW300 * (300._JPRD / ZTEMPERAT)**4.3_JPRD
 
          ! complete expression: see doc
          ZFACT1 = ZKOH_LOW * ZAIR_CONC
          ZFACT2 = ZFACT1 / ZKOH_HIGH
 
-         ZKOH = ZFACT1 / (1._JPRB + ZFACT2)
-         ZKOH = ZKOH * .6_JPRB ** (1._JPRB / (1._JPRB + LOG10(ZFACT2)**2) )
+         ZKOH = ZFACT1 / (1._JPRD + ZFACT2)
+         ZKOH = ZKOH * .6_JPRD ** (1._JPRD / (1._JPRD + LOG10(ZFACT2)**2) )
 
          ! -- k_H2O2 reaction rate
          !           reference: Seinfeld and Pandis, 2nd Ed., 2006, table 7.6 p.316
          SELECT CASE(IKH2O2_select)
          CASE(1)
             ZKH2O2 = ZKH2O2_REF_v1 * EXP(ZKH2O2_TD_v1 * ZTFACT)      ! unit is [L**2 / mol**2 / s]
-            ZKH2O2 = ZKH2O2 * ZHP / (1._JPRB + 13._JPRB * ZHP) ! unit is [L    / mol    / s]
+            ZKH2O2 = ZKH2O2 * ZHP / (1._JPRD + 13._JPRD * ZHP) ! unit is [L    / mol    / s]
             ZKH2O2 = ZKH2O2 * ZCONV3                           ! unit is [m**3 / mol    / s]
          CASE(2)
             ZKH2O2 = ZKH2O2_REF_v2 * EXP(ZKH2O2_TD_v2 * ZTFACT)      ! unit is [L / mol / s] ???
-            ZKH2O2 = ZKH2O2 / (0.1_JPRB + ZHP)                 ! unit is [L / mol / s] ??? according to Tsai et al ACP 2010
+            ZKH2O2 = ZKH2O2 / (0.1_JPRD + ZHP)                 ! unit is [L / mol / s] ??? according to Tsai et al ACP 2010
             ZKH2O2 = ZKH2O2 * ZCONV3                           ! unit is [m**3 / mol / s]
          CASE DEFAULT
             CALL ABOR1('ABORT: IN AER_SO2SO4_V2, IKH2O2_select has incorrect value')
@@ -558,7 +560,7 @@ DO JK=1,KLEV
 
 
 ! -- gas phase concentration [mol / m3(g)]
-            ZC_SO2_gas  = ZC_SO2_tot * (1._JPRB - ZFAQ_SO2*ZCLW_VFRAC)
+            ZC_SO2_gas  = ZC_SO2_tot * (1._JPRD - ZFAQ_SO2*ZCLW_VFRAC)
 
 ! -- aqueous phase concentration [mol / m3(aq)]    ! WARNING: these are "potential" aqueous concentrations
             ZC_H2O2_aqp = ZC_H2O2_gas * ZHCC_H2O2
@@ -567,7 +569,7 @@ DO JK=1,KLEV
             ZC_Siv_aqp = ZC_SO2_gas * ZHCC_SO2_EFF
 
             ! Update fractioning between aqueous forms of S(iv)
-            ZC_SO2_aqp = ZC_Siv_aqp / (1._JPRB + ZKEQ1_FACT + ZKEQ1_FACT * ZKEQ2_FACT )
+            ZC_SO2_aqp = ZC_Siv_aqp / (1._JPRD + ZKEQ1_FACT + ZKEQ1_FACT * ZKEQ2_FACT )
             ZC_HSO3m_aqp = ZC_SO2_aqp * ZKEQ1_FACT
             ZC_SO3mm_aqp = ZC_HSO3m_aqp * ZKEQ2_FACT
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -611,20 +613,20 @@ DO JK=1,KLEV
             !   --> will be applied to the sum of 3 reaction paths with O3
             ZTend_O3_ul = ZTend_O3_r1 + ZTend_O3_r2 + ZTend_O3_r3
             ZTend_O3_li = MIN(ZTend_O3_ul, ZC_O3_aqp)
-            IF(ZTend_O3_ul > 0._JPRB) THEN
+            IF(ZTend_O3_ul > 0._JPRD) THEN
                ZLimit_fact_O3 = ZTend_O3_li / ZTend_O3_ul
             ELSE
-               ZLimit_fact_O3 = 0._JPRB
+               ZLimit_fact_O3 = 0._JPRD
             ENDIF
 
             ! Limiting factor due to HSO3- availability
             !   --> will be applied to the 2 reaction with HSO3-
             ZSum_HSO3m_ox_ul = ZTend_H2O2 + ZTend_O3_r2 * ZLimit_fact_O3
             ZSum_HSO3m_ox_li = MIN(ZSum_HSO3m_ox_ul, ZC_HSO3m_aqp)
-            IF(ZSum_HSO3m_ox_ul > 0._JPRB) THEN
+            IF(ZSum_HSO3m_ox_ul > 0._JPRD) THEN
                ZLimit_fact_HSO3m = ZSum_HSO3m_ox_li / ZSum_HSO3m_ox_ul
             ELSE
-               ZLimit_fact_HSO3m = 0._JPRB
+               ZLimit_fact_HSO3m = 0._JPRD
             ENDIF
 
             ! Final tendencies expressed as "potential" concentrations [mol / m3(aq)]
@@ -651,7 +653,6 @@ DO JK=1,KLEV
             ZC_H2O2_gas = ZC_H2O2_gas - ZTend_Aq
             ZC_O3_gas = ZC_O3_gas - ZTend_Aq
             
-            
          ENDDO
 
          ZTend_H2O2_Sum = ZTend_H2O2_Sum * ZCLW_VFRAC ! convert to [mol / m**3(g)]
@@ -660,30 +661,42 @@ DO JK=1,KLEV
 
          ZTend_Sum = ZTend_Aq_Sum + ZTend_OH_Sum
 
-         PTSO2(JL,JK) = PTSO2(JL,JK) -ZTend_Sum * ZRMSO2 / ZAIR_DENS / PTSPHY
-         PTSO4(JL,JK) =  PTSO4(JL,JK) + ZTend_Sum * ZRMSO4 / ZAIR_DENS / PTSPHY
+         ! Separate wet and dry production of SO4 to allow wet SO4 distribution to M7 modes
+         ! For "aer" case, dry and wet production are summed in AER_PHY3 (FIXME TODO IF POSSIBLE)
+         ZTSO2(JL,JK)    =  ZTSO2(JL,JK)    - ZTend_Sum    * ZRMSO2 / ZAIR_DENS / ZTSPHY
+         ZTSO4(JL,JK)    =  ZTSO4(JL,JK)    + ZTend_OH_Sum * ZRMSO4 / ZAIR_DENS / ZTSPHY
+         ZTSO4_AQ(JL,JK) =  ZTSO4_AQ(JL,JK) + ZTend_Aq_Sum * ZRMSO4 / ZAIR_DENS / ZTSPHY
 
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
       ENDIF
 
-
    ENDDO
 ENDDO
 
-DO JL=KIDIA,KFDIA
-  PFSO4(JL)=0.0_JPRB
-  PFSO2(JL)=0.0_JPRB
+! Cast to working precision
+DO JK=1,KLEV
+  DO JL=KIDIA,KFDIA
+    PTSO4(JL,JK)    = REAL(ZTSO4(JL,JK),    KIND=JPRB)
+    PTSO4_AQ(JL,JK) = REAL(ZTSO4_AQ(JL,JK), KIND=JPRB)
+    PTSO2(JL,JK)    = REAL(ZTSO2(JL,JK),    KIND=JPRB)
+  ENDDO
 ENDDO
 
+! Column integrated output
+DO JL=KIDIA,KFDIA
+  PFSO4(JL)   = 0.0_JPRB
+  PFSO4_AQ(JL)= 0.0_JPRB
+  PFSO2(JL)   = 0.0_JPRB
+ENDDO
 
 DO JK=1,KLEV
-   DO JL=KIDIA,KFDIA
-      PFSO4(JL) = PFSO4(JL) + PTSO4(JL,JK)*(PDP(JL,JK))/RG
-      PFSO2(JL) = PFSO2(JL) + PTSO2(JL,JK)*(PDP(JL,JK))/RG
-   ENDDO
+  DO JL=KIDIA,KFDIA
+    PFSO4(JL)    = PFSO4(JL)    + PTSO4(JL,JK) * PDP(JL,JK)/RG
+    PFSO4_AQ(JL) = PFSO4_AQ(JL) + PTSO4_AQ(JL,JK) * PDP(JL,JK)/RG
+    PFSO2(JL)    = PFSO2(JL)    + PTSO2(JL,JK) * PDP(JL,JK)/RG
+  ENDDO
 ENDDO
-
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('AER_SO2SO4_V2',1,ZHOOK_HANDLE)

@@ -1,0 +1,624 @@
+SUBROUTINE UPDCLIE_AERCLIM(YDGEOMETRY, YDDYNA, YDMCC, YDGFL, YDML_GCONF, PTSTEP)
+
+!**** *UPDCLIE_AERCLIM*
+
+!     PURPOSE.
+!     --------
+
+!     Updates the SO2 oxidants climatology fields every month; 
+!     interpolation in time in between  
+!     (ECMWF version, distributed or shared memory)
+
+!**   INTERFACE.
+!     ----------
+
+!     CALL UPDCLIE_AERCLIM(...)
+
+!        Explicit arguments :
+!        --------------------
+!        PTSTEP: TIME STEP
+
+!     METHOD.
+!     -------
+
+!     Reads the time-varying 3D fields for SO2 oxidants (OH, H2O2, O3) a/k/a "aerosol climatology".  
+!     Uses time interpolation if LMCCIEC_AERCLIM=true (tested, assumes
+!     that monthly data are in the middle of the month), otherwise the
+!     most recent fields are used (untested).
+!  
+!     Note that reading is sequential and, to be correct, detection of the first field is crucial.
+
+!     EXTERNALS.
+!     ----------
+
+!     UPDCAL
+
+!     AUTHORS.
+!     --------
+!       V Huijnen (KNMI) Oct 2022  (based on routine UPDCLIE_COMPO)
+!       P Le Sager (KNMI) Sept 2025 - Fix reading
+
+!     MODIFICATIONS.
+!     --------------
+!     ------------------------------------------------------------------
+
+USE MODEL_GENERAL_CONF_MOD , ONLY : MODEL_GENERAL_CONF_TYPE
+USE GEOMETRY_MOD , ONLY : GEOMETRY
+USE YOMGFL   , ONLY : TGFL
+USE PARKIND1 , ONLY : JPIM, JPRB, JPRD
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOERAD   , ONLY : YRERAD
+USE YOMCST   , ONLY : RDAY
+USE YOMCT0   , ONLY : CNMEXP
+USE YOMLUN   , ONLY : NULOUT, NULERR
+USE YOMMCC   , ONLY : TMCC
+USE YOMMP0   , ONLY : MYPROC
+USE YOMRIP0  , ONLY : NINDAT
+USE YOM_YGFL , ONLY : YGFL
+USE YOMDYNA ,  ONLY : TDYNA 
+USE MPL_MODULE, ONLY : MPL_BROADCAST, MPL_BARRIER
+USE DISGRID_MOD, ONLY : DISGRID_SEND, DISGRID_RECV
+USE GRIB_API, ONLY : GRIB_OPEN_FILE, GRIB_SUCCESS, GRIB_NEW_FROM_FILE, GRIB_END_OF_FILE, GRIB_GET, GRIB_SET,&
+                      & GRIB_RELEASE, GRIB_CLOSE_FILE  
+!     ------------------------------------------------------------------
+
+IMPLICIT NONE
+
+TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
+TYPE(TDYNA)       ,INTENT(IN)    :: YDDYNA
+TYPE(TMCC)        ,INTENT(INOUT) :: YDMCC
+TYPE(MODEL_GENERAL_CONF_TYPE),INTENT(INOUT):: YDML_GCONF
+TYPE(TGFL)        ,INTENT(INOUT) :: YDGFL
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTSTEP 
+!     ------------------------------------------------------------------
+INTEGER(KIND=JPIM) :: ILMOIS(12),IDM(3)
+INTEGER(KIND=JPIM) :: IINFO(10000,YGFL%NAEROCLIM)
+INTEGER(KIND=JPIM) :: ILOENG(YDGEOMETRY%YRDIM%NDGLG)
+REAL(KIND=JPRB) :: ZBUF(YDGEOMETRY%YRGEM%NGPTOTG)
+REAL(KIND=JPRB) :: ZBUF_2D(YDGEOMETRY%YRGEM%NGPTOTG,YDGEOMETRY%YRDIMV%NFLEVG)
+CHARACTER :: CLNOMF*13
+CHARACTER :: CLEVTY*20,CLREPRT*20
+
+INTEGER(KIND=JPIM) :: IA, IA0, IADD, IAE, IAN, ICCYY0, ICCYYE,&
+  & ICOU, ID, IDIF, IDIFD, IDUMY, IEND,&
+  & IFIRST, IGRIB, ICOUNT, IDGNH,&
+  & IIM1, IIM2, IJ0, IJDCR, IJE, IJOUR,&
+  & IJT1, IJT2, IJUL, IJUL0, IJUL1, IJUL2, IJULE,&
+  & IM, IM0, IME, IMM0, IMME, IMOIS, IMT1,&
+  & IPARAM, IPARMAL,&
+  & IBL,&
+  & IRET, IST, ISTADDE,&
+  & ITAG, ITIM, ITIME,&
+  & IYYM0, IYYMD, IZTE, J, JCL, JLEV, JF, JGL,&
+  & JM, JROF, JSTGLO, JTIM, JY, ISECND
+
+LOGICAL :: LLFIRST, LLFOUND, LLREAD
+INTEGER(KIND=JPIM), SAVE :: IDATEREF=0, IUNITAERCLIM
+INTEGER(KIND=JPIM) :: IDATE, IBITMAP, IYSDMP,ILEVEL
+
+REAL(KIND=JPRB) :: ZPOID1, ZPOID2
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+! LCLIMATO allows us to use the same file regardless of the date.
+!
+! It is then assumed that a full year of data is needed.
+!
+! To account for any start date, the oxidants file must contain 2
+! years of data with an extra month before and after. For example:
+! monthly data from 1989-12-15 to 1992-01-15 (use IYEARCLIMATO=1990
+! then).
+!
+LOGICAL, PARAMETER :: LCLIMATO=.TRUE. 
+INTEGER(KIND=JPIM), PARAMETER :: IYEARCLIMATO=1990
+
+!     ------------------------------------------------------------------
+
+#include "abor1.intfb.h"
+#include "updcal.intfb.h"
+#include "fcttim.func.h"
+
+!     ------------------------------------------------------------------
+IF (LHOOK) CALL DR_HOOK('UPDCLIE_AERCLIM',0,ZHOOK_HANDLE)
+
+ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,YDRIP=>YDML_GCONF%YRRIP)
+ASSOCIATE(NDGLG=>YDDIM%NDGLG, NDGNH=>YDDIM%NDGNH, NDLON=>YDDIM%NDLON, &
+ & NPROMA=>YDDIM%NPROMA, &
+ & LPERPET=>YRERAD%LPERPET, &
+ & NGPTOT=>YDGEM%NGPTOT, NGPTOTG=>YDGEM%NGPTOTG, NHTYP=>YDGEM%NHTYP, &
+ & NLOENG=>YDGEM%NLOENG, &
+ & CLIMRAER=>YDMCC%CLIMRAER, LMCCIEC_AERCLIM=>YDMCC%LMCCIEC_AERCLIM, &
+ & NCLIGC_AERCLIM=>YDMCC%NCLIGC_AERCLIM, NAERCLIM=>YGFL%NAEROCLIM, &
+ & NDIFC_AERCLIM=>YDMCC%NDIFC_AERCLIM, NJDCR_AERCLIM=>YDMCC%NJDCR_AERCLIM,NYSDMP_AERCLIM=>YDMCC%NYSDMP_AERCLIM, &
+ & NPAERCLIM_1=>YDMCC%NPAERCLIM_1, NPAERCLIM_2=>YDMCC%NPAERCLIM_2, &
+ & NUNITCAERCLIM=>YDMCC%NUNITCAERCLIM, &
+ & NSTADD=>YDRIP%NSTADD, NSTOP=>YDRIP%NSTOP, &
+ & NFLEVG=>YDDIMV%NFLEVG)
+
+!     ------------------------------------------------------------------
+!*
+LLFIRST = YDMCC%LFIRSTUPDAERCLIM
+YDMCC%LFIRSTUPDAERCLIM=.FALSE.
+
+!*    1.1 Calendar
+
+IJ0=NDD(NINDAT)
+IM0=NMM(NINDAT)
+IA0=NCCAA(NINDAT)
+CALL UPDCAL(IJ0,IM0,IA0,NSTADD,IJOUR,IMOIS,IAN,ILMOIS,NULOUT) ! Current date 
+IF(IJOUR > 15)THEN
+  IMT1=IMOIS
+  IJT1=15
+  IJT2=15+ILMOIS(IMT1)
+ELSE
+  IMT1=1+MOD(IMOIS+10,12)
+  IJT1=15-ILMOIS(IMT1)
+  IJT2=15
+ENDIF
+
+IF (LCLIMATO) THEN
+  IAN = IYEARCLIMATO
+ENDIF
+
+!*
+!     2. OPEN AND SCAN THE FILE, IF CLIMATE FIELDS REQUIRED
+!     -----------------------------------------------------
+
+!*    2.1 OPEN CLIMATE FILE
+
+SCANIF:IF(NAERCLIM >= 1.AND.LLFIRST) THEN
+
+  MYPROCIF: IF (MYPROC == 1) THEN
+
+! ONLY PROCESSOR 1 SHOULD OPEN 
+
+    CLNOMF='aeroclim.grib'
+    WRITE(NULOUT,*) ' READ AER_CLIMATE FIELDS FROM GRIB '
+    WRITE(NULOUT,*) ' INITIAL DATA TO BE READ FROM FILE ',CLNOMF  
+    CALL GRIB_OPEN_FILE(IUNITAERCLIM,CLNOMF,'r',IRET)
+    IF(IRET /= GRIB_SUCCESS) THEN
+      WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: PROBLEM IN GRIB_OPEN_FILE, IRET=',IRET
+      CALL ABOR1('UPDCLIE_AERCLIM: PROBLEM IN GRIB_OPEN_FILE')
+    ENDIF
+
+
+!*    2.2 READ, DECODE HEADERS, CHECK THE FIELDS AND POSITIONS THE FILE
+
+    SCAN: DO JTIM=1,10000
+      DO JCL=1,NAERCLIM
+      DO JLEV=1,NFLEVG
+        CALL GRIB_NEW_FROM_FILE(IUNITAERCLIM,IGRIB,IRET)
+        IF(IRET == GRIB_END_OF_FILE) THEN
+          ITIM=JTIM-1
+          EXIT SCAN
+        ELSEIF(IRET /= GRIB_SUCCESS) THEN
+          WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE, IRET=',IRET
+          CALL ABOR1('UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE')
+        ENDIF
+        CALL GRIB_GET(IGRIB,'ifsParam',IPARAM)
+        CALL GRIB_GET(IGRIB,'dataDate',IYYMD)
+        CALL GRIB_GET(IGRIB,'typeOfLevel',CLEVTY)
+        CALL GRIB_GET(IGRIB,'gridType',CLREPRT)
+        CALL GRIB_GET(IGRIB,'level',ILEVEL)
+        CALL GRIB_GET(IGRIB,'N',IDGNH)
+        WRITE(NULOUT,'(A,I6,A,I4,A,I8.8,A)')&
+         & 'UPDCLIE_AERCLIM: PARAMETER ',IPARAM, ' Level ' ,ILEVEL,' FOR DATE ',IYYMD,' FOUND IN CLIMATE FILE'  
+
+!      check some parameters
+
+        IF (TRIM(CLREPRT) /= 'regular_gg' .AND. TRIM(CLREPRT) /= 'reduced_gg') THEN
+          WRITE(NULERR,*) 'UPDCLIE_AERCLIM: UNEXPECTED DATA REPRESENTATION TYPE',CLREPRT
+          CALL ABOR1(' UPDCLIE_AERCLIM:INVALID DATA REPRESENTATION TYPE')
+        ENDIF
+        IF(IDGNH /= NDGNH) THEN
+          WRITE(NULERR,*) 'UPDCLIE_AERCLIM: RESOLUTION OF MODEL ',NDGNH,', OF INITIAL DATA ',IDGNH  
+          CALL ABOR1(' UPDCLIE_AERCLIM : INVALID DATA RESOLUTION')
+        ENDIF
+        IF(TRIM(CLEVTY) /= 'hybrid') THEN
+          WRITE(NULERR,*) 'UDPCLIE_AERCLIM:  UNEXPECTED LEVEL TYPE ', CLEVTY
+          CALL ABOR1(' UPDCLIE_AERCLIM : INVALID LEVEL TYPE')
+        ENDIF
+
+        IF( NHTYP /= 0 )THEN
+          CALL GRIB_GET(IGRIB,'pl',ILOENG)
+          DO JGL=1,NDGLG
+            IF( NLOENG(JGL) /= ILOENG(JGL) )THEN
+              WRITE(NULERR,*) ' UPDCLIE_AERCLIM :'
+              WRITE(NULERR,*) ' INCONSISTENT REDUCED GRID'
+              WRITE(NULERR,*) ' IN MODEL ',(NLOENG(J),J=1,NDGLG)
+              WRITE(NULERR,*) ' IN FILE  ',(ILOENG(J),J=1,NDGLG)
+              CALL ABOR1(' UPDCLIE_AERCLIM : INCONSISTENT REDUCED GRID')
+            ENDIF
+          ENDDO
+        ENDIF
+
+        CALL GRIB_RELEASE(IGRIB)
+
+!      record/communicate field index
+
+        IF( NCLIGC_AERCLIM(JCL) == IPARAM )THEN
+          IINFO(JTIM,JCL)=IYYMD
+        ELSE
+          WRITE(NULERR,'("UPDCLIE_AERCLIM: SKIPPING OVER FIELD,",&
+           & "GRIB CODE=",I6,", date=",I8)') IPARAM,IYYMD  
+          WRITE(NULERR,'("UPDCLIE_AERCLIM: EXPECTED FIELD,",&
+           & "GRIB CODE=",I6)') NCLIGC_AERCLIM(JCL)
+        !  CALL ABOR1(' UPDCLIE_AERCLIM : UNEXPECTED FIELD')
+        ENDIF
+      ENDDO ! JLEV
+      ENDDO ! JCL
+    ENDDO SCAN
+
+! Check fields come in a consistent order and position file at the
+!   right place
+
+    ! -- End date of current integration ('leg' in EC-Earth vocab)
+    IF (LCLIMATO) THEN
+      ! Assume that an entire year will be simulated
+      IJE = IJOUR
+      IME = IMOIS
+      IF ((IME == 2).AND.(IJE == 29 )) IJE=28 ! to avoid error in IJULE below
+      IAE = IYEARCLIMATO + 1
+    ELSE
+      ITIME=NINT(PTSTEP)
+      IF (YDDYNA%LTWOTL) THEN
+        IZTE=NINT(PTSTEP*(REAL(NSTOP,JPRB)+0.5_JPRB))
+      ELSE
+        IZTE=ITIME*NSTOP
+      ENDIF
+
+      IF (LPERPET) THEN
+        ISECND=IZTE/NINT(RDAY)
+        IZTE=IZTE-ISECND*NINT(RDAY)
+      ENDIF
+
+      ISTADDE=IZTE/NINT(RDAY)
+      CALL UPDCAL(IJ0,IM0,IA0,ISTADDE,IJE,IME,IAE,ILMOIS,NULOUT)
+    ENDIF
+
+    IF (LMCCIEC_AERCLIM) THEN
+      IF (IJOUR > 15) THEN      ! which month is needed first: current or...
+        ICCYY0=IAN
+        IMM0=IMOIS
+      ELSE
+        IMM0=1+MOD(IMOIS+10,12) ! ...previous month
+        IF (IMM0 == 12) THEN
+          ICCYY0=IAN-1
+        ELSE
+          ICCYY0=IAN
+        ENDIF
+      ENDIF
+      IF (IJE > 15) THEN      ! which month is needed last
+        IMME=1+MOD(IME,12)
+        IF (IMME == 1) THEN
+          ICCYYE=IAE+1
+        ELSE
+          ICCYYE=IAE
+        ENDIF
+      ELSE
+        ICCYYE=IAE
+        IMME=IME
+      ENDIF
+
+      ! Locates the first field needed (check only YYYY and MM)
+
+      IYYM0=IMM0+100*ICCYY0
+      LLFOUND=.FALSE.
+      DO J=1,ITIM
+        IF (IYYM0 == IINFO(J,1)/100) THEN
+          IFIRST=J
+          IADD=IINFO(J,1)
+          LLFOUND=.TRUE.
+          EXIT
+        ENDIF
+      ENDDO
+      IF (.NOT.LLFOUND) THEN
+        WRITE(NULERR,'(A,I6,A)')&
+             & 'UPDCLIE_AERCLIM: FIRST FIELD FOR ',IYYM0,' (YYYYMM) NOT FOUND'
+        CALL ABOR1(' UPDCLIE_AERCLIM : FIRST FIELD NOT FOUND')
+      ELSE
+        WRITE(NULOUT,'(A,I6)') 'UPDCLIME_AERCLIM: FOUND FIRST FIELD FOR ',IYYM0
+      ENDIF
+
+      ! Check all fields in the right time order
+
+      ICOU=IFIRST
+      DO JY=ICCYY0,ICCYYE
+        IF (JY == ICCYY0) THEN
+          IIM1=IMM0
+        ELSE
+          IIM1=1
+        ENDIF
+        IF (JY == ICCYYE) THEN
+          IIM2=IMME
+        ELSE
+          IIM2=12
+        ENDIF
+        DO JM=IIM1,IIM2
+          IDUMY=JM+100*JY
+          DO JCL=1,NAERCLIM
+            IF (IDUMY /= IINFO(ICOU,JCL)/100) THEN
+              WRITE(NULERR,'(A,I4,A,I6.6,A)')&
+               & 'UPDCLIE_AERCLIM: FIELD ',NCLIGC_AERCLIM(JCL),' NOT FOUND FOR ',&
+               & IDUMY,'00'  
+              CALL ABOR1(' UPDCLIE_AERCLIM : FIELD NOT FOUND')
+            ENDIF
+          ENDDO
+          ICOU=ICOU+1
+        ENDDO
+      ENDDO
+      IDIF=-999
+      IJDCR=-999
+
+     ELSE
+! Locates the first field needed
+
+      IJUL0=RJUDAT(IAN,IMOIS,IJOUR)
+      DO J=1,ITIM
+        IA=NCCAA(IINFO(J,1))
+        IM=NMM(IINFO(J,1))
+        ID=NDD(IINFO(J,1))
+        IJUL=RJUDAT(IA,IM,ID)
+        IF (IJUL > IJUL0) THEN
+          IF (J == 1) THEN
+            WRITE(NULERR,'(A,I8.8)')&
+             & 'UPDCLIE_AERCLIM: FIRST FILE IS FOR ',IINFO(J,1)  
+            CALL ABOR1(' UPDCLIE_AERCLIM : FIRST FILE NEEDED NOT FOUND')
+          ENDIF
+          IFIRST=J-1
+          IADD=IINFO(IFIRST,1)
+          EXIT
+        ENDIF
+      ENDDO
+
+! Check all fields in the right time order
+
+      IA=NCCAA(IINFO(IFIRST,1))
+      IM=NMM(IINFO(IFIRST,1))
+      ID=NDD(IINFO(IFIRST,1))
+      IJUL1=RJUDAT(IA,IM,ID)
+      IJDCR=IJUL1
+      IA=NCCAA(IINFO(IFIRST+1,1))
+      IM=NMM(IINFO(IFIRST+1,1))
+      ID=NDD(IINFO(IFIRST+1,1))
+      IJUL2=RJUDAT(IA,IM,ID)
+      IDIF=IJUL2-IJUL1
+      IF (NAERCLIM > 1) THEN
+        DO JCL=2,NAERCLIM
+          IA=NCCAA(IINFO(IFIRST,JCL))
+          IM=NMM(IINFO(IFIRST,JCL))
+          ID=NDD(IINFO(IFIRST,JCL))
+          IJUL1=RJUDAT(IA,IM,ID)
+          IA=NCCAA(IINFO(IFIRST+1,JCL))
+          IM=NMM(IINFO(IFIRST+1,JCL))
+          ID=NDD(IINFO(IFIRST+1,JCL))
+          IJUL2=RJUDAT(IA,IM,ID)
+          IDIFD=IJUL2-IJUL1
+          IF (IDIFD /= IDIF) THEN
+            WRITE(NULERR,'(A,2I20,A,I8)')&
+             & 'UPDCLIE_AERCLIM: JULIAN DAYS ',IJUL1,IJUL2,' FOR FIELD '&
+             & ,NCLIGC_AERCLIM(JCL)  
+            WRITE(NULERR,'(A,I8)')'UPDCLIE_AERCLIM: DIFFERENCE EXPECTED ',IDIF
+            CALL ABOR1(' UPDCLIE_AERCLIM : IRREGULARLY SPACED FIELDS')
+          ENDIF
+        ENDDO
+      ENDIF
+      DO J=IFIRST+1,ITIM-1
+        DO JCL=1,NAERCLIM
+          IA=NCCAA(IINFO(J,JCL))
+          IM=NMM(IINFO(J,JCL))
+          ID=NDD(IINFO(J,JCL))
+          IJUL1=RJUDAT(IA,IM,ID)
+          IA=NCCAA(IINFO(J+1,JCL))
+          IM=NMM(IINFO(J+1,JCL))
+          ID=NDD(IINFO(J+1,JCL))
+          IJUL2=RJUDAT(IA,IM,ID)
+          IDIFD=IJUL2-IJUL1
+          IF (IDIFD /= IDIF) THEN
+            WRITE(NULERR,'(A,2I20,A,I8)')&
+             & 'UPDCLIE_AERCLIM: JULIAN DAYS ',IJUL1,IJUL2,' FOR FIELD '&
+             & ,NCLIGC_AERCLIM(JCL)  
+            WRITE(NULERR,'(A,I8)')'UPDCLIE_AERCLIM: DIFFERENCE EXPECTED ',IDIF
+            CALL ABOR1(' UPDCLIE_AERCLIM : IRREGULARLY SPACED FIELDS')
+          ENDIF
+        ENDDO
+      ENDDO
+      IJULE=RJUDAT(IAE,IME,IJE)
+      DO JCL=1,NAERCLIM
+        IA=NCCAA(IINFO(ITIM,JCL))
+        IM=NMM(IINFO(ITIM,JCL))
+        ID=NDD(IINFO(ITIM,JCL))
+        IJUL2=RJUDAT(IA,IM,ID)
+        IDIFD=IJULE-IJUL2
+        IF (IDIFD > IDIF) THEN
+          WRITE(NULERR,'(A)')'UPDCLIE_AERCLIM: FILE TOO SHORTJULIAN DAYS '
+          WRITE(NULERR,'(A,I20)')'UPDCLIE_AERCLIM: FORECAST ENDS ',IJULE
+          WRITE(NULERR,'(A,I20)')'UPDCLIE_AERCLIM: CLIMATE DATA ENDS ',IJUL2
+          WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: DIFFERENCE EXPECTED ',IDIF
+          CALL ABOR1(' UPDCLIE_AERCLIM : IRREGULARLY SPACED FIELDS')
+        ENDIF
+      ENDDO
+
+    ENDIF
+    
+    ! Position the file to the first field needed
+
+    CALL GRIB_CLOSE_FILE(IUNITAERCLIM,IRET)
+    IF( IRET /= GRIB_SUCCESS )THEN
+      CALL ABOR1(' UPDCLIE_AERCLIM: ERROR ON GRIB_CLOSE_FILE')
+    ENDIF
+    CALL GRIB_OPEN_FILE(IUNITAERCLIM,CLNOMF,'r')
+    DO JTIM=1,10000*(NAERCLIM)
+      CALL GRIB_NEW_FROM_FILE(IUNITAERCLIM,IGRIB,IRET)
+      IF(IRET /= GRIB_SUCCESS) THEN
+        WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE, IRET=',IRET
+        CALL ABOR1('UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE')
+      ENDIF
+      CALL GRIB_GET(IGRIB,'dataDate',IYYMD)
+      IF (IYYMD == IADD) THEN
+        EXIT
+      ELSE
+        CALL GRIB_RELEASE(IGRIB) 
+      ENDIF
+    ENDDO
+
+    ! Pack message
+
+    IDM(1)=IDIF
+    IDM(2)=IJDCR
+    IDM(3)=IUNITAERCLIM
+  ENDIF MYPROCIF
+
+  ! Broadcast
+
+  ITAG=19591214
+  CALL MPL_BROADCAST(IDM,KTAG=ITAG,KROOT=1,CDSTRING='UPDCLIE_AERCLIM')
+
+  NDIFC_AERCLIM=IDM(1)
+  NJDCR_AERCLIM=IDM(2)
+  NUNITCAERCLIM=IDM(3)
+
+ENDIF SCANIF
+
+!*    3. READ THE FILE, IF NEEDED.
+!     -----------------------------
+
+READIF: IF(NAERCLIM >= 1) THEN
+
+!* Decide if reading time
+  IDATE=-999
+  IF (LMCCIEC_AERCLIM) THEN
+    IF (LLFIRST) THEN
+      IDATEREF=0
+      LLREAD=.TRUE.
+      IFIRST=2
+    ELSE
+      IDATE=IAN*10000+IMOIS*100+IJOUR
+      IF (IJOUR == 16 .AND. IDATE > IDATEREF) THEN
+        LLREAD=.TRUE.
+        IFIRST=1
+      ELSE
+        LLREAD=.FALSE.
+        IFIRST=1
+      ENDIF
+    ENDIF
+    WRITE(NULOUT,*) 'UPDCLIME_AERCLIM IDATE INFO: ',IDATE, IDATEREF, LLREAD, IFIRST
+  ELSE
+    IF (LLFIRST) THEN
+      LLREAD=.TRUE.
+      IFIRST=1
+    ELSE
+      IFIRST=1
+      IJUL=RJUDAT(IAN,IMOIS,IJOUR)
+      LLREAD=NJDCR_AERCLIM == IJUL
+    ENDIF
+    WRITE(NULOUT,*) 'UPDCLIME_AERCLIM IDATE INFO: ', IDATE, IDATEREF, LLREAD, NJDCR_AERCLIM, NDIFC_AERCLIM
+  ENDIF
+
+!*    3.1 READ, DECODE AND SELECT THE FIELDS
+
+  IF (LLREAD) THEN
+    FIRST: DO JF=1,IFIRST
+      IF (LMCCIEC_AERCLIM) THEN
+        NPAERCLIM_1=3-NPAERCLIM_1
+        NPAERCLIM_2=3-NPAERCLIM_2
+      ELSE
+        NJDCR_AERCLIM=NJDCR_AERCLIM+NDIFC_AERCLIM
+        NPAERCLIM_1=1
+        NPAERCLIM_2=1
+      ENDIF
+      READ: DO JCL=1,NAERCLIM
+        IPARAM=NCLIGC_AERCLIM(JCL)
+        IF (MYPROC == 1) THEN
+         DO JLEV=1,NFLEVG
+          IF (.NOT. (LLFIRST.AND.JF==1.AND.JCL==1.AND.JLEV==1)) THEN
+            CALL GRIB_NEW_FROM_FILE(IUNITAERCLIM,IGRIB,IRET)
+            IF(IRET /= GRIB_SUCCESS ) THEN
+              WRITE(NULERR,'(A,I2)')'UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_FILE, IRET=',IRET
+              CALL ABOR1('UPDCLIE_AERCLIM: PROBLEM IN GRIB_NEW_FROM_INDEX')
+            ENDIF
+          ! ELSE
+          !   WRITE(NULOUT,*) 'UPDCLIME_AERCLIM : use igrib from last position in scan above'
+          ENDIF
+          CALL GSTATS(1703,0)
+          CALL GRIB_GET(IGRIB,'values',ZBUF)
+          CALL GSTATS(1703,1)
+          CALL GRIB_GET(IGRIB,'bitmapPresent',IBITMAP)
+          CALL GRIB_GET(IGRIB,'numberOfValues',ICOUNT)
+          CALL GRIB_GET(IGRIB,'level',ILEVEL)
+          CALL GRIB_GET(IGRIB,'dataDate',IYYMD)
+          CALL GRIB_RELEASE(IGRIB)
+
+          WRITE(NULOUT,'(A,I6,A,I8.8,A, I4, A)')&
+           & 'UPDCLIE_AERCLIM: PARAMETER ',IPARAM, ' FOR DATE ',&
+           & IYYMD,', LEVEL ',ILEVEL,' READ FROM FILE'  
+
+          IDATEREF=IYYMD
+          ZBUF_2D(:,JLEV)=ZBUF
+        ENDDO
+        ENDIF
+
+        !! ! DEBUG INFO
+        !! WRITE(NULERR,"(A,4I6)"),'SHAPE ZBUF_2D:',SHAPE(ZBUF_2D)
+        !! WRITE(NULERR,"(A,4I6)"),'SHAPE CLIMRAER:',SHAPE(CLIMRAER(:,1:NFLEVG,NPAERCLIM_2,JCL))
+        !! WRITE(NULERR,"(A,2I6)"),'other dims:',YDGEOMETRY%YRGEM%NGPTOTG, YDGEOMETRY%YRGEM%NGPTOT
+
+        ! DM communications.
+        IF (MYPROC == 1) THEN
+             CALL DISGRID_SEND(YDGEOMETRY,NFLEVG,ZBUF_2D,JCL,CLIMRAER(:,1:NFLEVG,NPAERCLIM_2,JCL))
+        ELSE
+             CALL DISGRID_RECV(YDGEOMETRY,1,NFLEVG,CLIMRAER(:,1:NFLEVG,NPAERCLIM_2,JCL),JCL)
+        ENDIF
+        CALL MPL_BARRIER(CDSTRING='UPDCLIE_AERCLIM')
+
+        ! Synchronize IDATEREF
+        ITAG=19591204
+        CALL MPL_BROADCAST(IDATEREF,KTAG=ITAG,KROOT=1,CDSTRING='UPDCLIE_AERCLIM')
+        
+      ENDDO READ
+    ENDDO FIRST
+  ENDIF
+
+  IF (LMCCIEC_AERCLIM) THEN
+    ZPOID1=REAL(IJT2-IJOUR,JPRB)/REAL(IJT2-IJT1,JPRB)
+    ZPOID2=1.0_JPRB-ZPOID1
+  ENDIF
+
+  ! Fill GFL array
+  DO IPARMAL=1,NAERCLIM
+    IYSDMP=NYSDMP_AERCLIM(IPARMAL) 
+    IF (LMCCIEC_AERCLIM) THEN
+      DO JLEV=1,NFLEVG
+        DO JSTGLO=1,NGPTOT,NPROMA
+          IEND=MIN(NPROMA,NGPTOT-JSTGLO+1)
+          IST=1
+          IBL=(JSTGLO-1)/NPROMA+1
+          DO JROF =1,IEND
+            YDGFL%GFL(JROF,JLEV,IYSDMP,IBL) = CLIMRAER(JSTGLO+JROF-1,JLEV,NPAERCLIM_1,IPARMAL)*ZPOID1 &
+                 & +CLIMRAER(JSTGLO+JROF-1,JLEV,NPAERCLIM_2,IPARMAL)*ZPOID2
+          ENDDO
+        ENDDO
+      ENDDO
+    ELSE
+      DO JLEV=1,NFLEVG
+        DO JSTGLO=1,NGPTOT,NPROMA
+          IEND=MIN(NPROMA,NGPTOT-JSTGLO+1)
+          IST=1
+          IBL=(JSTGLO-1)/NPROMA+1
+          DO JROF =1,IEND
+            YDGFL%GFL(JROF,JLEV,IYSDMP,IBL) = CLIMRAER(JSTGLO+JROF-1,JLEV,NPAERCLIM_2,IPARMAL)
+          ENDDO
+        ENDDO
+      ENDDO
+    ENDIF
+  ENDDO
+
+ENDIF READIF
+
+WRITE(NULOUT,*) 'UPDCLIE_AERCLIM finished'
+CALL FLUSH(NULOUT)
+
+!     ------------------------------------------------------------------
+END ASSOCIATE
+END ASSOCIATE
+IF (LHOOK) CALL DR_HOOK('UPDCLIE_AERCLIM',1,ZHOOK_HANDLE)
+END SUBROUTINE UPDCLIE_AERCLIM

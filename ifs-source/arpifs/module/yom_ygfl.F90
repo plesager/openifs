@@ -11,18 +11,33 @@
 
 MODULE YOM_YGFL
 
-USE PARKIND1 , ONLY : JPIM, JPRB
+USE PARKIND1 ,    ONLY : JPIM, JPRB
 USE YOE_AERODIAG, ONLY : NPAERAOT, NPAERLISI_VAR, NPAERLISI_WVL, NPAERLISI, &
-  & TYPE_AERO_WVL_DIAG, NPAERO_WVL_DIAG
+                       & TYPE_AERO_WVL_DIAG, NPAERO_WVL_DIAG
 
 USE PAR_GFL
 
 IMPLICIT NONE
 SAVE
 
-!-------------------------------------------------------------------------
-! Contains the descriptors of GFL arrays
-!-------------------------------------------------------------------------
+! ╒════════════════════════════════════════════════════════════════════════════╕
+! │ MODULE YOM_YGLF                                      (updated 15-MAY-2024) │
+! │                                                                            │
+! │  *Contains the descriptors of GFL arrays* (derived types)                  │
+! │                                                                            │
+! │ TYPES:                                                                     │
+! │ - TYPE_GFL_COMP   -> individual field descriptor                           │
+! │ - TYPE_GFL_NAML   -> individual field descriptor for namelist input        │
+! │ - TYPE_GFLD       -> derived types for describing the GFL structure.       │
+! │                                                                            │
+! │                                                                            │
+! │ Author : ECMWF(?)                                                          │
+! │ -------                                                                    │
+! │                                                                            │
+! │ Modifications : (included before each type)                                │
+! │ -------------                                                              │
+! │                                                                            │
+! ╘════════════════════════════════════════════════════════════════════════════╛
 
 TYPE TYPE_GFL_COMP ! Individual field descriptor
 
@@ -181,28 +196,36 @@ REAL(KIND=JPRB)     :: HENRYB                ! Henry constant b
 
 END TYPE TYPE_GFL_NAML
 
-!-------------------------------------------------------------------------
-! Derived types for describing the GFL structure.
-!-------------------------------------------------------------------------
-! Modifications:
-! 03/07/09 C. Fischer - add Arome/Aladin attributes
-! 03/10/01 C. Moussy  - add Arome/Aladin attributes coupling
-! 03/10/31 M. Tudor   - add physics tendencies for predictor-corrector
-! 05/10/10 J. Haseler - switch for I/O to trajectory structure
-! 2004-Nov F. Vana    - update of CSLINT attribute
-! 20-Feb-2005 Vivoda  - 3TL Eul PC scheme (GFLPC)
-! 07/06/27 E. Holm    - TL/AD advection without wind increments LADV5
-! 12/04/08 J. Flemming - GFL attribute extention for GEMS 
-! 22-Feb-11 F. Vana   - LTDIABLIN and LHORTURB
-! spring 2011 ECMWF   - LINTLIN
-! Nov. 2013           - LCOMAD
-! 2013-11, D. Degrauwe - INTFLEX attributes
-! 06-Feb-2015 F. Vana & M. Kharoutdinov - super-parametrization fields.
-! 02-Feb-2017 S.-J. Lock - LSPPTGFL, switch for SPPT perturbations to chemistry/aerosol tendencies
-! 2017-11-11 M Ahlgrimm - add cloud heterogeneity FSD
-! 14-Feb-2019 P Bechtold- add turbulence diagnostics EDR Parameter
-! 20-Feb-2019 F. Vana  - WENO quintic interpolation
-! 11-Sep-2020 F. Vana  - SLAVEPP in TL/AD
+! ╭────────────────────────────────────────────────────────────────────────────╮
+! │ TYPE : TYPE_GFLD                                     (updated 15-May-2024) │
+! │                                                                            │
+! │       Derived types for describing the GFL structure.                      │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ ---------------                                                            │
+! │  03/07/09     C. Fischer   - add Arome/Aladin attributes                   │
+! │  03/10/01     C. Moussy    - add Arome/Aladin attributes coupling          │
+! │  03/10/31     M. Tudor     - add physics tendencies for predictor-corrector│
+! │  05/10/10     J. Haseler   - switch for I/O to trajectory structure        │
+! │  2004-Nov     F. Vana      - update of CSLINT attribute                    │
+! │  20-Feb-2005  Vivoda       - 3TL Eul PC scheme (GFLPC)                     │
+! │  07/06/27     E. Holm      - TL/AD advection without wind increments LADV5 │
+! │  12/04/08     J. Flemming  - GFL attribute extention for GEMS              │
+! │  22-Feb-11    F. Vana      - LTDIABLIN and LHORTURB                        │
+! │  spring 2011  ECMWF        - LINTLIN                                       │
+! │  Nov. 2013                 - LCOMAD                                        │
+! │  2013-11,     D. Degrauwe  - INTFLEX attributes                            │
+! │  06-Feb-2015  F. Vana      - super-parametrization fields.                 │
+! │             & M. Kharoutdinov                                              │
+! │  02-Feb-2017  S.-J. Lock  - LSPPTGFL, switch for SPPT perturbations to     │
+! │                             chemistry/aerosol tendencies                   │
+! │  2017-11-11   M Ahlgrimm  - add cloud heterogeneity FSD                    │
+! │  14-Feb-2019  P Bechtold  - add turbulence diagnostics EDR Parameter       │
+! │  20-Feb-2019  F. Vana     - WENO quintic interpolation                     │
+! │  11-Sep-2020  F. Vana     - SLAVEPP in TL/AD                               │
+! │  01-Apr-2024  Wu Lianghai - NCHEM_FLX (for hamm7 ?)                        │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
 TYPE TYPE_GFLD
 
@@ -262,19 +285,20 @@ LOGICAL :: LAEROCLIM   = .FALSE.
 LOGICAL :: LUVPOUT     = .FALSE.
 LOGICAL :: LSPPTGFL    = .FALSE.   ! Activates SPPT perturbations to CHEM tendencies (C-IFS ensemble)
 
-INTEGER(KIND=JPIM) :: NGEMS   ! The total number of "GEMS" fields.
+INTEGER(KIND=JPIM) :: NGEMS        ! The total number of "GEMS" fields.
 INTEGER(KIND=JPIM) :: NCHEM
 INTEGER(KIND=JPIM) :: NCHEM_ASSIM
 INTEGER(KIND=JPIM) :: NCHEM_FLXO 
 INTEGER(KIND=JPIM) :: NCHEM_WDFLX 
 INTEGER(KIND=JPIM) :: NCHEM_DDFLX 
+INTEGER(KIND=JPIM) :: NCHEM_FLX    ! [FIXME we need to define here what this is (not used? from 43r3??]
 INTEGER(KIND=JPIM) :: NCHEM_DV
 INTEGER(KIND=JPIM) :: NCHEM_TC
 INTEGER(KIND=JPIM) :: NCHEM_SCV
-INTEGER(KIND=JPIM) :: NEMIS2D ! Number of 2D emission fields for composition
-INTEGER(KIND=JPIM) :: NEMIS2DAUX ! Number of 2D emission auxiliary fields for composition
-INTEGER(KIND=JPIM) :: NEMIS3D ! Number of 3D emission fields for composition
-INTEGER(KIND=JPIM) :: NLIMA  ! Total number of LIMA fields
+INTEGER(KIND=JPIM) :: NEMIS2D      ! Number of 2D emission fields for composition
+INTEGER(KIND=JPIM) :: NEMIS2DAUX   ! Number of 2D emission auxiliary fields for composition
+INTEGER(KIND=JPIM) :: NEMIS3D      ! Number of 3D emission fields for composition
+INTEGER(KIND=JPIM) :: NLIMA        ! Total number of LIMA fields
 INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG
 INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG_TYPES
 
@@ -351,6 +375,8 @@ TYPE(TYPE_GFL_COMP),POINTER  :: YQVA        => NULL() ! total humidity variation
 TYPE(TYPE_GFL_COMP),POINTER  :: YGHG(:)     => NULL() ! Greenhouse Gases
 TYPE(TYPE_GFL_COMP),POINTER  :: YCHEM(:)    => NULL() ! Chemistry
 TYPE(TYPE_GFL_COMP),POINTER  :: YAERO(:)    => NULL() ! Aerosols
+
+
 TYPE(TYPE_GFL_COMP),POINTER  :: YLRCH4      => NULL() ! CH4 loss rate (instantaneous field)
 TYPE(TYPE_GFL_COMP),POINTER  :: YEMIS3D(:)  => NULL() ! 3D emissions for atmospheric composition
 TYPE(TYPE_GFL_COMP),POINTER  :: YFORC(:)    => NULL() ! large scale forcing
@@ -386,6 +412,13 @@ TYPE(TYPE_GFL_COMP),POINTER  :: YUEN        => NULL() ! Updraught entrainment
 TYPE(TYPE_GFL_COMP),POINTER  :: YUNEBH      => NULL() ! pseudo-historic convective
 
 TYPE(TYPE_GFL_COMP),POINTER  :: YLIMA(:)    => NULL() ! LIMA prognostic fields
+
+
+! water and ice cloud variables when using online aerosols
+TYPE(TYPE_GFL_COMP),POINTER  :: YCDNC         ! Cloud droplet number concentration
+TYPE(TYPE_GFL_COMP),POINTER  :: YICNC         ! Ice crystal number concentration
+TYPE(TYPE_GFL_COMP),POINTER  :: YRE_LIQ       ! Effective radius of liquid water droplets
+TYPE(TYPE_GFL_COMP),POINTER  :: YRE_ICE       ! Effective radius of ice crystals
 
 ! cloud heterogeneity FSD
 TYPE(TYPE_GFL_COMP),POINTER  :: YFSD        => NULL() ! PHYS output
@@ -466,6 +499,12 @@ TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
 
 TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
 TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
+
+! water and ice cloud variables when using online aerosols
+TYPE(TYPE_GFL_NAML)  :: YCDNC_NL         ! Cloud droplet number concentration
+TYPE(TYPE_GFL_NAML)  :: YICNC_NL         ! Ice crystal number concentration
+TYPE(TYPE_GFL_NAML)  :: YRE_LIQ_NL       ! Effective radius of liquid water droplets
+TYPE(TYPE_GFL_NAML)  :: YRE_ICE_NL       ! Effective radius of ice crystals
 
 END TYPE TYPE_GFLD
 

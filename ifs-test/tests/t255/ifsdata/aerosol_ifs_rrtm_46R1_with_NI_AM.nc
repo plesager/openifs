@@ -1,0 +1,1 @@
+../../t21/ifsdata/aerosol_ifs_rrtm_46R1_with_NI_AM.nc

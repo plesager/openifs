@@ -9,7 +9,7 @@
 
 MODULE YOMCST
 
-USE PARKIND1  ,ONLY : JPRB
+USE PARKIND1  ,ONLY : JPRB, JPRD
 
 IMPLICIT NONE
 
@@ -31,6 +31,8 @@ REAL(KIND=JPRB),PROTECTED :: RCLUM
 REAL(KIND=JPRB),PROTECTED :: RHPLA
 REAL(KIND=JPRB),PROTECTED :: RKBOL
 REAL(KIND=JPRB),PROTECTED :: RNAVO
+REAL(KIND=JPRD),PROTECTED :: DRKBOL ! double precision for use in mixed precision code
+REAL(KIND=JPRD),PROTECTED :: DRNAVO ! double precision for use in mixed precision code
 
 ! A1.1 Astronomical constants
 ! * RDAY         : duration of the solar day
@@ -115,6 +117,8 @@ REAL(KIND=JPRB),PROTECTED :: RMCFC11
 REAL(KIND=JPRB),PROTECTED :: RMCFC12
 REAL(KIND=JPRB),PROTECTED :: RMHCFC22
 REAL(KIND=JPRB),PROTECTED :: RMCCL4
+REAL(KIND=JPRD),PROTECTED :: DR  ! double precision for use in mixed precision code
+REAL(KIND=JPRD),PROTECTED :: DRD ! double precision for use in mixed precision code
 
 ! A1.5,6 Thermodynamic liquid,solid phases
 ! * RCW          : Cw (calorific capacity of liquid water)
@@ -263,6 +267,9 @@ RHPLA=6.6260755E-34_JPRB
 RKBOL=1.380658E-23_JPRB
 RNAVO=6.0221367E+23_JPRB
 
+DRKBOL=1.380658E-23_JPRD
+DRNAVO=6.0221367E+23_JPRD
+
 !     ------------------------------------------------------------------
 
 !*       2.    DEFINE ASTRONOMICAL CONSTANTS.
@@ -352,6 +359,10 @@ RMCFC11=137.3686_JPRB
 RMCFC12=120.914_JPRB
 RMHCFC22=86.469_JPRB
 RMCCL4=153.823_JPRB
+
+DR=DRNAVO*DRKBOL
+DRD=1000._JPRD*DR/28.9644_JPRD
+
 !     ------------------------------------------------------------------
 
 !*       6.    DEFINE THERMODYNAMIC CONSTANTS, LIQUID PHASE.

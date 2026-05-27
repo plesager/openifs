@@ -43,7 +43,7 @@ IMPLICIT NONE
 ! INPUT ARGUMENTS
 
 ! *** Array dimensions and ranges
-TYPE(TERAD)       ,INTENT(INOUT):: YDERAD
+TYPE(TERAD)       ,INTENT(IN) :: YDERAD
 TYPE(TSPP_CONFIG) ,INTENT(IN) :: YDSPP_CONFIG
 INTEGER(KIND=JPIM),INTENT(IN) :: KIDIA    ! Start column to process
 INTEGER(KIND=JPIM),INTENT(IN) :: KFDIA    ! End column to process

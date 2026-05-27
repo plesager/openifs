@@ -32,9 +32,29 @@ USE PARKIND1  ,ONLY : JPIM, JPRB
 IMPLICIT NONE
 SAVE
 
-INTEGER(KIND=JPIM), PARAMETER :: NPEMIS2D = 500 ! sync with JPOSEMIS2D in parfpos.F90
+! ╒════════════════════════════════════════════════════════════════════════════╕
+! │ MODULE YOMCOMPO                                      (updated 15-MAY-2024) │
+! │                                                                            │
+! │  *Types for compo & emissions. Function to read emissions namelist groups* │
+! │                                                                            │
+! │ TYPES:                                                                     │
+! │ - TCOMPO_EMIS     -> a single emission specific. matches NAMCOMPO_EMIS     │
+! │ - TCOMPO_EMIS_AUX -> a single emission auxiliary fields specific.          │
+! │ - TCOMPO          ->                                                       │
+! │                                                                            │
+! │ Author : 2016-09-20   J. Flemming                                          │
+! │ -------                                                                    │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ -------------                                                              │
+! │ May-2024   R.Checa-Garcia (KNMI) added to TCOMPO_EMIS the PSD at emission  │
+! │                                                                            │
+! │                                                                            │
+! ╘════════════════════════════════════════════════════════════════════════════╛
+
+INTEGER(KIND=JPIM), PARAMETER :: NPEMIS2D = 500   ! sync with JPOSEMIS2D in parfpos.F90
 INTEGER(KIND=JPIM), PARAMETER :: NPEMIS2DAUX = 10 ! sync with JPOSEMIS2DAUX in parfpos.F90
-INTEGER(KIND=JPIM), PARAMETER :: NPEMIS3D = 10 ! sync with JPOSEMIS3D in parfpos.F90
+INTEGER(KIND=JPIM), PARAMETER :: NPEMIS3D = 10    ! sync with JPOSEMIS3D in parfpos.F90
 
 ! Type for a single emission specification
 ! Matches NAMCOMPO_EMIS namelist
@@ -66,6 +86,15 @@ TYPE :: TCOMPO_EMIS
                                                            !   16=use-for-fire-inj; 32=use-for-volc-alti
   LOGICAL            :: NON_SIMPLE_TRACER = .FALSE.        ! Set if this is a non-simple-tracer species
                                                            !   (e.g. a GLOMAP component represented by multiple tracers)
+  ! PROPERTIES of PSD at EMISSION: RADIUS, SIGMA and MASS-DENSITY tracer
+  !            used to convert mass-flux into number-particles-flux 
+  !            for M7 backwards consistency PSD_SIGMA, PSD_RADIUS and MASS_DENSITY 
+  !            should those defined for each mode.
+  REAL(KIND=JPRB)    :: PSD_SIGMA     = 2.0_JPRB 
+  REAL(KIND=JPRB)    :: PSD_RADIUS    = 1.0_JPRB 
+  REAL(KIND=JPRB)    :: MASS_DENSITY  = 1000.0_JPRB
+  CHARACTER(LEN=16)  :: PSD_N0_TRACER = 'NONE'
+
 END TYPE TCOMPO_EMIS
 
 ! Type for a single emission auxiliary fields specification
@@ -75,46 +104,38 @@ TYPE :: TCOMPO_EMIS_AUX
   CHARACTER(LEN=16)  :: CNAME = ''
 END TYPE TCOMPO_EMIS_AUX
 
+
+! Type for ....
 TYPE :: TCOMPO
-!  mass diagnostics switch for global budget   
-     LOGICAL    :: LCHEM_DIA
-!  period (in hours) on which to output budget
-     REAL(KIND=JPRB) :: RCHEM_DIA_PERIOD
-!  output of photolysis rates in extra ) 
-     LOGICAL    :: LCHEM_DDFLX
-!  if depostion as part of diffusion flux, do not add before , direct input to tracer diffusion    
-     LOGICAL    :: LCOMPO_DDFLX_DIR
-! variable tropopause (humidity)
-    LOGICAL :: LCHEM_TROPO
-! Use EQSAM4CLIM
-    LOGICAL :: LAEREQSAM4CLIM
-! aerosol surface fluxes  
-    LOGICAL :: LAEROSFC
-! Climatological diurnal Cycle (cosine) for climatological dry deposition velocities (AER + CHEM)    
-    LOGICAL :: LCOMPO_DCDD
-! Use nitrate aerosol scheme
-    LOGICAL :: LAERNITRATE
-! Use aer resuspension
-    LOGICAL :: LAERRESUSPENSION
-! Use distinct SOA species in aerosol scheme
-    LOGICAL :: LAERSOA
-! SOA coupled with chemistry
-    LOGICAL :: LAERSOA_COUPLED
-! Output CH4 loss tendency from chemistry, and optionally apply online
-    INTEGER(KIND=JPIM) :: KGHG_CHEMTEND_CH4
-! Use nucleation in IFS-GLOMAP
-    LOGICAL :: LAERNUCL
-! Aersols scheme (aer/glomap)
-    CHARACTER(LEN=10)    :: AERO_SCHEME
-! 2D emissions
-    INTEGER(KIND=JPIM) :: NEMIS2D_DESC
-    TYPE(TCOMPO_EMIS), DIMENSION(:), ALLOCATABLE :: YEMIS2D_DESC
-! 3D emissions
-    INTEGER(KIND=JPIM) :: NEMIS3D_DESC
-    TYPE(TCOMPO_EMIS), DIMENSION(:), ALLOCATABLE :: YEMIS3D_DESC
-! 2D emission auxiliary fields (injection heights etc)
-    TYPE(TCOMPO_EMIS_AUX), DIMENSION(:), ALLOCATABLE :: YEMIS2DAUX_DESC
-END TYPE TCOMPO 
+  ! --- SWITCHES ------------------
+  LOGICAL :: LCHEM_DIA        ! mass diagnostics switch for global budget
+  LOGICAL :: LCHEM_DDFLX      ! output of photolysis rates in extra )
+  LOGICAL :: LCOMPO_DDFLX_DIR ! if depostion as part of diffusion flux, do not add before,
+                              !  direct input to tracer diffusion
+  LOGICAL :: LCHEM_TROPO      ! variable tropopause (humidity)
+  LOGICAL :: LAEREQSAM4CLIM   ! Use EQSAM4CLIM
+  LOGICAL :: LAEROSFC         ! aerosol surface fluxes
+  LOGICAL :: LCOMPO_DCDD      ! Climatological diurnal Cycle (cosine) for
+                              ! climatological dry deposition velocities (AER + CHEM)
+  LOGICAL :: LAERNITRATE      ! Use nitrate aerosol scheme
+  LOGICAL :: LAERRESUSPENSION ! Use aer resuspension
+  LOGICAL :: LAERSOA          ! Use distinct SOA species in aerosol scheme
+  LOGICAL :: LAERSOA_COUPLED  ! SOA coupled with chemistry
+  LOGICAL :: LAERNUCL         ! Use nucleation in IFS-GLOMAP
+  LOGICAL :: LINJ             ! Account for injection height
+  !
+  CHARACTER(LEN=10)  :: AERO_SCHEME       ! Aersols scheme (aer/glomap)
+  REAL(KIND=JPRB)    :: RCHEM_DIA_PERIOD  !  period (in hours) on which to output budget
+  INTEGER(KIND=JPIM) :: KGHG_CHEMTEND_CH4 ! Output CH4 loss tendency from chemistry, and optionally apply online
+  ! 2D emissions
+  INTEGER(KIND=JPIM) :: NEMIS2D_DESC      ! 2D emissions (number)
+  TYPE(TCOMPO_EMIS), DIMENSION(:), ALLOCATABLE :: YEMIS2D_DESC  ! 2D emissions description.
+  ! 3D emissions
+  INTEGER(KIND=JPIM) :: NEMIS3D_DESC     ! 2D emissions (number)
+  TYPE(TCOMPO_EMIS), DIMENSION(:), ALLOCATABLE :: YEMIS3D_DESC  ! 3D emissions description.
+  ! 2D emission auxiliary fields (injection heights etc)
+  TYPE(TCOMPO_EMIS_AUX), DIMENSION(:), ALLOCATABLE :: YEMIS2DAUX_DESC
+END TYPE TCOMPO
 
 !!TYPE(TCOMPO), POINTER :: YRCOMPO => NULL()
 CHARACTER(LEN=10)    :: AERO_SCHEME_OP_OBS

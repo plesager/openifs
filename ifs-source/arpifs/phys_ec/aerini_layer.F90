@@ -7,7 +7,7 @@
 ! nor does it submit to any jurisdiction
 
 SUBROUTINE AERINI_LAYER(YDGEOMETRY,YDSURF,&
-  & YDMODEL,KDIM,PAUX,STATE,R,S,PSURF,SURFL,GEMSL)
+  & YDMODEL,KDIM,PAUX,STATE,R,S,PSURF,SURFL,GEMSL,GPGAW)
 
 !**** *AERINI_LAYER* - Layer routine calling time stepping of first part
 !                      of prognostic aerosol computations
@@ -80,7 +80,7 @@ USE YOMCST    ,ONLY : RA, RPI
 IMPLICIT NONE
 
 TYPE(GEOMETRY)                 ,INTENT(IN)    :: YDGEOMETRY
-TYPE(TSURF)                    ,INTENT(INOUT) :: YDSURF
+TYPE(TSURF)                    ,INTENT(IN)    :: YDSURF
 TYPE(MODEL)                    ,INTENT(INOUT) :: YDMODEL
 TYPE (DIMENSION_TYPE)          ,INTENT (IN)   :: KDIM
 TYPE (AUX_TYPE)                ,INTENT (IN)   :: PAUX
@@ -89,6 +89,7 @@ TYPE(VARIABLE_3D)              ,INTENT (IN)   :: R, S
 TYPE (SURF_AND_MORE_TYPE)      ,INTENT(INOUT) :: PSURF
 TYPE (SURF_AND_MORE_LOCAL_TYPE),INTENT(INOUT) :: SURFL
 TYPE (GEMS_LOCAL_TYPE)         ,INTENT(INOUT) :: GEMSL
+REAL(KIND=JPRB)                ,INTENT(IN)    :: GPGAW(KDIM%KLON)  
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JL, ISNH3_C,ISHNO3_C,JK,JT
 ! names begin with "IX" to avoid confusion with the species indices used in the chemical schemes
@@ -112,11 +113,14 @@ REAL(KIND=JPRB)             :: ZSO4(KDIM%KLON,KDIM%KLEV)
 
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+REAL(KIND=JPRB) :: PSO4SRC(KDIM%KLON,KDIM%KLEV),PSO2SRC(KDIM%KLON,KDIM%KLEV)
 REAL(KIND=JPRB) :: ZSNM(KDIM%KLON)
 !-----------------------------------------------------------------------
 
 #include "aer_wind.intfb.h"
 #include "aer_phy2.intfb.h"
+#include "tm5m7_phy2.intfb.h"
+!#include "simple_sulfur_src.intfb.h"
 #include "abor1.intfb.h"
 
 
@@ -125,19 +129,31 @@ REAL(KIND=JPRB) :: ZSNM(KDIM%KLON)
 !     ------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('AERINI_LAYER',0,ZHOOK_HANDLE)
-ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, &
-  & YDMP=>YDGEOMETRY%YRMP, YGFL=>YDMODEL%YRML_GCONF%YGFL,YDPHY2=>YDMODEL%YRML_PHY_MF%YRPHY2, &
-  & YDERAD=>YDMODEL%YRML_PHY_RAD%YRERAD, YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
-  & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM, &
-  & YDRIP=>YDMODEL%YRML_GCONF%YRRIP)
-ASSOCIATE(NACTAERO=>YGFL%NACTAERO, &
- & LECSRAD=>YDERAD%LECSRAD, NCSRADF=>YDERAD%NCSRADF, NSW=>YDERAD%NSW, &
- & NSTART=>YDRIP%NSTART, &
- & LAERNITRATE => YDCOMPO%LAERNITRATE, &
- & YCHEM=>YGFL%YCHEM, &
- & AERO_SCHEME=>YDCOMPO%AERO_SCHEME, &
- & YSD_VD=>YDSURF%YSD_VD, YSD_VF=>YDSURF%YSD_VF, YSP_RR=>YDSURF%YSP_RR, &
- & YSP_SB=>YDSURF%YSP_SB, YSP_SG=>YDSURF%YSP_SG, TSPHY=>YDPHY2%TSPHY)
+ASSOCIATE(&
+  ! --- YDGEOMETRY -------------------------------------------------------------
+  & YDDIM=>YDGEOMETRY%YRDIM, YDDIMV=>YDGEOMETRY%YRDIMV,                        &
+  & YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,                            &
+  ! --- YDMODEL ----------------------------------------------------------------
+  & YGFL  =>YDMODEL%YRML_GCONF%YGFL,     YDPHY2  =>YDMODEL%YRML_PHY_MF%YRPHY2, &
+  & YDERAD=>YDMODEL%YRML_PHY_RAD%YRERAD, YDCOMPO =>YDMODEL%YRML_CHEM%YRCOMPO,  &
+  & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM, YDRIP=>YDMODEL%YRML_GCONF%YRRIP)
+
+ASSOCIATE(&
+  ! --- YDERAD -----------------------------------------------------------------
+  & LECSRAD     => YDERAD%LECSRAD, NCSRADF=>YDERAD%NCSRADF, NSW=>YDERAD%NSW,   &
+  ! --- YGFL -------------------------------------------------------------------
+  & NACTAERO    => YGFL%NACTAERO,                                              &
+  & YCHEM       => YGFL%YCHEM,                                                 &
+  & LAERCHEM    => YGFL%LAERCHEM,                                              &
+  ! --- YDCOMPO ----------------------------------------------------------------
+  & LAERNITRATE => YDCOMPO%LAERNITRATE,                                        &
+  & LAEROSFC    => YDCOMPO%LAEROSFC,                                           &
+  & AERO_SCHEME => YDCOMPO%AERO_SCHEME,                                        &
+  ! --- YDSURF -----------------------------------------------------------------
+  & YSD_VD      => YDSURF%YSD_VD, YSD_VF=>YDSURF%YSD_VF, YSP_RR=>YDSURF%YSP_RR,&
+  & YSP_SB      => YDSURF%YSP_SB, YSP_SG=>YDSURF%YSP_SG,                       &
+  ! --- OTHERS -----------------------------------------------------------------
+  & NSTART      => YDRIP%NSTART, TSPHY=>YDPHY2%TSPHY)
 !     ------------------------------------------------------------------
 
 IXCHEM(:) = IXNOTUSED
@@ -153,68 +169,150 @@ ENDDO
 !*         1.     UNROLL THE DERIVED STRUCTURES AND CALL AER_WIND AND AER_PHY2
 
 
-CALL AER_WIND&
- &( KDIM%KIDIA,KDIM%KFDIA,KDIM%KLON,KDIM%KTILES,&
- &STATE%U(:,KDIM%KLEV),STATE%V(:,KDIM%KLEV),STATE%T(:,KDIM%KLEV),STATE%Q(:,KDIM%KLEV),&
- &PAUX%PAPRS(:,KDIM%KLEV),PAUX%PGEOM1(:,KDIM%KLEV),&
- &PSURF%PUSTRTI,PSURF%PVSTRTI,PSURF%PAHFSTI,PSURF%PEVAPTI,SURFL%ZFRTI,GEMSL%ZAZ0M,&
+CALL AER_WIND( &
+ &  KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, KDIM%KTILES,&
+ &  STATE%U(:,KDIM%KLEV),STATE%V(:,KDIM%KLEV),STATE%T(:,KDIM%KLEV),STATE%Q(:,KDIM%KLEV),&
+ &  PAUX%PAPRS(:,KDIM%KLEV),PAUX%PGEOM1(:,KDIM%KLEV),&
+ &  PSURF%PUSTRTI,PSURF%PVSTRTI,PSURF%PAHFSTI,PSURF%PEVAPTI,SURFL%ZFRTI,GEMSL%ZAZ0M,&
  &  GEMSL%ZAERWS, GEMSL%ZAERGUST, GEMSL%ZAERUST )
 
 ZSNM = SUM(PSURF%PSP_SG(:,:,YSP_SG%YF%MP9),DIM=2) ! pre-compute total snow mass
+
+
+   !IF(.not. LAERCHEM .and. LAEROSFC)THEN
+   !IF(LAEROSFC)
+    !call simple_sulfur_src(YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV,& 
+    !     &  KDIM%KSTGLO, GEMSL%ITRAC, GEMSL%IAERO, &
+    !     &  PAUX%PAPHI, &
+    !     &  PSURF%PSD_VF(:,YSD_VF%YSO2L%MP), PSURF%PSD_VF(:,YSD_VF%YSO2H%MP), &
+    !     &  PSURF%PSD_VF(:,YSD_VF%YSOGF%MP),&
+    !     &  PSURF%PSD_VF(:,YSD_VF%YSOA%MP) ,&
+    !     &  PSURF%PSD_VF(:,YSD_VF%YSOACO%MP),PSURF%PSD_VF(:,YSD_VF%YVOLC%MP), PSURF%PSD_VF(:,YSD_VF%YVOLE%MP),PSURF%PSD_VF(:,YSD_VF%YDMSO%MP),&
+    !     &  PSURF%PSD_VF(:,YSD_VF%YCI%MP)  , PSURF%PSD_VF(:,YSD_VF%YINJF%MP) , PSURF%PSD_VD(:,YSD_VD%YBLH%MP) ,&
+    !     &  PAUX%PRS1, PAUX%PRSF1,PAUX%PGELAM, PAUX%PGELAT,&
+    !     &  PSURF%PSD_VF(:,YSD_VF%YLSM%MP) ,  PSURF%PSP_RR(:,YSP_RR%YT%MP9)  , TSPHY,&
+    !     &  GEMSL%ZAERWS,&
+    !     &  GEMSL%ZDMSO, GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
+    !     &  GEMSL%ZODMS, PSO4SRC,PSO2SRC)
+!IF (trim(CHEM_SCHEME)=="Sim_Chem".and.LAERCHEM)
+!    DO JL=KIDIA,KFDIA
+!       DO JK=1,KLEV
+!          DO JGAS=1,2
+!             IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO2') THEN
+!                ISSO2=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                GEMSL%ZTENC(JL,JK,KAERO(ISSO2))=GEMSL%ZTENC(JL,JK,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO2))=PCFLX(JL,KAERO(ISSO2)) + PSO2SRC(JL,JK)
+!                !PEMIDIAG(JL,KAERO(ISSO2))=PEMIDIAG(JL,KAERO(ISSO2))+ PSO2SRC(JL,JK)
+!             ELSE IF (TRIM(YAERO(ind_oifs_ham%ind_gas_OIFS(JGAS))%CNAME)=='SO4_gas') THEN
+!                ISSO4=ind_oifs_ham%ind_gas_OIFS(JGAS)
+!                GEMSL%ZTENC(JL,JK,KAERO(ISSO4))=GEMSL%ZTENC(JL,JK,KAERO(ISSO4))+ PSO4SRC(JL,JK)
+!                !PCFLX(JL,KAERO(ISSO4))=PCFLX(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!                !PEMIDIAG(JL,KAERO(ISSO4))=PEMIDIAG(JL,KAERO(ISSO4)) + PSO4SRC(JL,JK)
+!             END IF
+!          END DO
+!       END DO
+!
+!! For add SOA from CO into ISVOC tracer
+!!!$       DO JGAS=1,NACTAERO
+!!!$          IF (TRIM(YAERO(JGAS)%CNAME)=='ISVOC') THEN
+!!!$             
+!!!$             PTENC(JL,JK,KAERO(JGAS))=PTENC(JL,JK,KAERO(JGAS))+ PSOACO(JL)
+!!!$             PEMIDIAG(JL,KAERO(JGAS))=PEMIDIAG(JL,KAERO(JGAS)) + PSOACO(JL)
+!!!$          END IF
+!!!$       END DO
+!
+!    END DO
+! END IF
+!
+!ELSE
+!   ! Set to zero 
+!   PSO4SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
+!   PSO2SRC(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)=0.0_JPRB
+!END IF
 
 SELECT CASE (TRIM(AERO_SCHEME))
 
   CASE ("glomap")
     CALL ABOR1("OIFS - glomap should never be called from OIFS, EXIT")
 
+  ! HAM-M7 only implements the micro-physics part
+  ! all other processes are still handled by the TM5-M7 code
+  CASE ("hamm7")
+   
+    CALL TM5M7_PHY2( &
+        & YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV, KDIM%KFLDX , KDIM%KLEVX,& 
+        & KDIM%KTILES, KDIM%KSTGLO, GEMSL%ITRAC, GEMSL%IAERO, NSW,&
+        & PAUX%PRS1 , PAUX%PRSF1, PAUX%PAPHI, STATE%T , PAUX%PVERVEL, GEMSL%ZCEN  , PAUX%PGEOMH,&
+        & PSURF%PSD_VD(:,YSD_VD%YALB%MP), SURFL%ZALBD, PSURF%PSD_VF(:,YSD_VF%YALUVD%MP),&
+        & PSURF%PSD_VF(:,YSD_VF%YAERDEP%MP),PSURF%PSD_VF(:,YSD_VF%YAERLTS%MP),PSURF%PSD_VF(:,YSD_VF%YAERSCC%MP),&
+        & GEMSL%ZAERWS, GEMSL%ZAERGUST, GEMSL%ZAERUST,&
+        & PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP),&
+        !&  PSURF%PSD_VF(:,YSD_VF%YSOGF%MP),&
+        & PSURF%PSD_VF(:,YSD_VF%YSOILTYPE%MP), &
+        !TB added lake cover: YCLK, !!!PSP_SG 2 dims becomes now 3 dims
+        & PSURF%PSD_VF(:,YSD_VF%YCI%MP), PSURF%PSD_VF(:,YSD_VF%YCLK%MP) , &
+!        &  PSURF%PSD_VF(:,YSD_VF%YINJF%MP) , &
+        & PSURF%PSD_VD(:,YSD_VD%YBLH%MP) ,&
+        & SURFL%ZFRTI, PSURF%PSD_VF(:,YSD_VF%YLSM%MP) , PSURF%PSD_VF(:,YSD_VF%YSST%MP), STATE%Q, & 
+        & ZSNM, PSURF%PSP_RR(:,YSP_RR%YT%MP9)  , PAUX%PGELAM, PAUX%PGELAT, PAUX%PGEMU, SURFL%ZHSDFOR,&
+        & STATE%U(:,KDIM%KLEV) , STATE%V(:,KDIM%KLEV) , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9), TSPHY, GEMSL%ZAZ0M,&
+        & GEMSL%ICHEM,&
+        !VH - Introduce Land use info...     
+        & PSURF%PCVL, PSURF%PCVH,PSURF%ITVL,PSURF%ITVH, &
+        & PSURF%PAHFSTI, &!!!FLUX%PFTLHEV, &
+        !VH - end     
+        & GEMSL%ZCFLX, GEMSL%ZTENC,&
+        & GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
+        & GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERMAP, GEMSL%ZAERFLX_M7, GEMSL%ZAERLIF,&
+        & GEMSL%ZODMS, PSURF%PSD_XA, &
+        & PSO4SRC, PSO2SRC, GPGAW)
 
   CASE ("aer")
 
-    CALL AER_PHY2 &
- &( YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV, KDIM%KFLDX , KDIM%KLEVX,&
- &  KDIM%KTILES, KDIM%KSTGLO, GEMSL%ITRAC, GEMSL%IAERO, NSW,&
- &  PAUX%PRS1 , PAUX%PRSF1, PAUX%PAPHI, STATE%T , PAUX%PVERVEL, GEMSL%ZCEN  , PAUX%PGEOMH,&
- &  PSURF%PSD_VD(:,YSD_VD%YALB%MP), SURFL%ZALBD, PSURF%PSD_VF(:,YSD_VF%YALUVD%MP),&
- &  PSURF%PSD_VF(:,YSD_VF%YAERDEP%MP),PSURF%PSD_VF(:,YSD_VF%YAERLTS%MP),PSURF%PSD_VF(:,YSD_VF%YAERSCC%MP),&
- &  GEMSL%ZAERWS, GEMSL%ZAERGUST, GEMSL%ZAERUST,&
- &  PSURF%PSD_VF(:,YSD_VF%YURBF%MP), R%P(:,KDIM%KLEV), S%P(:,KDIM%KLEV), &
- &  PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP),&
- &  PSURF%PSD_VF(:,YSD_VF%YDSF%MP), &
- &  PSURF%PSD_VF(:,YSD_VF%YDSZ%MP), &
- &  PSURF%PSD_VF(:,YSD_VF%YDMSO%MP),&
- &  PSURF%PSD_VF(:,YSD_VF%YCI%MP),&
- &  SURFL%ZFRTI, PSURF%PSD_VF(:,YSD_VF%YLSM%MP), PSURF%PSD_VF(:,YSD_VF%YCLK%MP), STATE%Q  ,PSURF%PSD_VF(:,YSD_VF%YSST%MP), &
- &  ZSNM , PSURF%PSP_RR(:,YSP_RR%YT%MP9)  , PAUX%PGELAM, PAUX%PGELAT, PAUX%PGEMU, SURFL%ZHSDFOR,&
- &  STATE%U(:,KDIM%KLEV) , STATE%V(:,KDIM%KLEV) , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9)   , TSPHY, GEMSL%ZAZ0M,&
- &  GEMSL%ICHEM,&
- &  PSURF%ITVL, PSURF%ITVH, PSURF%PCVL, PSURF%PCVH, PSURF%PLAIL, PSURF%PLAIH ,&
- &  GEMSL%ZCFLX, GEMSL%ZTENC,GEMSL%ZDDVLC,&
- &  GEMSL%ZDMSO, GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
- &  GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERMAP, GEMSL%ZAERFLX, GEMSL%ZAERLIF,&
- &  GEMSL%ZDMSI, GEMSL%ZODMS, PSURF%PSD_XA &
- &)
+    CALL AER_PHY2( &
+        & YDGEOMETRY, YDMODEL, KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON , KDIM%KTDIA, KDIM%KLEV, KDIM%KFLDX , KDIM%KLEVX,&
+        & KDIM%KTILES, KDIM%KSTGLO, GEMSL%ITRAC, GEMSL%IAERO, NSW,                                                &
+        & PAUX%PRS1 , PAUX%PRSF1, PAUX%PAPHI, STATE%T , PAUX%PVERVEL, GEMSL%ZCEN  , PAUX%PGEOMH,&
+        & PSURF%PSD_VD(:,YSD_VD%YALB%MP), SURFL%ZALBD, PSURF%PSD_VF(:,YSD_VF%YALUVD%MP),&
+        & PSURF%PSD_VF(:,YSD_VF%YAERDEP%MP),PSURF%PSD_VF(:,YSD_VF%YAERLTS%MP),PSURF%PSD_VF(:,YSD_VF%YAERSCC%MP),&
+        & GEMSL%ZAERWS, GEMSL%ZAERGUST, GEMSL%ZAERUST,&
+        & PSURF%PSD_VF(:,YSD_VF%YURBF%MP), R%P(:,KDIM%KLEV), S%P(:,KDIM%KLEV), &
+        & PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP),&
+        & PSURF%PSD_VF(:,YSD_VF%YDSF%MP), &
+        & PSURF%PSD_VF(:,YSD_VF%YDSZ%MP), &
+        & PSURF%PSD_VF(:,YSD_VF%YDMSO%MP),&
+        & PSURF%PSD_VF(:,YSD_VF%YCI%MP),&
+        & SURFL%ZFRTI, PSURF%PSD_VF(:,YSD_VF%YLSM%MP), PSURF%PSD_VF(:,YSD_VF%YCLK%MP), STATE%Q  ,PSURF%PSD_VF(:,YSD_VF%YSST%MP), &
+        & ZSNM , PSURF%PSP_RR(:,YSP_RR%YT%MP9)  , PAUX%PGELAM, PAUX%PGELAT, PAUX%PGEMU, SURFL%ZHSDFOR,&
+        & STATE%U(:,KDIM%KLEV) , STATE%V(:,KDIM%KLEV) , PSURF%PSP_SB(:,1,YSP_SB%YQ%MP9)   , TSPHY, GEMSL%ZAZ0M,&
+        & GEMSL%ICHEM,&
+        & PSURF%ITVL, PSURF%ITVH, PSURF%PCVL, PSURF%PCVH, PSURF%PLAIL, PSURF%PLAIH ,&
+        & GEMSL%ZCFLX, GEMSL%ZTENC,GEMSL%ZDDVLC,&
+        & GEMSL%ZDMSO, GEMSL%ZLDAY, GEMSL%ZLISS, GEMSL%ZSO2, GEMSL%ZTDMS,&
+        & GEMSL%ZAERDDP, GEMSL%ZAERSDM, GEMSL%ZAERSRC, GEMSL%ZAERMAP, GEMSL%ZAERFLX, GEMSL%ZAERLIF,&
+        & GEMSL%ZDMSI, GEMSL%ZODMS, PSURF%PSD_XA )
 
     IF (LECSRAD .AND. NCSRADF == 1 .AND. NACTAERO >= 12) THEN
-  DO JL=KDIM%KIDIA,KDIM%KFDIA
-    PSURF%PSD_XA(JL,15,14)=SURFL%ZHSDFOR(JL)                        ! stand.dev. form orography
-    PSURF%PSD_XA(JL,16,14)=SURFL%ZFRTI(JL,4)                        ! tile fraction
-    PSURF%PSD_XA(JL,17,14)=SURFL%ZFRTI(JL,8)                        ! tile fraction
-    PSURF%PSD_XA(JL,18,14)=0._JPRB
-    PSURF%PSD_XA(JL,19,14)=PSURF%PSD_VD(JL,YSD_VD%YALB%MP)          ! background albedo
-    PSURF%PSD_XA(JL,20,14)=PSURF%PSD_VF(JL,YSD_VF%YALUVD%MP)        ! diffuse UVis albedo
-    PSURF%PSD_XA(JL,21,14)=SURFL%ZALBD(JL,1)                        ! diffuse albedo 1st interval
-    PSURF%PSD_XA(JL,22,14)=SUM(PSURF%PSP_SG(JL,1:KDIM%KLEVSN,YSP_SG%YF%MP9),DIM=1)          ! snow SNS
-! - DMS-related
-    PSURF%PSD_XA(JL,23,14)=GEMSL%ZDMSO(JL)
-    PSURF%PSD_XA(JL,24,14)=GEMSL%ZLDAY(JL)
-    PSURF%PSD_XA(JL,25,14)=GEMSL%ZSO2(JL)
-    PSURF%PSD_XA(JL,26,14)=GEMSL%ZAERWS(JL)
-    PSURF%PSD_XA(JL,27,14)=GEMSL%ZLISS(JL)
-    PSURF%PSD_XA(JL,28,14)=GEMSL%ZTDMS(JL)
-    PSURF%PSD_XA(JL,29,14)=GEMSL%ZODMS(JL)
-    PSURF%PSD_XA(JL,30,14)=GEMSL%ZDMSI(JL)
-  ENDDO
-   ENDIF
+      DO JL=KDIM%KIDIA,KDIM%KFDIA
+        PSURF%PSD_XA(JL,15,14)=SURFL%ZHSDFOR(JL)                               ! stand.dev. form orography
+        PSURF%PSD_XA(JL,16,14)=SURFL%ZFRTI(JL,4)                               ! tile fraction
+        PSURF%PSD_XA(JL,17,14)=SURFL%ZFRTI(JL,8)                               ! tile fraction
+        PSURF%PSD_XA(JL,18,14)=0._JPRB
+        PSURF%PSD_XA(JL,19,14)=PSURF%PSD_VD(JL,YSD_VD%YALB%MP)                 ! background albedo
+        PSURF%PSD_XA(JL,20,14)=PSURF%PSD_VF(JL,YSD_VF%YALUVD%MP)               ! diffuse UVis albedo
+        PSURF%PSD_XA(JL,21,14)=SURFL%ZALBD(JL,1)                               ! diffuse albedo 1st interval
+        PSURF%PSD_XA(JL,22,14)=SUM(PSURF%PSP_SG(JL,1:KDIM%KLEVSN,YSP_SG%YF%MP9),DIM=1) ! snow SNS
+        ! - DMS-related
+        PSURF%PSD_XA(JL,23,14)=GEMSL%ZDMSO(JL)
+        PSURF%PSD_XA(JL,24,14)=GEMSL%ZLDAY(JL)
+        PSURF%PSD_XA(JL,25,14)=GEMSL%ZSO2(JL)
+        PSURF%PSD_XA(JL,26,14)=GEMSL%ZAERWS(JL)
+        PSURF%PSD_XA(JL,27,14)=GEMSL%ZLISS(JL)
+        PSURF%PSD_XA(JL,28,14)=GEMSL%ZTDMS(JL)
+        PSURF%PSD_XA(JL,29,14)=GEMSL%ZODMS(JL)
+        PSURF%PSD_XA(JL,30,14)=GEMSL%ZDMSI(JL)
+      ENDDO
+    ENDIF
 
   CASE DEFAULT
 
