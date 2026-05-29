@@ -527,6 +527,12 @@ CONTAINS
                NCL(JL) = NNACL(JL)
                NH2SO4(JL) = NSO4(JL) - NNA2SO4(JL)
 
+               ! QUESTION: should we use a fixed lower value (e.g.
+               ! 1e-30) to avoid ovestimating aerosol volume by SP.
+               !
+               ! The argument is that we miss all value between
+               ! EPS(SP)=~1e-7 and EPS(DP)=~2e-16 when running at SP
+               !
                IF (ZVOL(JL) .GE. ZEPS) THEN !eehol: total volume per mode need to be above treshold to avoid div by zero
                   !---mode kappa = volume-weighted sum of component kappa's
                   ZKAPPA(JL,JK,JMOD) = ( (Kap_ss * NNACL(JL) * WNACL / (DNACL*1.E3_JPRB)) + &
