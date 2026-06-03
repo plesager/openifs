@@ -9,7 +9,8 @@ MODULE ND_PARAM
 
   !---Inherited functions, types, variables and constants 
   USE PARKIND1, ONLY: JPIM, JPRB
-
+  USE MO_KIND,  ONLY: THRESHOLD
+  
   IMPLICIT NONE
   PRIVATE
   
@@ -515,7 +516,8 @@ CONTAINS
     ! ** Population Splitting -- Modified by Ricardo Morales 2014
 
     DESCR  = 1._JPRB - (16._JPRB/9._JPRB)*ALFA*WPARCEL*BET2*(AKOH/SPAR**2)**2
-    IF (DESCR.LT.EPSILON(0.0_JPRB)) THEN
+
+    IF (DESCR.LT.THRESHOLD) THEN
       CRIT2  = .TRUE.             
       scrit  = ((16._JPRB/9._JPRB)*ALFA*WPARCEL*BET2*(AKOH**2))**(0.25_JPRB)            ! Scrit - (only for DELTA < 0 )
       RATIO  = (2.0E+7_JPRB/3.0_JPRB)*AKOH*(SPAR**(-0.3824_JPRB)-scrit**(-0.3824_JPRB)) ! Computing sp1 and sp2 (sp1 = sp2)

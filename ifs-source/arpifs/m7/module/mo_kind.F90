@@ -7,4 +7,7 @@ MODULE mo_kind
   USE parkind1, ONLY: JPRD
   IMPLICIT NONE
   ! <-- thk
+
+  REAL(KIND=dp), PARAMETER :: THRESHOLD = REAL(EPSILON(1.0_JPRD), KIND=dp)
+  
 END MODULE mo_kind

@@ -19,7 +19,7 @@
 
 MODULE mo_math_constants
 
-USE mo_kind,      ONLY:  wp
+USE mo_kind,      ONLY:  wp, THRESHOLD
 
 IMPLICIT NONE
 
@@ -80,7 +80,7 @@ REAL (wp), PARAMETER ::  rad2deg   = 180.0_wp/pi
 !$ACC DECLARE COPYIN(rad2deg)
 REAL (wp), PARAMETER ::  deg2rad   = pi/180.0_wp
 REAL (wp), PARAMETER ::  eps       = 1.e-8_wp
-REAL (wp), PARAMETER ::  dbl_eps   = EPSILON(1._wp)
+REAL (wp), PARAMETER ::  dbl_eps   = THRESHOLD !EPSILON(1._wp)  ! DOES NOT SEEM TO BE USED ANYWHERE
 REAL (wp), PARAMETER ::  pi_180    = pi/180._wp
 
 !

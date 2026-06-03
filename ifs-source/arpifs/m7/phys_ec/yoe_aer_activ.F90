@@ -377,24 +377,17 @@ CONTAINS
     ! Seinfeld and Pandis, Atmospheric Chemistry and Physics, Second Edition (referred to as SP)
     ! Morales and Nenes, JGR, D18220, 2010
 
-    USE YOMCST,              ONLY: RG, RPI
-    USE YOMLUN,              ONLY: NULOUT
-    USE TM5M7_DATA,          ONLY: NMOD, NSOL, DDUST, DNACL, &
-                                 & DOC, DBC, DH2SO4, DNA2SO4, DNH4NO3, DMSA, &
-                                 & NH4NO3_FACTOR, Kap_su,Kap_pom,Kap_soa,    &
-                                 & Kap_bc,Kap_ss,Kap_du,Kap_na2so4,Kap_msa,    &
-                                 & Kap_no3, WSO4, WH2SO4, WNACL, WNA2SO4,    &
-                                 & WH2O, WDAIR
-    USE MO_HAM_M7CTL,        ONLY: CMR2RAM, SIGMA, SIGMALN       
-   !  USE YOE_AERO_M7_DATA,    ONLY: NMOD, NSOL, SIGMA, SIGMALN, CMR2RAM, &
-   !       & DH2SO4, DBC, DOC, DNACL, DDUST, &
-   !       & DNA2SO4, DNH4NO3, DMSA, NH4NO3_FACTOR, &
-   !       & PPKAPPA_H2SO4, PPKAPPA_NACL, PPKAPPA_NA2SO4, &
-   !       & PPKAPPA_BC, PPKAPPA_OC, PPKAPPA_DU, &
-   !       & PPKAPPA_NH4NO3, PPKAPPA_MSA, &
-   !       & WSO4, WH2SO4, WNACL, WNA2SO4, &
-   !       & WH2O, WDAIR
-    USE ND_PARAM, ONLY: CCNSPEC, PDFACTIV, NDPARAM 
+    USE YOMCST,        ONLY: RG, RPI
+    USE YOMLUN,        ONLY: NULOUT
+    USE TM5M7_DATA,    ONLY: NMOD, NSOL, DDUST, DNACL, &
+                           & DOC, DBC, DH2SO4, DNA2SO4, DNH4NO3, DMSA, &
+                           & NH4NO3_FACTOR, Kap_su,Kap_pom,Kap_soa,    &
+                           & Kap_bc,Kap_ss,Kap_du,Kap_na2so4,Kap_msa,    &
+                           & Kap_no3, WSO4, WH2SO4, WNACL, WNA2SO4,    &
+                           & WH2O, WDAIR
+    USE MO_HAM_M7CTL,  ONLY: CMR2RAM, SIGMA, SIGMALN
+    USE MO_KIND,       ONLY: THRESHOLD
+    USE ND_PARAM,      ONLY: CCNSPEC, PDFACTIV, NDPARAM 
 
     IMPLICIT NONE
 
@@ -488,7 +481,7 @@ CONTAINS
     PCDNC(KIDIA:KFDIA,KTDIA:KLEV) = 0._JPRB
     PSMAX(KIDIA:KFDIA,KTDIA:KLEV) = 0._JPRB
 
-    ZEPS=EPSILON(1._JPRB)
+    ZEPS=THRESHOLD !EPSILON(1._JPRB)
 
     ZWLARGE(KIDIA:KFDIA,KTDIA:KLEV) = -1._JPRB* PVERVEL(KIDIA:KFDIA,KTDIA:KLEV) / &
                                    &  (RG*PRHO(KIDIA:KFDIA,KTDIA:KLEV))
@@ -527,12 +520,6 @@ CONTAINS
                NCL(JL) = NNACL(JL)
                NH2SO4(JL) = NSO4(JL) - NNA2SO4(JL)
 
-               ! QUESTION: should we use a fixed lower value (e.g.
-               ! 1e-30) to avoid ovestimating aerosol volume by SP.
-               !
-               ! The argument is that we miss all value between
-               ! EPS(SP)=~1e-7 and EPS(DP)=~2e-16 when running at SP
-               !
                IF (ZVOL(JL) .GE. ZEPS) THEN !eehol: total volume per mode need to be above treshold to avoid div by zero
                   !---mode kappa = volume-weighted sum of component kappa's
                   ZKAPPA(JL,JK,JMOD) = ( (Kap_ss * NNACL(JL) * WNACL / (DNACL*1.E3_JPRB)) + &
