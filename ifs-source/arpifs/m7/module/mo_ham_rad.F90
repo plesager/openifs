@@ -68,7 +68,7 @@ MODULE mo_ham_rad
                               sizeclass,            &
                               nclass
   USE mo_ham,           ONLY: subm_aerospec 
-  USE mo_kind,          ONLY: dp
+  USE mo_kind,          ONLY: dp, THRESHOLD
   USE mo_species,       ONLY: speclist, naerospec, nmaxspec
   !>>dod soa
   USE mo_ham_species,   ONLY: id_oc, id_wat    !!mgs!!   , naerospec=>ham_naerospec, aerospec=>ham_aerospec
@@ -240,7 +240,7 @@ CONTAINS
     
     !---executable procedure
 
-    zeps=EPSILON(1.0_dp)
+    zeps=THRESHOLD !EPSILON(1.0_dp)
 
     !>>dod openmp bugfix removed allocation of arrays
 
@@ -393,7 +393,7 @@ CONTAINS
  
     !---executable procedure
 
-    zeps=EPSILON(1.0_dp)
+    zeps=THRESHOLD !EPSILON(1.0_dp)
 
     !>>dod openmp bugfix removed allocation of arrays
     !<<dod
@@ -749,7 +749,7 @@ CONTAINS
 
     !---executable procedure
 
-    zeps=EPSILON(1.0_dp)
+    zeps=THRESHOLD !EPSILON(1.0_dp)
 
     !>>dod deleted allocation of arrays
     !<<dod
@@ -999,7 +999,7 @@ CONTAINS
 
     !--- 0) Initialization:
 
-    zeps=EPSILON(1.0_dp)
+    zeps=THRESHOLD !EPSILON(1.0_dp)
 
     sigma(1:kproma,:,:,:)=0._dp
     omega(1:kproma,:,:,:)=0._dp
@@ -1181,10 +1181,11 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
-                IF(aer_piz_sw_vr(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
+                ! PLS - TODO: SAFE DIVISION
+                IF (aer_piz_sw_vr(jl,jk,jwv) > THRESHOLD ) THEN 
                    aer_cg_sw_vr(jl,jk,jwv) =aer_cg_sw_vr(jl,jk,jwv)/aer_piz_sw_vr(jl,jk,jwv)
                 END IF
-                IF(aer_tau_sw_vr(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
+                IF (aer_tau_sw_vr(jl,jk,jwv) > THRESHOLD ) THEN 
                    aer_piz_sw_vr(jl,jk,jwv)=aer_piz_sw_vr(jl,jk,jwv)/aer_tau_sw_vr(jl,jk,jwv)
                 END IF
              END DO
@@ -1498,7 +1499,7 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
-               IF(zaer_ssa_diag(jl,jk,jwv)>EPSILON(1.0_dp)) THEN 
+               IF (zaer_ssa_diag(jl,jk,jwv) > THRESHOLD) THEN 
                  zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_ssa_diag(jl,jk,jwv)
                  zaer_ssa_diag(jl,jk,jwv)  = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
                 END IF
@@ -2048,7 +2049,7 @@ CONTAINS
 
           !--- 0)
 
-          zeps=EPSILON(1.0_dp)
+          zeps = THRESHOLD ! EPSILON(1.0_dp)
 
           !--- Optical thickness for optional wavelengths:
 

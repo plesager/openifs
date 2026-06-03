@@ -41,7 +41,7 @@ MODULE mo_ham_tools
   ! *mo_ham_tools* hold auxiliary routines for the 
   !                 HAM aerosol model
 
-  USE mo_kind,               ONLY: dp
+  USE mo_kind,               ONLY: dp, THRESHOLD
   USE mo_exception,          ONLY: finish
 
   IMPLICIT NONE
@@ -275,7 +275,7 @@ CONTAINS
 
     !--- 0) 
 
-    zeps=EPSILON(1.0_dp)
+    zeps= THRESHOLD !EPSILON(1.0_dp)
 
     !--- 1) 
 

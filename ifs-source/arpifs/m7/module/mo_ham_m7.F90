@@ -59,7 +59,7 @@
 
 MODULE mo_ham_m7
 
-  USE mo_kind,          ONLY: dp
+  USE mo_kind,          ONLY: dp, THRESHOLD
   
   IMPLICIT NONE
 
@@ -2211,7 +2211,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   
   zqtmst = 1.0_dp/ztmst
   
-  zeps = EPSILON(1.0_dp)
+  zeps = THRESHOLD !EPSILON(1.0_dp)
   
   ! Relative humidity [%]:
   
@@ -2863,7 +2863,7 @@ SUBROUTINE m7_dconc(kproma, kbdim, klev, krow, paerml, paernl, pm6dry)
   zfconm(:,:,:) = 1._dp
   zfconn(:,:,:) = 1._dp
 
-  zeps = EPSILON(1._dp)
+  zeps = THRESHOLD !EPSILON(1._dp)
 
   !
   !--- 1) Identify how much the mode jclass has grown into the next higher mode 
@@ -3315,7 +3315,7 @@ SUBROUTINE m7_coaset(kproma, kbdim, klev,  krow, paernl, ptp1, &
              zhu2,        zhu
 
   !---executable procedure
-  zeps = EPSILON(1._dp)
+  zeps = THRESHOLD !EPSILON(1._dp)
 
   !---1) gridpoint properties
   DO jk=1,klev
@@ -3556,7 +3556,7 @@ SUBROUTINE m7_concoag (kproma,   kbdim,   klev, krow,               &
 
   !--- 0) Initializations:
 
-  zeps=EPSILON(1._dp)
+  zeps=THRESHOLD !EPSILON(1._dp)
 
 
   !--- 1) Redistribution of mass and numbers after nucleation, coagulation ----
@@ -3923,7 +3923,7 @@ END SUBROUTINE m7_concoag
   !--- 0) Initialisations: ------------------------------------------------ 
  
   ztmst  = time_step_len 
-  zeps = EPSILON(1._dp)
+  zeps = THRESHOLD !EPSILON(1._dp)
  
   za4av       = 0._dp 
   za4av1(:,:) = 0._dp

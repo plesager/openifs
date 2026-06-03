@@ -48,7 +48,7 @@
 
 MODULE mo_ham_wetdep
 
-  USE mo_kind,          ONLY: dp
+  USE mo_kind,          ONLY: dp, THRESHOLD
   USE mo_physical_constants, ONLY: tmelt
   USE mo_exception,     ONLY: finish
   USE mo_tracdef,       ONLY: ntrac, trlist, AEROSOLNUMBER, AEROSOLMASS
@@ -74,7 +74,7 @@ MODULE mo_ham_wetdep
   !--- Constants:
   REAL(dp), PARAMETER :: zmin      = 1.e-10_dp
   REAL(dp), PARAMETER :: UNDEF     = -999._dp
-  REAL(dp), PARAMETER :: zeps      = EPSILON(1._dp)
+  REAL(dp), PARAMETER :: zeps      = THRESHOLD  !EPSILON(1._dp)
   REAL(dp), PARAMETER :: zeps_mass = 1.e-30_dp
 
   !--- Mode-wise scavenging coefficients and related
