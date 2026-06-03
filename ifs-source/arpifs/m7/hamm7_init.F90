@@ -55,6 +55,7 @@ USE YOMMP0,   ONLY : MYPROC
 USE YOMLUN,   ONLY : NULOUT
 
 ! --- M7 modules --------------------------------------------------------------
+USE MO_KIND,         ONLY: THRESHOLD
 USE MO_TIME_CONTROL, ONLY: init_mo_time_control
 USE MO_SPECIES,      ONLY: speclist            ! tracer species in HAM
 USE MO_HAM, ONLY:     &
@@ -477,6 +478,8 @@ END IF
 
 ! -- LOG
 WRITE(NULOUT,'("====== HAMM7_INIT ===== ")')
+
+WRITE(NULOUT,*) "TOLERANCE (EPS): ", THRESHOLD
 
 WRITE(NULOUT,'("Number of  size classes:", I3)') znclass
 WRITE(NULOUT,'(" class# / IFS id / HM7 id / IFSNAME / M7NAME ")')
