@@ -4304,6 +4304,7 @@ END SUBROUTINE m7_concoag
                        DO kmod=1,nclass
                           IF (kmod>jclass) THEN
 !kai 
+                             ! PLS - TODO: SAFE DIVISION                            
                              IF (abs(zbftot).gt.zeps) then 
                                 pbfract1(jl,jk,kmod-jclass)=pbfract1(jl,jk,kmod-jclass)/zbftot
                              ELSE

@@ -520,6 +520,7 @@ CONTAINS
                NCL(JL) = NNACL(JL)
                NH2SO4(JL) = NSO4(JL) - NNA2SO4(JL)
 
+               ! PLS - TODO: SAFE DIVISION               
                IF (ZVOL(JL) .GE. ZEPS) THEN !eehol: total volume per mode need to be above treshold to avoid div by zero
                   !---mode kappa = volume-weighted sum of component kappa's
                   ZKAPPA(JL,JK,JMOD) = ( (Kap_ss * NNACL(JL) * WNACL / (DNACL*1.E3_JPRB)) + &
