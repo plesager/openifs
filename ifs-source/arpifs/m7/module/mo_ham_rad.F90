@@ -304,6 +304,7 @@ CONTAINS
     !---Weighted averaging:
     DO jk=1,klev
        DO jl=1,kproma
+          ! PLS - TODO: SAFE DIVISION         
           IF(zvsum(jl,jk)>zeps) THEN
 
              pnr(jl,jk)=znrsum(jl,jk)/zvsum(jl,jk)
@@ -466,7 +467,7 @@ CONTAINS
     DO jk=1,klev
        DO jl=1,kproma
     !<<dod
-      
+          ! PLS - TODO: SAFE DIVISION         
           IF(zvsum(jl,jk)>zeps) THEN
              cn_eff(jl,jk)=CMPLX( znrsum(jl,jk)/zvsum(jl,jk) , znisum(jl,jk)/zvsum(jl,jk), kind=dp )
           ELSE
@@ -486,7 +487,7 @@ CONTAINS
     DO jk=1,klev
        DO jl=1,kproma
     !<<dod
-      
+          ! PLS - TODO: SAFE DIVISION         
           IF (zvsum(jl,jk)>zeps) THEN
              IF (zvcore(jl,jk)/zvsum(jl,jk)>zeps .AND. zvcore(jl,jk)/zvsum(jl,jk)<(1.0_dp-zeps)) THEN
                 lcore(jl,jk)=.TRUE.
@@ -556,7 +557,7 @@ CONTAINS
 
     DO jk=1,klev
        DO jl=1,kproma
-      
+          ! PLS - TODO: SAFE DIVISION        
           IF(zvsum(jl,jk)>zeps .AND. lcore(jl,jk)) THEN
              cn_0(jl,jk)=CMPLX( znrsum(jl,jk)/zvsum(jl,jk) , znisum(jl,jk)/zvsum(jl,jk), kind=dp )
           ELSE
@@ -1499,6 +1500,7 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
+               ! PLS - TODO: SAFE DIVISION
                IF (zaer_ssa_diag(jl,jk,jwv) > THRESHOLD) THEN 
                  zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_ssa_diag(jl,jk,jwv)
                  zaer_ssa_diag(jl,jk,jwv)  = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
@@ -2121,6 +2123,7 @@ CONTAINS
                          END DO
 
                          !>>SF #458 (replacing WHERE statements)
+                         ! PLS - TODO: SAFE DIVISION
                          ll1(1:kproma) = (ztau(1:kproma) > zeps)
                          ztmp1(1:kproma) = MERGE(ztau(1:kproma), 1._dp, ll1(1:kproma)) !SF 1._dp is a dummy val.
 
@@ -2273,7 +2276,8 @@ CONTAINS
 
                          DO jk=1, klev
                             DO jl=1, kproma
-                               IF (zvsum(jl,jk,jclass)>zeps) THEN
+                              ! PLS - TODO: SAFE DIVISION
+                              IF (zvsum(jl,jk,jclass)>zeps) THEN
                                   ztaucomp(jl)=ztaucomp(jl) + &
                                        tau_p(jl,jk,krow)*zvcomp(jl,jk,jspec,jclass)/zvsum(jl,jk,jclass)
                                   zabscomp(jl)=zabscomp(jl) + &
@@ -2302,6 +2306,7 @@ CONTAINS
           IF (nradang(1)/=0 .AND. nradang(2)/=0) THEN 
 
              !>>SF #458 (replacing WHERE statements)
+             ! PLS - TODO: SAFE DIVISION
              ll1(1:kproma) = (tau_2d(nradang(1))%ptr(1:kproma,krow)>zeps) &
                   .AND. (tau_2d(nradang(2))%ptr(1:kproma,krow)>zeps)
 

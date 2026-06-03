@@ -139,7 +139,8 @@ MODULE mo_tracer_processes
 
           DO jk=1, klev
              DO jl=1, kproma
-                IF (ABS(zdxtdtsum(jl)) > zeps) THEN
+               ! PLS - TODO: SAFE DIVISION
+               IF (ABS(zdxtdtsum(jl)) > zeps) THEN
 
                    zxttefix=-((ABS(zxtte(jl,jk)*zdpg(jl,jk))/zdxtdtsum(jl))*zdxtdt(jl))/zdpg(jl,jk)
 
