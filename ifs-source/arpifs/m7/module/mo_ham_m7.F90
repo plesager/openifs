@@ -152,7 +152,7 @@ SUBROUTINE m7_cumulative_normal ( arg, presult, ccum )
   REAL(dp), INTENT(OUT) :: presult
 
   presult = 0.5_dp * (1.0_dp + erf(arg / sqrt(2.0_dp)))
-  ccum = 1.0_dp - presult
+  ccum = 0.5_dp * erfc(arg / sqrt(2.0_dp))
 
 END SUBROUTINE m7_cumulative_normal
 
