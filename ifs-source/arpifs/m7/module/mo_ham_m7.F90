@@ -60,6 +60,7 @@
 MODULE mo_ham_m7
 
   USE mo_kind,          ONLY: dp, THRESHOLD
+  USE parkind1,         ONLY: JPRD
   
   IMPLICIT NONE
 
@@ -1964,16 +1965,20 @@ SUBROUTINE m7_prod_cond(kproma, kbdim,  klev,  krow, &
   !
   
   INTEGER :: jl,jk
-  
+
   REAL(dp):: zqtmst
-  REAL(dp):: zh2so4_cf0 ! Start [H2SO4(g)] [molec. cm-3] in the cloud-free part of the grid box
-  REAL(dp):: zh2so4_cf1 ! End [H2SO4(g)] [molec. cm-3] in the cloud-free part of the grid box
-  REAL(dp):: zh2so4_cy0 ! Start [H2SO4(g)] [molec. cm-3] in the cloudy part of the grid box
-  REAL(dp):: zh2so4_cy1 ! End [H2SO4(g)] [molec. cm-3] in the cloudy part of the grid box
-             
-  REAL(dp):: zfcond_cf  ! [H2SO4(g)] condensing during the time step in the cloud-free part of the grid box
-  REAL(dp):: zfcond_cy  ! [H2SO4(g)] condensing during the time step in the cloudy part of the grid box
-  
+  REAL(JPRD):: zh2so4_cf0 ! Start [H2SO4(g)] [molec. cm-3] in the cloud-free part of the grid box (JPRD for precision)
+  REAL(JPRD):: zh2so4_cf1 ! End [H2SO4(g)] [molec. cm-3] in the cloud-free part of the grid box (JPRD for precision)
+  REAL(JPRD):: zh2so4_cy0 ! Start [H2SO4(g)] [molec. cm-3] in the cloudy part of the grid box (JPRD for precision)
+  REAL(JPRD):: zh2so4_cy1 ! End [H2SO4(g)] [molec. cm-3] in the cloudy part of the grid box (JPRD for precision)
+
+  REAL(JPRD):: zfcond_cf  ! [H2SO4(g)] condensing during the time step in the cloud-free part of the grid box (JPRD for precision)
+  REAL(JPRD):: zfcond_cy  ! [H2SO4(g)] condensing during the time step in the cloudy part of the grid box (JPRD for precision)
+
+  REAL(JPRD):: zpcs_safe  ! Floored condensation sink for safe division (JPRD for precision)
+  REAL(JPRD):: zdpso4g    ! Production rate in JPRD (JPRD for precision)
+  REAL(JPRD):: zpcs_ts    ! pcs * time_step_len in JPRD (JPRD for precision)
+
   REAL(dp):: cc         ! Corrected cloud cover [0,1]
   
   ! Initialisations:
@@ -1987,89 +1992,95 @@ SUBROUTINE m7_prod_cond(kproma, kbdim,  klev,  krow, &
     DO jl=1,kproma
       
       IF (pcs(jl,jk) > 1.0E-10_dp) THEN  ! Regular H2SO4 condensation sink of the aerosol
-        
+
+        ! Floor pcs for safe division and promote to JPRD for precision-critical condensation calculation
+        zpcs_safe = MAX(REAL(pcs(jl,jk), JPRD), 1.0E-10_JPRD)
+        zdpso4g = REAL(dpso4g(jl,jk), JPRD)
+        zpcs_ts = zpcs_safe * REAL(time_step_len, JPRD)
+
         ! Safety check on the cloud fraction:
         cc = min(paclc(jl,jk),1.0_dp)
         cc = max(cc,0.0_dp)
-        
+
         !
         ! Cloud-free part of the grid box:
         !
-        
+
         ! Start [H2SO4(g)]:
-        zh2so4_cf0 = pso4g(jl,jk)
-        
+        zh2so4_cf0 = REAL(pso4g(jl,jk), JPRD)
+
         ! End [H2SO4(g)]:
         zh2so4_cf1 = &
-        (zh2so4_cf0 - dpso4g(jl,jk)/pcs(jl,jk))*exp(-pcs(jl,jk)*time_step_len) &
-        + dpso4g(jl,jk)/pcs(jl,jk)
-        
+        (zh2so4_cf0 - zdpso4g/zpcs_safe)*EXP(-zpcs_ts) &
+        + zdpso4g/zpcs_safe
+
         ! Safety check:
-        zh2so4_cf1 = max(zh2so4_cf1,0.0_dp)
+        zh2so4_cf1 = MAX(zh2so4_cf1, 0.0_JPRD)
         
         !
         ! Cloudy part of the grid box:
         !
-        
+
         ! Start [H2SO4(g)]:
-        zh2so4_cy0 = pso4g(jl,jk)
-        
+        zh2so4_cy0 = REAL(pso4g(jl,jk), JPRD)
+
         ! End [H2SO4(g)]:
-        zh2so4_cy1 = 0.0_dp
-        
-        ! 
+        zh2so4_cy1 = 0.0_JPRD
+
+        !
         ! New grid box-averaged [H2SO4(g)]:
         !
-        
-        pso4g(jl,jk) = (1.0_dp-cc)*zh2so4_cf1 + cc*zh2so4_cy1
-        
+
+        pso4g(jl,jk) = REAL((1.0_JPRD-REAL(cc,JPRD))*zh2so4_cf1 + REAL(cc,JPRD)*zh2so4_cy1, dp)
+
         ! [H2SO4(g)] that condensed onto aerosol particles during the time step
         ! in the cloud-free and cloudy part of the grid box:
-        
-        zfcond_cf = (1.0_dp-cc)*(zh2so4_cf0 - zh2so4_cf1 + dpso4g(jl,jk)*time_step_len)
-        zfcond_cy = cc*(zh2so4_cy0 - zh2so4_cy1 + dpso4g(jl,jk)*time_step_len)
+
+        zfcond_cf = (1.0_JPRD-REAL(cc,JPRD))*(zh2so4_cf0 - zh2so4_cf1 + zdpso4g*REAL(time_step_len,JPRD))
+        zfcond_cy = REAL(cc,JPRD)*(zh2so4_cy0 - zh2so4_cy1 + zdpso4g*REAL(time_step_len,JPRD))
         
         ! Distribute H2SO4(g) condensing in the cloud-free part of the grid box
         ! on the soluble and insoluble aerosol modes according to their
         ! condensation sinks:
-        
-        paerml(jl,jk,iso4ns) = paerml(jl,jk,iso4ns) + pcsi(jl,jk,iso4ns)/pcs(jl,jk)*zfcond_cf
-        paerml(jl,jk,iso4ks) = paerml(jl,jk,iso4ks) + pcsi(jl,jk,iso4ks)/pcs(jl,jk)*zfcond_cf
-        paerml(jl,jk,iso4as) = paerml(jl,jk,iso4as) + pcsi(jl,jk,iso4as)/pcs(jl,jk)*zfcond_cf
-        paerml(jl,jk,iso4cs) = paerml(jl,jk,iso4cs) + pcsi(jl,jk,iso4cs)/pcs(jl,jk)*zfcond_cf
-        
+
+        paerml(jl,jk,iso4ns) = paerml(jl,jk,iso4ns) + REAL(REAL(pcsi(jl,jk,iso4ns),JPRD)/zpcs_safe*zfcond_cf, dp)
+        paerml(jl,jk,iso4ks) = paerml(jl,jk,iso4ks) + REAL(REAL(pcsi(jl,jk,iso4ks),JPRD)/zpcs_safe*zfcond_cf, dp)
+        paerml(jl,jk,iso4as) = paerml(jl,jk,iso4as) + REAL(REAL(pcsi(jl,jk,iso4as),JPRD)/zpcs_safe*zfcond_cf, dp)
+        paerml(jl,jk,iso4cs) = paerml(jl,jk,iso4cs) + REAL(REAL(pcsi(jl,jk,iso4cs),JPRD)/zpcs_safe*zfcond_cf, dp)
+
         ! Number of H2SO4 molecules condensing on the insoluble modes:
         ! (Transfer from insoluble to soluble modes is calculated in m7_concoag)
-        
-        pso4_5(jl,jk) = pcsi(jl,jk,5)/pcs(jl,jk)*zfcond_cf
-        pso4_6(jl,jk) = pcsi(jl,jk,6)/pcs(jl,jk)*zfcond_cf
-        pso4_7(jl,jk) = pcsi(jl,jk,7)/pcs(jl,jk)*zfcond_cf
+
+        pso4_5(jl,jk) = REAL(REAL(pcsi(jl,jk,5),JPRD)/zpcs_safe*zfcond_cf, dp)
+        pso4_6(jl,jk) = REAL(REAL(pcsi(jl,jk,6),JPRD)/zpcs_safe*zfcond_cf, dp)
+        pso4_7(jl,jk) = REAL(REAL(pcsi(jl,jk,7),JPRD)/zpcs_safe*zfcond_cf, dp)
         
         ! Commit the H2SO4(g) condensing in the cloudy part of the grid box
         ! to the largest aerosol mode, assuming that that mode contributes
         ! aerosol particles that activated and became cloud droplets:
-        
+
         IF (pcsi(jl,jk,iso4cs) > 0.0_dp) THEN
-          paerml(jl,jk,iso4cs) = paerml(jl,jk,iso4cs) + zfcond_cy
+          paerml(jl,jk,iso4cs) = paerml(jl,jk,iso4cs) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,iso4as) > 0.0_dp) THEN
-          paerml(jl,jk,iso4as) = paerml(jl,jk,iso4as) + zfcond_cy
+          paerml(jl,jk,iso4as) = paerml(jl,jk,iso4as) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,iso4ks) > 0.0_dp) THEN
-          paerml(jl,jk,iso4ks) = paerml(jl,jk,iso4ks) + zfcond_cy
+          paerml(jl,jk,iso4ks) = paerml(jl,jk,iso4ks) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,iso4ns) > 0.0_dp) THEN
-          paerml(jl,jk,iso4ns) = paerml(jl,jk,iso4ns) + zfcond_cy
+          paerml(jl,jk,iso4ns) = paerml(jl,jk,iso4ns) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,7) > 0.0_dp) THEN
-          pso4_7(jl,jk) = pso4_7(jl,jk) + zfcond_cy
+          pso4_7(jl,jk) = pso4_7(jl,jk) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,6) > 0.0_dp) THEN
-          pso4_6(jl,jk) = pso4_6(jl,jk) + zfcond_cy
+          pso4_6(jl,jk) = pso4_6(jl,jk) + REAL(zfcond_cy, dp)
         ELSEIF (pcsi(jl,jk,5) > 0.0_dp) THEN
-          pso4_5(jl,jk) = pso4_5(jl,jk) + zfcond_cy
+          pso4_5(jl,jk) = pso4_5(jl,jk) + REAL(zfcond_cy, dp)
         ENDIF
         
         ! Vertically integrate mass of condensed sulfate for diagnostics,
         ! converting [molec. cm-3] to [kg(SO4) m-2]:
 #ifdef HAMMOZ
         d_cond_so4(jl,krow) = d_cond_so4(jl,krow) &
-         + (((zfcond_cf + zfcond_cy)*mw_so4*1.E3_dp)/avo)*pdz(jl,jk)*zqtmst*delta_time
+         + REAL((((zfcond_cf + zfcond_cy)*REAL(mw_so4,JPRD)*1.E3_JPRD)/REAL(avo,JPRD)) &
+              *REAL(pdz(jl,jk),JPRD)*REAL(zqtmst,JPRD)*REAL(delta_time,JPRD), dp)
 #endif
       ELSE ! H2SO4 condensation sink of the aerosol extremely small:
         
