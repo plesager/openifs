@@ -3409,7 +3409,9 @@ SUBROUTINE m7_coaset(kproma, kbdim, klev,  krow, paernl, ptp1, &
 
            IF (lsuffaero(jl,jk,jm1) .AND. lsuffaero(jl,jk,jm2)) THEN
               !--- Average radius of the modes:
-              zrpav=zeps+0.5_dp*(pm6rp(jl,jk,jm1)+pm6rp(jl,jk,jm2)) 
+              zrpav=0.5_dp*(pm6rp(jl,jk,jm1)+pm6rp(jl,jk,jm2))
+              ! Note the pm6rp are > cimrad=1.e-8, so the following is not needed:
+              ! zrpav = MAX(zeps, 0.5_dp*(pm6rp(jl,jk,jm1)+pm6rp(jl,jk,jm2)) )
 
               !--- Fuchs: G_r (below Eq. 49.27):
               zcv2av=SQRT(zcv2(jl,jk,jm1) + zcv2(jl,jk,jm2))
