@@ -373,7 +373,7 @@ CONTAINS
     !--- Local variables:
 
     INTEGER  :: jl, jk, jt, jn
-    REAL(dp) :: zdensity, zeps, zv, zvfrac
+    REAL(dp) :: zdensity, zeps, zv, zvfrac, zepsrel
 
     INTEGER :: ikey
 
@@ -394,7 +394,8 @@ CONTAINS
  
     !---executable procedure
 
-    zeps=THRESHOLD !EPSILON(1.0_dp)
+    zeps = THRESHOLD   ! Used for both physical cutoff and safe division
+    zepsrel = EPSILON(1._dp)*100. ! Used for bound checking
 
     !>>dod openmp bugfix removed allocation of arrays
     !<<dod
@@ -487,9 +488,8 @@ CONTAINS
     DO jk=1,klev
        DO jl=1,kproma
     !<<dod
-          ! PLS - TODO: SAFE DIVISION         
-          IF (zvsum(jl,jk)>zeps) THEN
-             IF (zvcore(jl,jk)/zvsum(jl,jk)>zeps .AND. zvcore(jl,jk)/zvsum(jl,jk)<(1.0_dp-zeps)) THEN
+          IF (zvsum(jl,jk)>0._dp) THEN
+             IF (zvcore(jl,jk) > zvsum(jl,jk)*zepsrel .AND. zvcore(jl,jk) < zvsum(jl,jk)*(1.0_dp-zepsrel)) THEN
                 lcore(jl,jk)=.TRUE.
              END IF
           END IF
@@ -1000,7 +1000,7 @@ CONTAINS
 
     !--- 0) Initialization:
 
-    zeps=THRESHOLD !EPSILON(1.0_dp)
+    zeps=EPSILON(1._dp)*10._dp   ! Used for comparisons with sigma_coarse and sigma_fine 
 
     sigma(1:kproma,:,:,:)=0._dp
     omega(1:kproma,:,:,:)=0._dp
@@ -1072,9 +1072,9 @@ CONTAINS
 
                 CASE(HAM_M7)
 
-                   IF (ABS(modesigma(jclass)-sigma_fine)<zeps) THEN
+                   IF (ABS(modesigma(jclass)-sigma_fine) < zeps*sigma_fine) THEN
                       itable=1
-                   ELSE IF  ((ABS(modesigma(jclass)-sigma_coarse)<zeps)) THEN
+                   ELSE IF (ABS(modesigma(jclass)-sigma_coarse) < zeps*sigma_coarse) THEN
                       itable=2
                    ELSE 
                       CALL finish('ham_rad','incompatible standard deviation in modal setup')
@@ -1248,9 +1248,9 @@ CONTAINS
                 CASE(HAM_M7)
 
 
-                   IF (ABS(modesigma(jclass)-sigma_fine)<zeps) THEN
+                   IF (ABS(modesigma(jclass)-sigma_fine) < zeps*sigma_fine) THEN
                       itable=3
-                   ELSE IF  ((ABS(modesigma(jclass)-sigma_coarse)<zeps)) THEN
+                   ELSE IF (ABS(modesigma(jclass)-sigma_coarse) < zeps*sigma_coarse) THEN
                       itable=4
                    ELSE 
                       CALL finish('ham_rad','incompatible standard deviation in modal setup')
@@ -1384,9 +1384,9 @@ CONTAINS
 
                 CASE(HAM_M7)
 
-                   IF (ABS(modesigma(jclass)-sigma_fine)<zeps) THEN
+                   IF (ABS(modesigma(jclass)-sigma_fine) < zeps*sigma_fine) THEN
                       itable=1
-                   ELSE IF  ((ABS(modesigma(jclass)-sigma_coarse)<zeps)) THEN
+                   ELSE IF (ABS(modesigma(jclass)-sigma_coarse) < zeps*sigma_coarse) THEN
                       itable=2
                    ELSE 
                       CALL finish('ham_rad','incompatible standard deviation in modal setup')
