@@ -74,7 +74,8 @@ MODULE mo_ham_wetdep
   !--- Constants:
   REAL(dp), PARAMETER :: zmin      = 1.e-10_dp
   REAL(dp), PARAMETER :: UNDEF     = -999._dp
-  REAL(dp), PARAMETER :: zeps      = THRESHOLD  !EPSILON(1._dp)
+  INTEGER,  PARAMETER :: NUNDEF    = -999
+  REAL(dp), PARAMETER :: zeps      = THRESHOLD
   REAL(dp), PARAMETER :: zeps_mass = 1.e-30_dp
 
   !--- Mode-wise scavenging coefficients and related
@@ -288,7 +289,7 @@ MODULE mo_ham_wetdep
 
   IF (kscavBCtype == 3 .OR. kscavICtype == 3 ) THEN !only necessary for size-dep scavenging:
 
-     IF (indexy1(1,1,itrac_phase,imod) == UNDEF) THEN ! mode-phase calculation required!
+     IF (indexy1(1,1,itrac_phase,imod) == NUNDEF) THEN ! mode-phase calculation required!
 
         !--- Select aerosol wet radius and limit it to maximal 50 um:
         !
@@ -900,17 +901,19 @@ MODULE mo_ham_wetdep
              ll1(1:kproma,:) = (zxtp1c(1:kproma,:,idt_icnc) > zeps_mass)
    
 !>>SF to refactor! (M7-dependency)
+             ! PLS: Replaced X+zpes with MAX(x,zeps) for correctness when x~O(zeps).
+             ! Could replace zeps with TINY, but current ZEPS value is alright (ie << epsilon(1) in single precision)
              IF (kmod == 4) ztmp1(1:kproma,:) = MIN(1._dp, &
-                                                    zxtp1c(1:kproma,:,idt_icnc) / (zxtp1c(1:kproma,:,idt_ncs)+zeps))
+                                                   zxtp1c(1:kproma,:,idt_icnc) / MAX(zxtp1c(1:kproma,:,idt_ncs),zeps))
              IF (kmod == 3) ztmp1(1:kproma,:) = MIN(1._dp, &
                                                     MAX(0._dp, &
                                                         zxtp1c(1:kproma,:,idt_icnc)-zxtp1c(1:kproma,:,idt_ncs)) &
-                                                    /(zxtp1c(1:kproma,:,idt_nas)+zeps))
+                                                    /MAX(zxtp1c(1:kproma,:,idt_nas),zeps))
              IF (kmod == 2) ztmp1(1:kproma,:) = MIN(1._dp, &
                                                     MAX(0._dp, &
                                                         zxtp1c(1:kproma,:,idt_icnc)-zxtp1c(1:kproma,:,idt_ncs) &
                                                                                    -zxtp1c(1:kproma,:,idt_nas)) &
-                                                    /(zxtp1c(1:kproma,:,idt_nks)+zeps))
+                                                    /MAX(zxtp1c(1:kproma,:,idt_nks),zeps))
 !<<SF to refactor!
    
        END SELECT !kwat_phase
@@ -1485,7 +1488,7 @@ MODULE mo_ham_wetdep
     INTEGER, POINTER:: kvar(:,:,:,:)
 
     IF (.NOT. ASSOCIATED(kvar)) ALLOCATE(kvar(kbdim,klev,2,nclass))
-    kvar(1:kproma,:,:,:) = UNDEF 
+    kvar(1:kproma,:,:,:) = NUNDEF 
 
   END SUBROUTINE init_var_i_4d
 
