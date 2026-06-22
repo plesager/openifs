@@ -275,7 +275,7 @@ CONTAINS
 
     !--- 0) 
 
-    zeps= THRESHOLD !EPSILON(1.0_dp)
+    zeps= THRESHOLD
 
     !--- 1) 
 

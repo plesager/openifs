@@ -207,7 +207,7 @@ CONTAINS
     pfracn(1:kproma,:,:)     = 0._dp
     pcdncact(1:kproma,:)     = 0._dp
 
-    zeps=THRESHOLD ! EPSILON(1._dp)
+    zeps=THRESHOLD  ! Use for both physical cutoff and safe division 
 
     !--- Conversions to SI units [g mol-1 to kg mol-1]:
     
@@ -559,7 +559,7 @@ CONTAINS
     zsumtop(1:kproma,:,:)  = 0._dp
     zsumbot(1:kproma,:,:)  = 0._dp
 
-    zeps=THRESHOLD !EPSILON(1._dp)
+    zeps=THRESHOLD  ! Use for safe division only here
 
     !--- Conversions to SI units [g mol-1 to kg mol-1]:
     
