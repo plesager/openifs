@@ -240,7 +240,7 @@ CONTAINS
     
     !---executable procedure
 
-    zeps=THRESHOLD !EPSILON(1.0_dp)
+    zeps = THRESHOLD ! Used for both physical cutoff and safe division
 
     !>>dod openmp bugfix removed allocation of arrays
 
@@ -304,8 +304,7 @@ CONTAINS
     !---Weighted averaging:
     DO jk=1,klev
        DO jl=1,kproma
-          ! PLS - TODO: SAFE DIVISION         
-          IF(zvsum(jl,jk)>zeps) THEN
+          IF(zvsum(jl,jk)>zeps) THEN ! safe division
 
              pnr(jl,jk)=znrsum(jl,jk)/zvsum(jl,jk)
              pni(jl,jk)=znisum(jl,jk)/zvsum(jl,jk)
@@ -468,8 +467,7 @@ CONTAINS
     DO jk=1,klev
        DO jl=1,kproma
     !<<dod
-          ! PLS - TODO: SAFE DIVISION         
-          IF(zvsum(jl,jk)>zeps) THEN
+          IF(zvsum(jl,jk)>zeps) THEN ! Safe division
              cn_eff(jl,jk)=CMPLX( znrsum(jl,jk)/zvsum(jl,jk) , znisum(jl,jk)/zvsum(jl,jk), kind=dp )
           ELSE
              cn_eff(jl,jk)=CMPLX( 0.0_dp , 0.0_dp, kind=dp )
@@ -537,7 +535,7 @@ CONTAINS
              
        DO jk=1, klev
           DO jl=1, kproma
-             IF(pxtm1(jl,jk,jt)>zeps) THEN
+             IF(pxtm1(jl,jk,jt)>zeps) THEN !Physical cutoff
                       
                 zv=pxtm1(jl,jk,jt)/zdensity
 
@@ -557,8 +555,7 @@ CONTAINS
 
     DO jk=1,klev
        DO jl=1,kproma
-          ! PLS - TODO: SAFE DIVISION        
-          IF(zvsum(jl,jk)>zeps .AND. lcore(jl,jk)) THEN
+          IF(zvsum(jl,jk)>zeps .AND. lcore(jl,jk)) THEN ! Safe division
              cn_0(jl,jk)=CMPLX( znrsum(jl,jk)/zvsum(jl,jk) , znisum(jl,jk)/zvsum(jl,jk), kind=dp )
           ELSE
              cn_0(jl,jk)=CMPLX( 0.0_dp , 0.0_dp, kind=dp )
@@ -630,7 +627,7 @@ CONTAINS
 
              DO jk=1,klev
                 DO jl=1,kproma
-                   IF(pxtm1(jl,jk,jt)>zeps .AND. lcore(jl,jk)) THEN
+                   IF(pxtm1(jl,jk,jt)>zeps .AND. lcore(jl,jk)) THEN !Physical cutoff/safe division implied
 
                       zvfrac=(pxtm1(jl,jk,jt)/zdensity) / zvsum(jl,jk)
 
@@ -750,7 +747,7 @@ CONTAINS
 
     !---executable procedure
 
-    zeps=THRESHOLD !EPSILON(1.0_dp)
+    zeps=THRESHOLD   ! Used for both physical cutoff and safe division 
 
     !>>dod deleted allocation of arrays
     !<<dod
@@ -2051,7 +2048,7 @@ CONTAINS
 
           !--- 0)
 
-          zeps = THRESHOLD ! EPSILON(1.0_dp)
+          zeps = EPSILON(1.0_dp)  ! Usage must be checked. Not done yet since we do not use HAMMOZ
 
           !--- Optical thickness for optional wavelengths:
 
@@ -2123,7 +2120,6 @@ CONTAINS
                          END DO
 
                          !>>SF #458 (replacing WHERE statements)
-                         ! PLS - TODO: SAFE DIVISION
                          ll1(1:kproma) = (ztau(1:kproma) > zeps)
                          ztmp1(1:kproma) = MERGE(ztau(1:kproma), 1._dp, ll1(1:kproma)) !SF 1._dp is a dummy val.
 
@@ -2276,7 +2272,6 @@ CONTAINS
 
                          DO jk=1, klev
                             DO jl=1, kproma
-                              ! PLS - TODO: SAFE DIVISION
                               IF (zvsum(jl,jk,jclass)>zeps) THEN
                                   ztaucomp(jl)=ztaucomp(jl) + &
                                        tau_p(jl,jk,krow)*zvcomp(jl,jk,jspec,jclass)/zvsum(jl,jk,jclass)
@@ -2306,7 +2301,6 @@ CONTAINS
           IF (nradang(1)/=0 .AND. nradang(2)/=0) THEN 
 
              !>>SF #458 (replacing WHERE statements)
-             ! PLS - TODO: SAFE DIVISION
              ll1(1:kproma) = (tau_2d(nradang(1))%ptr(1:kproma,krow)>zeps) &
                   .AND. (tau_2d(nradang(2))%ptr(1:kproma,krow)>zeps)
 

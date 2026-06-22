@@ -738,6 +738,7 @@ SUBROUTINE m7_averageproperties(kproma, kbdim, klev, krow, paernl, paerml, pttn,
 
         ztmp2(1:kproma,:) = ram2cmr(jclass)*((ztmp1(1:kproma,:)/z4piover3)**(1._dp/3._dp))
 
+        ! Use cminrad as fallback instead of keeping stale pm6rp? TODO check        
         pm6rp(1:kproma,:,jclass) = MERGE(ztmp2(1:kproma,:), pm6rp(1:kproma,:,jclass), ll1(1:kproma,:))
 
         !<<SF #458 (replacing WHERE statements)
@@ -2223,7 +2224,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   
   zqtmst = 1.0_dp/ztmst
   
-  zeps = THRESHOLD !EPSILON(1.0_dp)
+  zeps = THRESHOLD
   
   ! Relative humidity [%]:
   
@@ -2875,7 +2876,7 @@ SUBROUTINE m7_dconc(kproma, kbdim, klev, krow, paerml, paernl, pm6dry)
   zfconm(:,:,:) = 1._dp
   zfconn(:,:,:) = 1._dp
 
-  zeps = THRESHOLD !EPSILON(1._dp)
+  zeps = THRESHOLD ! threshold for numerical zero in CDF comparisons
 
   !
   !--- 1) Identify how much the mode jclass has grown into the next higher mode 
@@ -3570,7 +3571,7 @@ SUBROUTINE m7_concoag (kproma,   kbdim,   klev, krow,               &
 
   !--- 0) Initializations:
 
-  zeps=THRESHOLD !EPSILON(1._dp)
+  zeps = THRESHOLD ! Use for safe division. Could use EPSILON, but smaller-in-SP THRESHOLD is ok because of the MIN(a,b/threshold). TINY would be good candidate here. 
 
 
   !--- 1) Redistribution of mass and numbers after nucleation, coagulation ----
@@ -3937,7 +3938,7 @@ END SUBROUTINE m7_concoag
   !--- 0) Initialisations: ------------------------------------------------ 
  
   ztmst  = time_step_len 
-  zeps = THRESHOLD !EPSILON(1._dp)
+  zeps = THRESHOLD
  
   za4av       = 0._dp 
   za4av1(:,:) = 0._dp
@@ -4318,7 +4319,8 @@ END SUBROUTINE m7_concoag
                        DO kmod=1,nclass
                           IF (kmod>jclass) THEN
 !kai 
-                             ! PLS - TODO: SAFE DIVISION                            
+                             ! Current value of THRESHOLD (epsilon of double precision) sits between TINY and
+                             ! EPSILON. Fine, mimics original DP case when running in SP. 
                              IF (abs(zbftot).gt.zeps) then 
                                 pbfract1(jl,jk,kmod-jclass)=pbfract1(jl,jk,kmod-jclass)/zbftot
                              ELSE

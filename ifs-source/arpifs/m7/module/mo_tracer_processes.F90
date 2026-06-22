@@ -101,7 +101,7 @@ MODULE mo_tracer_processes
 
     !--- 2) Mass fix mode:
 
-    zeps=THRESHOLD !EPSILON(1.0_wp)
+    zeps = THRESHOLD
 
     !--- 2.1) Calculate auxiliary variable dp/g :
     !--- Uppermost level:
@@ -210,7 +210,7 @@ MODULE mo_tracer_processes
 
     !--- 0) Initializations:
     ztmst=time_step_len
-    zeps=10._wp*THRESHOLD   !EPSILON(1.0_wp)
+    zeps=10._wp*THRESHOLD   ! Original was: 10._wp*EPSILON(1.0_wp)
 
     !--- 1) Calculate auxiliary variable dp/g :
 
