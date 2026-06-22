@@ -949,9 +949,10 @@ SUBROUTINE m7_kappa(kproma, kbdim, klev, krow, prelhum, paernl, pttn, ptp1, &
 
         DO jk=1,klev
            DO jl=1,kproma
+              ! Note: kappa is clamped to [kappa_min, kappa_max] after this division.
               zkappa(jl,jk,jclass) = zkappa(jl,jk,jclass) + &
                                      zunitfac * speclist(jspec)%kappa * &
-                                     (pttn(jl,jk,jn)/zdensity) / (zdryvol(jl,jk,jclass) + cepssec) 
+                                     (pttn(jl,jk,jn)/zdensity) / MAX( cepssec, zdryvol(jl,jk,jclass) )
            END DO
         END DO
      END IF
