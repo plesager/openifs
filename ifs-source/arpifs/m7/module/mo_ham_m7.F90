@@ -975,7 +975,7 @@ SUBROUTINE m7_kappa(kproma, kbdim, klev, krow, prelhum, paernl, pttn, ptp1, &
               ix_k = 1 + NINT(zksteps*(zk1-kappa_min)/zKrange) ! linear interpolation from actual
                                                                  ! kappa to lookup table entry
 
-              zr1 = 1.E-2*zm6dry_safe(jl,jk)                  ! LOG of radius in m.
+              zr1 = 1.E-2_dp*zm6dry_safe(jl,jk)                  ! LOG of radius in m.
               zr2 = LOG(zr1)         
                
               zr3 = MAX(zr2, ln_Rd_min)                       ! limit to at least Rd_min
