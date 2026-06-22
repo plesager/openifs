@@ -274,7 +274,7 @@ CONTAINS
          DO JL=KIDIA,KFDIA                                                                                                                                        
             ! effective radius calculated similarly as in radlswr.F90                                                                                     
             ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]                                                                             
-            ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*PQLWC(JL,JK)/ZCDNC(JL,JK))**0.333_JPRB
+            ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*PQLWC(JL,JK)/ZCDNC(JL,JK))**(1.0_JPRB/3.0_JPRB)
          END DO
       END DO
       ZRE_LIQ(KIDIA:KFDIA,1:KLEV) = MERGE(ZRE_LIQ(KIDIA:KFDIA,1:KLEV),PPREFFL_DEF,LLIQCLD(KIDIA:KFDIA,1:KLEV))
@@ -534,11 +534,11 @@ CONTAINS
                         & ZVOL(JL)
 
                   !---defensive step: minimum kappa to avoid divide by zero errors
-                  ZKAPPA(JL,JK,JMOD) = MERGE(ZKAPPA(JL,JK,JMOD), 0.04_JPRB, ZKAPPA(JL,JK,JMOD) > 0.04_JPRB )
-                  ZKAPPA(JL,JK,JMOD) = MIN(ZKAPPA(JL,JK,JMOD),1.2_JPRB)
-               ELSE
+                  ZKAPPA(JL,JK,JMOD) = MAX(ZKAPPA(JL,JK,JMOD), 0.04_JPRB)
+                  ZKAPPA(JL,JK,JMOD) = MIN(ZKAPPA(JL,JK,JMOD), 1.2_JPRB)
+                ELSE
                   ZKAPPA(JL,JK,JMOD) = 0.04_JPRB  ! if total volume per mode is too small, use minimum kappa
-               END IF
+                END IF
             END IF
           END DO
        END DO
@@ -885,7 +885,7 @@ CONTAINS
 
           ! effect Re to volume mean from S Moss or Lohmann and Kaercher papers 200?
           ! ZRE_ICE on both LHS and RHS ??
-          ZRE_ICE=(MAX(SQRT(5.113E6_JPRB+2.809E3_JPRB*ZRE_ICE**3.0_JPRB)-2.261E3_JPRB,0.0_JPRB))**0.333_JPRB
+          ZRE_ICE=(MAX(SQRT(5.113E6_JPRB+2.809E3_JPRB*ZRE_ICE**3.0_JPRB)-2.261E3_JPRB,0.0_JPRB))**(1.0_JPRB/3.0_JPRB)
           ZRE_ICE=MAX(ZRE_ICE,1.0_JPRB)  ! diameter minimum 1.0 microns
 
           ! more default values if not applying
@@ -929,7 +929,7 @@ CONTAINS
              ENDIF
              
              !---why is this recalculated here ? 
-             ZRE_ICE=(0.75_JPRB*PRHO(JL,JK)*ZCLD/(RPI*ZRHO_ICE*1.E6_JPRB*ZICNC))**0.333_JPRB
+             ZRE_ICE=(0.75_JPRB*PRHO(JL,JK)*ZCLD/(RPI*ZRHO_ICE*1.E6_JPRB*ZICNC))**(1.0_JPRB/3.0_JPRB)
              ZRE_ICE=ZRE_ICE*1.E6_JPRB
 
              !PGFL(JL,JK,YICNC%MP9_PH) = ZICNC
