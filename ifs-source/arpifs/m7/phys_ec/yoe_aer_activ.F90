@@ -562,8 +562,6 @@ CONTAINS
             TPARC = PT(JL,JK) ! Temperature (K)
             PPARC = PAP(JL,JK) ! Pressure (Pa)
          
-            IF ( ANY(TPI(:) .GE. ZEPS) .AND. ANY(DPGI(:) .GE. 1e-9_JPRB) .AND. TPARC.GE.(273.15_JPRB-35.0_JPRB) ) THEN !eehol: any num con, diam and temperature need to be over treshold
-
                ! Convert aerosol data into CCN, fill BOX object
                CALL CCNSPEC (TPI,DPGI,SIGI,MODEI,TPARC,PPARC,NSOL-1,AKKI,A,B,ACCOM,BOX) 
 
@@ -596,7 +594,6 @@ CONTAINS
 
                ! convert Smax to %
                PSMAX(JL,JK) = 100._JPRB * SMAX 
-            END IF
           END IF ! LCLOUD
        END DO !jl
     END DO !jk
