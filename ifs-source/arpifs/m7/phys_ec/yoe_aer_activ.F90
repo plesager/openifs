@@ -419,7 +419,7 @@ CONTAINS
     REAL(KIND=JPRB), INTENT(IN)    :: PGEMU(KLON)
     REAL(KIND=JPRB), INTENT(IN)    :: PSIGMA_W(KLON,KLEV) !eehol: input sigma_w from outside [m/s]
 
-    !   Output:
+    ! In/Output - Levels above KTDIA are not modified
     REAL(KIND=JPRB), INTENT(INOUT) :: PCDNC(KLON,KLEV) ! # cm-3
     REAL(KIND=JPRB), INTENT(INOUT) :: PSMAX(KLON,KLEV) ! maximum supersaturation in %
 
@@ -431,7 +431,6 @@ CONTAINS
     REAL(KIND=JPRB)    :: ZVOL(KLON)              ! total dry particle volume
     REAL(KIND=JPRB)    :: ZKAPPA(KLON,KLEV,NSOL)  ! volume-weighted kappa
     REAL(KIND=JPRB)    :: ZWLARGE(KLON,KLEV)      ! large-scale velocity (m/s)
-    !REAL(KIND=JPRB)    :: PSMAX(KLON,KLEV)        ! maximum supersaturation in %
 
     REAL(KIND=JPRB)    :: ZSSMASS(KLON)           ! Sea salt MMR
     REAL(KIND=JPRB)    :: ZDUMASS(KLON)           ! Dust MMR
@@ -494,7 +493,7 @@ CONTAINS
     DO JMOD=2, NSOL
        DO JK=KTDIA,KLEV
           DO JL=KIDIA,KFDIA
-            IF (LCLOUD(JL,JK)) THEN
+            IF (LCLOUD(JL,JK).AND.PT(JL,JK).GE.(273.15_JPRB-35.0_JPRB)) THEN
             
                !---total volume per mode [m-3 / kg(air)], used for kappa calculation
                ZVOL(JL) = Z4PIOVER3 * PAERONUM(JL,JK,JMOD) *   &
@@ -520,7 +519,6 @@ CONTAINS
                NCL(JL) = NNACL(JL)
                NH2SO4(JL) = NSO4(JL) - NNA2SO4(JL)
 
-               ! PLS - TODO: SAFE DIVISION               
                IF (ZVOL(JL) .GE. ZEPS) THEN !eehol: total volume per mode need to be above treshold to avoid div by zero
                   !---mode kappa = volume-weighted sum of component kappa's
                   ZKAPPA(JL,JK,JMOD) = ( (Kap_ss * NNACL(JL) * WNACL / (DNACL*1.E3_JPRB)) + &
@@ -549,7 +547,7 @@ CONTAINS
 
     DO JK=KTDIA, KLEV
        DO JL=KIDIA,KFDIA
-          IF (LCLOUD(JL,JK)) THEN
+          IF (LCLOUD(JL,JK).AND.PT(JL,JK).GE.(273.15_JPRB-35.0_JPRB)) THEN
 
             DO JMOD=2,NSOL
             !Shift mode index
@@ -561,6 +559,9 @@ CONTAINS
             END DO
             TPARC = PT(JL,JK) ! Temperature (K)
             PPARC = PAP(JL,JK) ! Pressure (Pa)
+
+            !eehol: any numb con, diam to be over threshold
+            IF ( ANY(TPI(:) .GE. ZEPS) .AND. ANY(DPGI(:) .GE. 1e-9_JPRB) ) THEN
          
                ! Convert aerosol data into CCN, fill BOX object
                CALL CCNSPEC (TPI,DPGI,SIGI,MODEI,TPARC,PPARC,NSOL-1,AKKI,A,B,ACCOM,BOX) 
@@ -593,7 +594,8 @@ CONTAINS
                PCDNC(JL,JK) = 1.E-6_JPRB * NACT
 
                ! convert Smax to %
-               PSMAX(JL,JK) = 100._JPRB * SMAX 
+               PSMAX(JL,JK) = 100._JPRB * SMAX
+             END IF
           END IF ! LCLOUD
        END DO !jl
     END DO !jk
