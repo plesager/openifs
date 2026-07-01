@@ -650,8 +650,8 @@ DO JK=1,KLEV
             ! S(iv)tot : initial - gas - aq
             ZC_SO2_tot = ZC_SO2_tot - ZTend_OH - ZTend_Aq
             ! H2O2 and O3 : initial - aq
-            ZC_H2O2_gas = ZC_H2O2_gas - ZTend_Aq
-            ZC_O3_gas = ZC_O3_gas - ZTend_Aq
+            ZC_H2O2_gas = ZC_H2O2_gas - ZTend_H2O2 * ZCLW_VFRAC
+            ZC_O3_gas = ZC_O3_gas - ZTend_O3 * ZCLW_VFRAC
             
          ENDDO
 
