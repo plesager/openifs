@@ -54,6 +54,32 @@ elif [[ $HPC_PLATFORM == "puhti" ]]; then
 
     #---
     
+elif [[ $HPC_PLATFORM == "roihu" ]]; then
+    #--- PUHTI SPECIFIC SETTINGS
+    #--- local variables
+    PARTITION="--partition=small"
+    ACCOUNT="--account=project_2017841"
+    MEM="--mem=0"
+
+    # Add exclusive flag for Puhti:
+    # start a single tasks reserving a full node (shared otherwise),
+    # also change the default TMPDIR (changed in openifs-bundle)
+    #HPC_FLAGS="-n 1  --export=ALL,MY_TMP=/run/sbb/${USER} --bb=\"#BB_LUA SBF storagesize=10G path=/run/sbb/${USER}\""
+    HPC_FLAGS="-n 1 " #rt=ALL,MY_TMP=/run/sbb/${USER} --bb=\"#BB_LUA SBF storagesize=10G path=/run/sbb/${USER}\""
+
+    #--- global variables
+    # Since we need to reserve the full node, make use of it
+    export DEFAULT_NUM_THREADS=40
+
+    # Make sure GIT is loaded
+    #module load git
+
+    # Overwrite compile flags. There's a bug in Puhti installed libxml
+    # resulting in floating point exception due to the use of -ffpe-trap=
+    cp -f /projappl/project_2017841/bergmant/openifs-48r1/arch/csc/roihu/compile_flags_roihu.cmake /projappl/project_2017841/bergmant/openifs-48r1/ifs-source/cmake/compile_flags.cmake
+
+    #---
+    
 elif [[ $HPC_PLATFORM == "lumi" ]]; then
     #--- LUMI SPECIFIC SETTINGS
     #--- local variables
