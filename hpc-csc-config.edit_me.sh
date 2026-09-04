@@ -117,7 +117,7 @@ if [[ $HPC_HOST == "csc" ]]; then
     # export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=15 $ACCOUNT --partition=test"
 
     # Using ndefault partition:    
-    export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=60 $ACCOUNT --partition=$PARTITION"
+    export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=60 $ACCOUNT $PARTITION"
 
     export IGT_TEST_LAUNCHER="salloc -n 8 --mem=20GB --time=60 $ACCOUNT $PARTITION"
 fi
