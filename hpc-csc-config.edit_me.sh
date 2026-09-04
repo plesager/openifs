@@ -55,30 +55,22 @@ elif [[ $HPC_PLATFORM == "puhti" ]]; then
     #---
     
 elif [[ $HPC_PLATFORM == "roihu" ]]; then
-    #--- PUHTI SPECIFIC SETTINGS
+    #--- ROIHU SPECIFIC SETTINGS
     #--- local variables
     PARTITION="--partition=small"
     ACCOUNT="--account=project_2017841"
     MEM="--mem=0"
 
-    # Add exclusive flag for Puhti:
+    # Add exclusive flag for Roihu:
     # start a single tasks reserving a full node (shared otherwise),
     # also change the default TMPDIR (changed in openifs-bundle)
     #HPC_FLAGS="-n 1  --export=ALL,MY_TMP=/run/sbb/${USER} --bb=\"#BB_LUA SBF storagesize=10G path=/run/sbb/${USER}\""
-    HPC_FLAGS="-n 1 " #rt=ALL,MY_TMP=/run/sbb/${USER} --bb=\"#BB_LUA SBF storagesize=10G path=/run/sbb/${USER}\""
+    HPC_FLAGS="-n 1 " 
 
     #--- global variables
-    # Since we need to reserve the full node, make use of it
-    export DEFAULT_NUM_THREADS=40
-
-    # Make sure GIT is loaded
-    #module load git
-
-    # Overwrite compile flags. There's a bug in Puhti installed libxml
-    # resulting in floating point exception due to the use of -ffpe-trap=
-    cp -f /projappl/project_2017841/bergmant/openifs-48r1/arch/csc/roihu/compile_flags_roihu.cmake /projappl/project_2017841/bergmant/openifs-48r1/ifs-source/cmake/compile_flags.cmake
-
-    #---
+    # On small partition you reserve partial nodes
+    # Roihu has 384 but that is overkill, so use 80 
+    export DEFAULT_NUM_THREADS=80
     
 elif [[ $HPC_PLATFORM == "lumi" ]]; then
     #--- LUMI SPECIFIC SETTINGS
@@ -118,6 +110,14 @@ fi
 
 #--- set non-default launcher options
 if [[ $HPC_HOST == "csc" ]]; then
-    export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=60 $ACCOUNT $PARTITION"
+    # On Roihu one can use the test partition to compile, may raduce queue time. Limited to 15 mins.
+    # Just change the uncomment and comment on next lines
+
+    # using test partition
+    # export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=15 $ACCOUNT --partition=test"
+
+    # Using ndefault partition:    
+    export IGT_BUILD_LAUNCHER="srun $HPC_FLAGS -c ${DEFAULT_NUM_THREADS} ${MEM} --time=60 $ACCOUNT --partition=$PARTITION"
+
     export IGT_TEST_LAUNCHER="salloc -n 8 --mem=20GB --time=60 $ACCOUNT $PARTITION"
 fi
