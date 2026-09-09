@@ -50,7 +50,7 @@ elif [[ $HPC_PLATFORM == "puhti" ]]; then
 
     # Overwrite compile flags. There's a bug in Puhti installed libxml
     # resulting in floating point exception due to the use of -ffpe-trap=
-    cp -f /fmi/projappl/project_2003011/bergmant/openifs-48r1-pls/arch/csc/puhti/compile_flags_puhti.cmake /fmi/projappl/project_2003011/bergmant/openifs-48r1-pls/ifs-source/cmake/compile_flags.cmake
+    #cp -f /fmi/projappl/project_2003011/bergmant/openifs-48r1-pls/arch/csc/puhti/compile_flags_puhti.cmake /fmi/projappl/project_2003011/bergmant/openifs-48r1-pls/ifs-source/cmake/compile_flags.cmake
 
     #---
     
