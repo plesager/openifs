@@ -1,3 +1,15 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>
+!! \filename 
+!! mo_constants.f90
+!!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 MODULE mo_constants
 !- Description:
 !

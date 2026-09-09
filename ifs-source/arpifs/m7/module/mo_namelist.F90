@@ -1,3 +1,15 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>
+!! \filename 
+!! mo_namelist.f90
+!!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 MODULE mo_namelist
   ! position_nml - position namelist file for reading
   !

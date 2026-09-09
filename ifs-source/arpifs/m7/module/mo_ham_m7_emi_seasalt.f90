@@ -33,11 +33,8 @@
 !! \belongs_to
 !!  HAMMOZ
 !!
-!! \copyright
-!! Copyright and licencing conditions are defined in the ECHAM-HAMMOZ
-!! licencing agreement to be found at:
-!! https://redmine.hammoz.ethz.ch/projects/hammoz/wiki/1_Licencing_conditions
-!! The ECHAM-HAMMOZ software is provided "as is" and without warranty of any kind.
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Anton Laakso: Currently 

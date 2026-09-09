@@ -1,3 +1,15 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>
+!! \filename 
+!! m7_data.f90
+!!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 MODULE M7_DATA
 
 USE PARKIND1, ONLY : JPIM  , JPRB

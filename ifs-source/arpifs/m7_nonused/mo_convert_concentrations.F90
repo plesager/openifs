@@ -14,6 +14,12 @@
 !! \responsible_coder
 !! Eemeli Holopainen, eemeli.holopainen@fmi.fi
 !!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 MODULE mo_convert_concentrations
 
