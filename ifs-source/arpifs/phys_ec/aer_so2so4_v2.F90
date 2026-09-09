@@ -99,7 +99,8 @@ REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_TD = 2800._JPRD     ! temperature dependen
 REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_REF = 3.8E-1_JPRD   ! H^cp(OH), Sander, ACP 2015            [mol/m3/Pa]
 !REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_TD =                ! no temperature dependency for H^cp(OH)
 REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_REF = 1.3E-2_JPRD  ! H^cp(SO2), Sander, ACP 2015           [mol/m3/Pa]
-REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_TD = 2100._JPRD    ! temperature dependency for H^cp(SO2)  [K]
+! bug fix: replaced 2100. in the original code by 2900.
+REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_TD = 2900._JPRD    ! temperature dependency for H^cp(SO2)  [K]
 
 !=================================!
 ! Acid-base equilibrium constants !
@@ -169,6 +170,15 @@ REAL(KIND=JPRD), PARAMETER :: ZHP = 1.0E-5_JPRD     ! proton concentration      
 
 REAL(KIND=JPRD), PARAMETER :: ZPTSCHEM = 2._JPRD   ! timestep for chemistry                              [s]
 
+! Switch to control the mixing of gas-phase SO2 between cloudy and clear-sky part of the gridbox during chemical integration.
+! The original code by Remy and Bock effectively assumed complete mixing of gas-phase SO2 at every time step of the chemical
+! integration. This behaviour can be recovered by setting FAST_MIXING_GAS_PHASE_SO2 = .TRUE.
+! H2O2 and O3, on the other hand, did not mix between the cloudy and clear-sky fractions.
+! To remove this inconsistency, this new switch has been introduced. 
+! By setting it to .FALSE., the mixing of gas-phase SO2 between the two fractions is switched off during the integration.
+! Effectively this delays the mixing to the next model iteration, thereby introducing a dependence on model time step.
+LOGICAL, PARAMETER :: FAST_MIXING_GAS_PHASE_SO2 = .FALSE.
+
 
 !*       0.5   LOCAL VARIABLES
 !              ---------------
@@ -195,7 +205,6 @@ REAL(KIND=JPRD) :: ZFACT2   ! intermediate factor 2
 
 REAL(KIND=JPRD) :: ZFAQ_H2O2 ! fraction of H2O2 dissolved in aqueous phase  [dimensionless]
 REAL(KIND=JPRD) :: ZFAQ_O3   ! fraction of O3   dissolved in aqueous phase  [dimensionless]
-REAL(KIND=JPRD) :: ZFAQ_OH   ! fraction of OH   dissolved in aqueous phase  [dimensionless]
 REAL(KIND=JPRD) :: ZFAQ_SO2  ! fraction of SO2  dissolved in aqueous phase  [dimensionless]
 
 REAL(KIND=JPRD) :: ZHCC_H2O2    ! dimensionless Henry's law solubility for H2O2 [m3(g) / m3(aq)]
@@ -227,9 +236,12 @@ REAL(KIND=JPRD) :: ZC_OH_gas   ! concentration of OH   in the gas phase  [mol/m3
 REAL(KIND=JPRD) :: ZC_SO2_gas  ! concentration of SO2  in the gas phase  [mol/m3(air)]
 REAL(KIND=JPRD) :: ZC_SO2_tot  ! total concentration of SO2              [mol/m3(air)]
 
-REAL(KIND=JPRD) :: ZC_H2O2_gas_ini ! initial concentration of H2O2 in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRD) :: ZC_O3_gas_ini   ! initial concentration of O3   in the gas phase  [mol/m3(air)]
-REAL(KIND=JPRD) :: ZC_OH_gas_ini   ! initial concentration of OH   in the gas phase  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_H2O2_tot_cloudy ! total concentration of H2O2 in cloudy part [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_O3_tot_cloudy   ! total concentration of O3 in cloudy part   [mol/m3(air)]
+
+REAL(KIND=JPRD) :: ZC_SO2_tot_cloudy  ! total concentration of SO2 in cloudy part  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_SO2_gas_cloudy  ! total concentration of SO2 in the gas phase in cloudy part  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZC_SO2_gas_clear  ! concentration of SO2  in the gas phase in clear part [mol/m3(air)]
 
 REAL(KIND=JPRD) :: ZC_H2O2_aqp  ! "potential" concentration of H2O2  in the aqueous phase  [mol/m3(aq)]
 REAL(KIND=JPRD) :: ZC_O3_aqp    ! "potential" concentration of O3    in the aqueous phase  [mol/m3(aq)]
@@ -239,6 +251,8 @@ REAL(KIND=JPRD) :: ZC_HSO3m_aqp ! "potential" concentration of HSO3- in the aque
 REAL(KIND=JPRD) :: ZC_SO3mm_aqp ! "potential" concentration of SO3=  in the aqueous phase  [mol/m3(aq)]
 
 REAL(KIND=JPRD) :: ZTend_OH     ! tendency for S(iv) + OH(g)                  [mol/m3(air)]
+REAL(KIND=JPRD) :: ZTend_OH_clear  ! tendency for S(iv) + OH(g) in the clear-sky part [mol/m3(air)]
+REAL(KIND=JPRD) :: ZTend_OH_cloudy ! tendency for S(iv) + OH(g) in the cloudy part [mol/m3(air)]
 REAL(KIND=JPRD) :: ZTend_H2O2   ! tendency for S(iv) + H2O2(aq)               [mol/m3(air)]  <== final unit
 REAL(KIND=JPRD) :: ZTend_O3     ! tendency for S(iv) + O3(aq)                 [mol/m3(air)]  <== final unit
 REAL(KIND=JPRD) :: ZTend_O3_r1  ! tendency for SO2(aq) + O3(aq)                 [mol/m3(air)]  <== final unit
@@ -317,9 +331,13 @@ DO JK=1,KLEV
       ZmmrO3   = 0._JPRD
       ZC_H2O2_gas = 0._JPRD
       ZC_O3_gas   = 0._JPRD
+      ZC_H2O2_tot_cloudy = 0._JPRD
+      ZC_O3_tot_cloudy = 0._JPRD 
+      ZC_SO2_tot_cloudy = 0._JPRD 
+      ZC_SO2_gas_cloudy = 0._JPRD
+      ZC_SO2_gas_clear  = 0._JPRD
       ZFAQ_H2O2 = 0._JPRD
       ZFAQ_O3 = 0._JPRD
-      ZFAQ_OH = 0._JPRD
       ZFAQ_SO2 = 0._JPRD
       ZHCC_H2O2 = 0._JPRD
       ZHCC_OH = 0._JPRD
@@ -392,7 +410,6 @@ DO JK=1,KLEV
            ZC_SO2_tot=0._JPRD
          ENDIF
 
-         ZC_OH_gas_ini = ZC_OH_gas
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 ! -- reaction rate constants
@@ -475,10 +492,11 @@ DO JK=1,KLEV
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 ! -- aqueous fractions in the cloudy part [dimensionless]
-         ZFAQ_H2O2 = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_H2O2    * ZPNEB ) )
-         ZFAQ_O3   = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_O3      * ZPNEB ) )
-         ZFAQ_OH   = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_OH      * ZPNEB ) )
-         ZFAQ_SO2  = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_SO2_EFF * ZPNEB ) )
+! -- Eq. (7.8) in Seinfeld and Pandis (Third Edition), i.e. f_A / (1 + f_A)
+! -- bug fix: ZPNEB in the original code by Remy and Bock replaced by ZCLW_VFRAC (=w_L in S&P)
+         ZFAQ_H2O2 = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_H2O2    * ZCLW_VFRAC ) )
+         ZFAQ_O3   = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_O3      * ZCLW_VFRAC ) )
+         ZFAQ_SO2  = 1._JPRD / (1._JPRD + 1._JPRD / (ZHCC_SO2_EFF * ZCLW_VFRAC ) )
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
@@ -503,18 +521,18 @@ DO JK=1,KLEV
     
 ! -- gas phase concentration [mol / m3(g)]
          ! -- oxidants concentrations from climatologies are gas phase concentration.
-         !    use aqueous fractions calculated above to get total concentrations in the grid
          ZC_H2O2_gas = ZmmrH2O2 * ZAIR_DENS / ZRMH2O2
          ZC_O3_gas   = ZmmrO3 * ZAIR_DENS / ZRMO3
          ZC_OH_gas   = ZmmrOH * ZAIR_DENS / ZRMOH
 
-         ZC_H2O2_gas_ini = ZC_H2O2_gas
-         ZC_O3_gas_ini   = ZC_O3_gas
-         ZC_OH_gas_ini   = ZC_OH_gas
+         ! -- use aqueous fractions calculated above to get total concentrations in the cloudy part
+         ZC_H2O2_tot_cloudy = ZC_H2O2_gas / ( 1._JPRD - ZFAQ_H2O2 )
+         ZC_O3_tot_cloudy   = ZC_O3_gas / ( 1._JPRD - ZFAQ_O3 )
 
-
-       ! -- S(iv) concentrations from climatology is total concentration
+         ! -- SO2 tracer in this scheme represents total S(iv)
          ZC_SO2_tot  = ZmmrSO2  * ZAIR_DENS / ZRMSO2
+         ZC_SO2_tot_cloudy = ZC_SO2_tot
+         ZC_SO2_gas_clear = ZC_SO2_tot
 ! -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
@@ -558,15 +576,23 @@ DO JK=1,KLEV
 
          DO JTS=1,JPTS
 
-
 ! -- gas phase concentration [mol / m3(g)]
-            ZC_SO2_gas  = ZC_SO2_tot * (1._JPRD - ZFAQ_SO2*ZCLW_VFRAC)
+            ZC_SO2_gas_cloudy = ZC_SO2_tot_cloudy * (1._JPRD - ZFAQ_SO2)
+            IF (FAST_MIXING_GAS_PHASE_SO2) THEN
+               ! calculate grid box mean gas-phase concentration
+               ! reduces to the expression in the original version of the code,
+               ! with ZCLW_VFRAC replaced by ZPNEB (bug fix): 
+               ! ZC_SO2_gas  = ZC_SO2_tot * (1._JPRD - ZFAQ_SO2*ZPNEB)
+               ZC_SO2_gas = ZC_SO2_gas_cloudy * ZPNEB + ZC_SO2_gas_clear * (1._JPRD - ZPNEB)
+               ZC_SO2_gas_clear = ZC_SO2_gas
+               ZC_SO2_gas_cloudy = ZC_SO2_gas
+            ENDIF
 
 ! -- aqueous phase concentration [mol / m3(aq)]    ! WARNING: these are "potential" aqueous concentrations
-            ZC_H2O2_aqp = ZC_H2O2_gas * ZHCC_H2O2
-            ZC_O3_aqp = ZC_O3_gas * ZHCC_O3
+            ZC_H2O2_aqp = ZC_H2O2_tot_cloudy * ZHCC_H2O2 * (1._JPRD - ZFAQ_H2O2)
+            ZC_O3_aqp = ZC_O3_tot_cloudy * ZHCC_O3 * (1._JPRD - ZFAQ_O3)
 
-            ZC_Siv_aqp = ZC_SO2_gas * ZHCC_SO2_EFF
+            ZC_Siv_aqp = ZC_SO2_tot_cloudy * ZHCC_SO2_EFF * (1._JPRD - ZFAQ_SO2)
 
             ! Update fractioning between aqueous forms of S(iv)
             ZC_SO2_aqp = ZC_Siv_aqp / (1._JPRD + ZKEQ1_FACT + ZKEQ1_FACT * ZKEQ2_FACT )
@@ -576,15 +602,18 @@ DO JK=1,KLEV
 
 ! -- tendencies = reaction rates * timestep
             ! -- ZTend_OH [mol / m3(air)]
-            ZTend_OH = ZKOH * ZC_OH_gas * ZC_SO2_gas * ZPTSCHEM
-            ZTend_OH = MIN(ZTend_OH, ZC_OH_gas, ZC_SO2_gas)
+            ZTend_OH_clear = ZKOH * ZC_OH_gas * ZC_SO2_gas_clear * ZPTSCHEM
+            ZTend_OH_clear = MIN(ZTend_OH_clear, ZC_OH_gas, ZC_SO2_gas_clear)
 
-            ! -- ZTend_OH_Sum [mol / m3(air)]
-            ZTend_OH_Sum = ZTend_OH_Sum + ZTend_OH
+            ZTend_OH_cloudy = ZKOH * ZC_OH_gas * ZC_SO2_gas_cloudy * ZPTSCHEM
+            ZTend_OH_cloudy = MIN(ZTend_OH_cloudy, ZC_OH_gas, ZC_SO2_gas_cloudy)
+
+            ! -- gridbox mean ZTend_OH_Sum [mol / m3(air)]
+            ZTend_OH_Sum = ZTend_OH_Sum + ZTend_OH_clear * (1._JPRD - ZPNEB) + ZTend_OH_cloudy * ZPNEB
 
             ! -- Update gas phase concentrations
             !ZC_OH_gas  = ZC_OH_gas  - ZTend_OH ! in this test version, no depletion of OH during oxidation
-            !ZC_SO2_gas = ZC_SO2_gas - ZTend_OH ! Will be updated using ZC_SO2_tot
+            ZC_SO2_gas_clear = ZC_SO2_gas_clear - ZTend_OH_clear
 
 
 ! WARNING: the aqueous tendencies are calculated using "potential" aqueous concentrations (ZC_xxx_aqp) (in [mol / m3(aq)] )
@@ -648,15 +677,15 @@ DO JK=1,KLEV
             ZTend_Aq = ZTend_Aq * ZCLW_VFRAC ! convert to [mol / m**3(g)] for the last calculations
 
             ! S(iv)tot : initial - gas - aq
-            ZC_SO2_tot = ZC_SO2_tot - ZTend_OH - ZTend_Aq
+            ZC_SO2_tot_cloudy = ZC_SO2_tot_cloudy - ZTend_OH_cloudy - ZTend_Aq
             ! H2O2 and O3 : initial - aq
-            ZC_H2O2_gas = ZC_H2O2_gas - ZTend_Aq
-            ZC_O3_gas = ZC_O3_gas - ZTend_Aq
+            ZC_H2O2_tot_cloudy = ZC_H2O2_tot_cloudy - ZTend_H2O2 * ZCLW_VFRAC
+            ZC_O3_tot_cloudy = ZC_O3_tot_cloudy - ZTend_O3 * ZCLW_VFRAC
             
          ENDDO
 
-         ZTend_H2O2_Sum = ZTend_H2O2_Sum * ZCLW_VFRAC ! convert to [mol / m**3(g)]
-         ZTend_O3_Sum = ZTend_O3_Sum * ZCLW_VFRAC     ! convert to [mol / m**3(g)]
+         ZTend_H2O2_Sum = ZTend_H2O2_Sum * ZCLW_VFRAC * ZPNEB ! convert to [mol / m**3(g)]
+         ZTend_O3_Sum = ZTend_O3_Sum * ZCLW_VFRAC * ZPNEB     ! convert to [mol / m**3(g)]
          ZTend_Aq_Sum = ZTend_H2O2_Sum + ZTend_O3_Sum
 
          ZTend_Sum = ZTend_Aq_Sum + ZTend_OH_Sum
