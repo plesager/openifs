@@ -58,7 +58,7 @@ elif [[ $HPC_PLATFORM == "roihu" ]]; then
     #--- ROIHU SPECIFIC SETTINGS
     #--- local variables
     PARTITION="--partition=small"
-    ACCOUNT="--account=project_2017841"
+    ACCOUNT="--account=project_2020314"
     MEM="--mem=0"
 
     # Add exclusive flag for Roihu:

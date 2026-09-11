@@ -21,28 +21,20 @@ module_purge
 
 # Load modules
 module_load gcc/15.2.0
-#module_load gcc/13.4.0
 
 module_load openmpi/5.0.10
-#module_load intel-oneapi-mkl/2022.1.0
-#module_load gsl/2.8
 module load openblas/0.3.30
 module_load fftw/3.3.10
 module_load netcdf-fortran/4.6.2
 module_load netcdf-c/4.9.3
 module_load hdf5/1.14.6
 module load netlib-lapack/3.12.1
-#module_load cmake/3.23.1
 #module_load libaec/1.0.6
 
-# Correct python version and libraries
-#module_load python-geo
 
 #source /fmi/projappl/project_2003011/bergmant/openifs-48r1-pls/.oifspy/bin/activate
-#lspack="/appl/spack/v018/install-tree/intel-2021.6.0"
 
 llibaec=/appl/soft/spack/core/v2026_03/x86_64/gcc152_ec/install_dir/zen5/gcc-15.2.0/libaec-1.1.4-5ddtnb
-#/projappl/project_2017841//libaec/
 
 for lib in $llibaec; do
     echo $lib
