@@ -23,6 +23,7 @@ SAVE
 !     ------------------------------------------------------------------
 
 TYPE :: TEAERSNK
+LOGICAL           :: LDRYDEPVEL_DYN
 INTEGER(KIND=JPIM):: NDRYDEPVEL_DYN
 INTEGER(KIND=JPIM) :: NDRYDEP
 REAL(KIND=JPRB) :: R_R, R_S

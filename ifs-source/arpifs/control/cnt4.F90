@@ -254,11 +254,6 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "abor1.intfb.h"
 #include "save_merr_tend.intfb.h"
 
-
-
-
-
-
 #include "cormass2.intfb.h"
 #include "cormass3b.intfb.h"
 #include "cormassdry.intfb.h"
@@ -295,9 +290,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !#include "couplo4_definitions.intfb.h"
 #include "fullpos_drv.intfb.h"
 #include "chem_init.intfb.h"
-
-
-
+#include "tm5m7_init.intfb.h"!m7
+#include "hamm7_init.intfb.h"!m7
 
 #include "chem_massdia.intfb.h"
 #include "couplnemo.intfb.h"
@@ -328,9 +322,11 @@ ASSOCIATE(YDGFL5=>YDMTRAJ%YRGFL5,YDGMV5=>YDMTRAJ%YRGMV5, YDGFL=>YDFIELDS%YRGFL,Y
  & YGFL=>YDMODEL%YRML_GCONF%YGFL,YDEPHY=>YDMODEL%YRML_PHY_EC%YREPHY,YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM)
 
 ASSOCIATE(NCHEM=>YGFL%NCHEM, NDIM=>YGFL%NDIM, NUMFLDS=>YGFL%NUMFLDS, &
+ & NAERO=>YGFL%NAERO, &
  & YCOMP=>YGFL%YCOMP, &
  & GFUBUF=>YDCFU%GFUBUF, XFUBUF=>YDXFU%XFUBUF, &
  & LCHEM_DIA=>YDCOMPO%LCHEM_DIA, &
+ & AERO_SCHEME=>YDCOMPO%AERO_SCHEME, &
  & NPROMA=>YDDIM%NPROMA, &
  & NFLEVG=>YDDIMV%NFLEVG, &
  & NGPTOT=>YDGEM%NGPTOT, &
@@ -397,7 +393,7 @@ READ(NULNAM,NAMOOPS)
 IF (.NOT. LNF) THEN
   TDT=TSTEP
   NSTEP=0
-  CALL UPDTIM(YDGEOMETRY,YDFIELDS%YRSURF,YDMODEL,0,TDT,TSTEP,.FALSE.)
+  CALL UPDTIM(YDGEOMETRY,YDFIELDS,YDMODEL,0,TDT,TSTEP,.FALSE.)
 ENDIF
 
 IF ((NCONF == 1.OR.NCONF == 302).AND.NSTOP > 0 .AND. LNF .AND. .NOT.FP_SERV_C001%LFP_SERVER) THEN
@@ -501,6 +497,27 @@ IF (NCHEM > 0 ) THEN
   ELSE IF ( LCHEM_TL ) THEN
     CALL CHEM_INIT_TLAD(YDGEOMETRY,YDMODEL%YRML_GCONF,YDMODEL%YRML_CHEM)
   END IF
+ENDIF
+
+! Initialize aerosol indices (tm5m7 - if active)
+!   moving the CASE-clause that tests AERO_SCHEME from 
+!   ./src/ifs/phys_ec/tm5m7_init.F90 here
+IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
+   SELECT CASE (TRIM(AERO_SCHEME))
+
+   CASE ("aer")         
+      ! Setup of 'aer' configuration is done in su_aerw.F90
+   CASE ("hamm7")         
+      ! HAM-M7 only calculates aerosol micro-physics, 
+      ! all other processes are dealt with in TM5-M7
+      ! therefore we also have to initialize TM5-M7
+      CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
+      CALL HAMM7_INIT(YGFL, YDRIP, YDMODEL%YRML_CHEM%YRCHEM%CHEM_SCHEME) !requires stuff which is defined in TM5M7_INIT
+
+   CASE DEFAULT     
+      ! Option not implemented
+      CALL ABOR1(" NO AEROSOL SCHEME "//TRIM(AERO_SCHEME))
+   END SELECT      
 ENDIF
 
 !IF (LCOUPLO4_ENV) THEN
@@ -629,9 +646,9 @@ DO
     LLFOUND = .FALSE.
   ENDIF
   IF (LLFOUND) THEN
-    CALL UPDTIM(YDGEOMETRY,YDFIELDS%YRSURF,YDMODEL,JSTEP,TDT,TSTEP,.TRUE.,PI05=ZI05)
+    CALL UPDTIM(YDGEOMETRY,YDFIELDS,YDMODEL,JSTEP,TDT,TSTEP,.TRUE.,PI05=ZI05)
   ELSE
-    CALL UPDTIM(YDGEOMETRY,YDFIELDS%YRSURF,YDMODEL,JSTEP,TDT,TSTEP,.TRUE.)
+    CALL UPDTIM(YDGEOMETRY,YDFIELDS,YDMODEL,JSTEP,TDT,TSTEP,.TRUE.)
   ENDIF
   ! Update ocean fields from if previus time step was a coupled time step
   ! or we are at the beginning of the run.

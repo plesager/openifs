@@ -14,7 +14,7 @@ SUBROUTINE CLOUD_LAYER( &
   & TENDENCY_CML, TENDENCY_DYN, TENDENCY_VDF, PRAD, &
   & PSURF, LLKEYS, &
  ! Input/Output quantities
-  & AUXL, FLUX, PDIAG, FSD, &
+  & AUXL, FLUX, PDIAG, FSD, PSNOWACL, &
  ! Output tendencies
   & TENDENCY_LOC)
 
@@ -123,6 +123,7 @@ TYPE (FLUX_TYPE)               , INTENT(INOUT) :: FLUX
 TYPE (AUX_DIAG_TYPE)           , INTENT(INOUT) :: PDIAG
 TYPE (VARIABLE_3D)             , INTENT(INOUT) :: FSD
 TYPE (STATE_TYPE)              , INTENT(INOUT) :: TENDENCY_LOC
+REAL(KIND=JPRB)                , INTENT(INOUT) :: PSNOWACL(KDIM%KLON,KDIM%KLEV) ! accretion rate of snow with cloud droplets
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JRF, JL, JK
 REAL(KIND=JPRB)    :: ZGP2DSPP(KDIM%KLON, YDSPP_CONFIG%SM%NRFTOTAL)  !SPP pattern
@@ -138,8 +139,10 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !     ------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('CLOUD_LAYER',0,ZHOOK_HANDLE)
-ASSOCIATE(TSPHY=>YDPHY2%TSPHY, &
- & YSD_VF=>YDSURF%YSD_VF, YSD_VD=>YDSURF%YSD_VD)
+ASSOCIATE(& 
+ & TSPHY =>YDPHY2%TSPHY,                        &
+ & YSD_VF=>YDSURF%YSD_VF, YSD_VD=>YDSURF%YSD_VD )
+
 
 ! ------------------------------------------------------------------------------
 !
@@ -151,6 +154,8 @@ DO JRF=1, YDSPP_CONFIG%SM%NRFTOTAL
     ZGP2DSPP(JL,JRF)=PPERT%PGP2DSPP(JL,1,JRF)
   ENDDO
 ENDDO
+!-->eehol: add CDNC from PGFL field
+
    
 ZFSD(:,:)=0.0_JPRB
 
@@ -188,7 +193,7 @@ CALL CLOUDSC &
   & FLUX%PFSQRF,   FLUX%PFSQSF ,  FLUX%PFCQRNG,  FLUX%PFCQSNG,&
   & FLUX%PFSQLTUR, FLUX%PFSQITUR , &
   & FLUX%PFPLSL,   FLUX%PFPLSN,   FLUX%PFHPSL,   FLUX%PFHPSN,&
-  & PSURF%PSD_XA, KDIM%KFLDX)  
+  & PSURF%PSD_XA,  KDIM%KFLDX,    PSNOWACL)
 
 IF(YDEPHY%LRAD_CLOUD_INHOMOG) THEN
   DO JK=1,KDIM%KLEV

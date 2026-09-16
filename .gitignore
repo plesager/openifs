@@ -3,6 +3,7 @@
 /build/
 /install/
 /*.log
+/slurm-????????.out
 
 # ecbundle (cloned at build time by openifs-bundle)
 /ecbundle/

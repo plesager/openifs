@@ -1,0 +1,440 @@
+SUBROUTINE TM5M7_PHY2 &
+ &( YDGEOMETRY, YDMODEL,  KIDIA, KFDIA, KLON , KTDIA , KLEV , KFLDX, KLEVX, KTILES, KSTGLO, &
+ &  KTRAC, KAERO, KSW, &
+ &  PRS1 , PRSF1, PAPHI, PTP   , PVERVEL, PCEN , PGEOH, &
+ &  PALB , PALBD, PALUVD,&
+ &  PAERDEP,PAERLTS,PAERSCC    , PAERWS,PAERGUST, PAERUST,&
+ &  PSO2DD, PSOIL_TYPE, &
+ &  PCI  ,PCLAKE, &
+! &  PINJF, &
+ &  PBLH, PFRTI, PLSM , PSST, PQP   , PSNS  , &
+ &  PTL  ,PGELAM,PGELAT,PGEMU  , PHSDFOR, &
+ &  PUP  , PVP  , PWSA1, PTSPHY, PZ0M, KCHEM, &
+ &  PCVL, PCVH, KTVL, KTVH, &
+ &  PAHFSTI, &
+!-- OUTPUTS
+ &  PCFLX, PTENC, &
+ &  PLDAY, PLISS, PSO2 , PTDMS, PAERDDP, PAERSDM, PAERSRC, PAERMAP, PAERFLX, PAERLIF, &
+ &  PODMS, PEXTRA , PSO4SRC, PSO2SRC, GPGAW)
+
+!**** *TM5M7_PHY2* - ROUTINE DEALING WITH AEROSOL SOURCES, DRY DEPOSITION 
+!                  AND SEDIMENTATION for TM5M7 aerosol
+
+
+!      V. Huijnen, KNMI
+
+
+!**   INTERFACE.
+!     ----------
+!          *TM5M7_PHY2* IS CALLED FROM *AERINI_LAYER*.
+
+! INPUTS:
+! -------
+! PRS1 (KLON,0:KLEV)  : HALF-LEVEL PRESSURE           (Pa)
+! PRSF1(KLON,KLEV)    : FULL-LEVEL PRESSURE           (Pa)
+! PAPHI(KLON,0:KLEV)  : GEOPOTENTIAL ON HALF-LEVELS
+! PTP(KLON,KLEV)      : FULL-LEVEL TEMPERATURE (W. DYN.TEND.) (K)
+! PVERVEL(KLON,KLEV)  : FULL-LEVEL VERTICAL VELOCITY  (Pa s-1)
+! PCEN(KLON,KLEV,KTRAC): TRACER CONCENTRATION
+! PGEOH(KLON,0:KLEV)  : GEOPOTENTIAL ON HALF-LEVELS
+! PALB(KLON)          : SURFACE FORECAST ALBEDO
+! PALUVD(KLON)        : MODIS ALBEDO UV-VIS. DIFFUSE
+! PCI(KLON)           : FRACTION OF SEA-ICE
+!-- field for biomass burning emission heights
+! PINJF(KLON)         : Height of injection for biomass burning sources  (m)
+! PBLH(KLON)          : Boundary layer Height
+! PFRTI(KLON,KTILES)  : FRACTION OF VARIOUS SURFACES (TILES)
+! PLSM(KLON)          : LAND-SEA MASK
+! PSST(KLON)          : Sea Surface Temperature
+! PQP(KLON,KLEV)      : FULL-LEVEL HUMIDITY (W. DYN.TEND.) (kg kg-1)
+! PSNS(KLON)          : SNOW DEPTH
+! PTL(KLON)           : SURFACE TEMPERATURE
+! PGELAM(KLON)        : LONGITUDE
+! PGELAT(KLON)        : LATITUDE (RADIANS)
+! PGEMU(KLON)         : SINE OF LATITUDE
+! PUP(KLON)           : LOWEST MODEL U-COMPONENT OF WIND (W. DYN.TEND.) 
+! PVP(KLON)           : LOWEST MODEL V-COMPONENT OF WIND (W. DYN.TEND.) 
+! PWSA1(KLON)         : MOISTURE IN TOP LAYER OF SURFACE
+! PTSPHY              : PHYSICS TIME-STEP
+! PAHFSTI             : sensible heat flux                         (W/m2)
+!! PAHFLEV             : latent heat flux                           (W/m2) 
+! PZ0M                : roughness length for momentum              (m)
+!-- aerosol climatological fields
+! PAERDEP, PAERLTS, PAERSCC, 
+! PSO2DD, PSOIL_TYPE
+!-- dust aerosol predictors
+! PAERWS              : Wind speed (average of horizontal wind speed)   (m/s)
+! PAERGUST            : Wind gust (maximum 3 second gust in the hour)   (m/s)
+! PAERUST             : Friction velocity 
+! PHSDFOR             : Standard deviation of filtered sub-grid orography 
+
+! INPUTS/OUTPUTS:
+! ---------------
+! PTENC(KLON,KLEV,KTRAC)    : TENDENCY OF TRACER CONCENTRATION
+ 
+
+! OUTPUTS:
+! --------
+! PCFLX(KLON,KTRAC)      : SURFACE FLUX OF TRACERS              (xx m-2)
+! PAERDDP(KLON,NACTAERO) : DRY DEPOSITION FLUX                  (xx m-2)
+! PAERSDM(KLON,NACTAERO) : SEDIMENTATION FLUX                   (xx m-2)
+! PAERSRC(KLON,NACTAERO) : SOURCE FLUX                          (xx m-2) 
+! PAERMAP(KLON,5)        : DUST MASK-RELATED QUANTITIES
+! PAERFLX(KLON,12,9)     : DIAGNOSTIC DUST SOURCE FLUXES
+! PAERLIF(KLON,9)        : DIAGNOSTIC LIFTING THRESHOLD SPEED
+
+!     EXTERNALS.
+!     ----------
+!          *TM5M7_SRC*, *TM5M7_DRYDEP*, *TM5M7_SEDIMENT*
+
+!     AUTHOR.
+!     -------
+!          Original (aer_phy2.F90) JJ.Morcrette, 20060220
+!
+
+!     SWITCHES.
+!     --------
+
+!     MODEL PARAMETERS
+!     ----------------
+
+!     Modifications:
+!     --------------
+!
+!-----------------------------------------------------------------------
+
+USE GEOMETRY_MOD , ONLY : GEOMETRY
+USE TYPE_MODEL   , ONLY : MODEL
+USE PARKIND1 , ONLY : JPIM, JPRB
+USE TM5M7_DATA, ONLY : MODAL_DATA,NMOD, NRDEP
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMCST   , ONLY : RD, RG
+USE YOMCT3   , ONLY : NSTEP
+USE YOMLUN   , ONLY : NULOUT
+USE YOMCHEM  , ONLY : IEXTR_EM, IEXTR_DD!,YRCHEM
+!USE YOMCOMPO , ONLY : YRCOMPO
+USE YOMMP0    , ONLY : MYPROC, NPROC
+USE OIFS_TO_HAM, ONLY:  ind_oifs_ham!%ind_gas_OIFS
+
+!-----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+TYPE(GEOMETRY)    ,INTENT(IN) :: YDGEOMETRY
+TYPE(MODEL)       ,INTENT(INOUT) :: YDMODEL
+INTEGER(KIND=JPIM),INTENT(IN) :: KIDIA, KFDIA, KLON, KFLDX, KLEVX
+INTEGER(KIND=JPIM),INTENT(IN) :: KTDIA, KLEV ,KSTGLO
+INTEGER(KIND=JPIM),INTENT(IN) :: KSW
+INTEGER(KIND=JPIM),INTENT(IN) :: KTILES 
+INTEGER(KIND=JPIM),INTENT(IN) :: KTRAC
+INTEGER(KIND=JPIM),INTENT(IN) :: KAERO(YDMODEL%YRML_GCONF%YGFL%NAERO)
+
+REAL(KIND=JPRB),INTENT(IN)    :: PRS1(KLON,0:KLEV), PRSF1(KLON,KLEV), PAPHI(KLON,0:KLEV)
+REAL(KIND=JPRB),INTENT(IN)    :: PTP(KLON,KLEV)   , PVERVEL(KLON,KLEV)
+REAL(KIND=JPRB),INTENT(IN)    :: PGEOH(KLON,0:KLEV)
+!!!!!!!! PCEN is IN or INOUT
+REAL(KIND=JPRB),INTENT(INOUT) :: PCEN(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB),INTENT(IN)    :: GPGAW(KLON) 
+REAL(KIND=JPRB),INTENT(IN)    :: PALB(KLON) , PALBD(KLON,KSW)
+REAL(KIND=JPRB),INTENT(IN)    :: PALUVD(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PAERDEP(KLON), PAERLTS(KLON), PAERSCC(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PAERWS(KLON) , PAERGUST(KLON), PAERUST(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PSO2DD(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PSOIL_TYPE(KLON)  
+REAL(KIND=JPRB),INTENT(IN)    :: PCI(KLON)  , PCLAKE(KLON)  ,PSST(KLON), PFRTI(KLON,KTILES), PLSM(KLON), PSNS(KLON)
+!REAL(KIND=JPRB),INTENT(IN)    :: PINJF(KLON)
+REAL(KIND=JPRB)    :: ZINJF(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PGELAM(KLON), PGELAT(KLON), PGEMU(KLON), PHSDFOR(KLON) 
+REAL(KIND=JPRB),INTENT(IN)    :: PTL(KLON)  , PQP(KLON,KLEV), PUP(KLON)  , PVP(KLON)  , PWSA1(KLON)
+REAL(KIND=JPRB),INTENT(IN)    :: PTSPHY
+REAL(KIND=JPRB),INTENT(IN)    :: PZ0M(KLON)
+INTEGER(KIND=JPIM),INTENT(IN) :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
+REAL(KIND=JPRB), INTENT(IN)   :: PCVL(KLON), PCVH(KLON) ! Low/High vegetation cover
+INTEGER(KIND=JPIM), INTENT(IN):: KTVL(KLON), KTVH(KLON) ! Low/High vegetation type
+REAL(KIND=JPRB),INTENT(IN)    :: PAHFSTI(KLON,KTILES) 
+!!!REAL(KIND=JPRB),INTENT(IN)    :: PAHFLEV(KLON)
+
+
+REAL(KIND=JPRB),INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB),INTENT(INOUT) :: PCFLX(KLON,KTRAC)
+REAL(KIND=JPRB),INTENT(INOUT) :: PAERDDP(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO), PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO), PAERSRC(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB),INTENT(OUT)   :: PAERMAP(KLON,5)
+REAL(KIND=JPRB),INTENT(OUT)   :: PAERFLX(KLON,12,9), PAERLIF(KLON,9)
+REAL(KIND=JPRB),INTENT(OUT)   :: PLDAY(KLON), PLISS(KLON), PSO2(KLON), PTDMS(KLON)
+REAL(KIND=JPRB),INTENT(OUT)   :: PODMS(KLON)
+REAL(KIND=JPRB),INTENT(INOUT) :: PEXTRA(KLON,KLEVX,KFLDX)
+
+REAL(KIND=JPRB),INTENT(INOUT)    :: PSO4SRC(KLON,KLEV),PSO2SRC(KLON,KLEV)
+
+!-----------------------------------------------------------------------
+
+INTEGER(KIND=JPIM) :: JAER, JK, JL, JSEDM, IMODE, JTILE, ISSO2, ISSO4, JGAS
+INTEGER(KIND=JPIM) :: IFLAG, ISEDIM, INBSU, INBVASH, INBVSO2, INBVSO4
+LOGICAL :: LLPRINT
+REAL(KIND=JPRB) :: ZAER(KLON,KLEV) , ZAEROP(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZTENCI(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB) :: ZTAERI(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO), ZTAERO(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+REAL(KIND=JPRB) :: ZTAERA(KLON,KLEV), ZTAERZ(KLON,KLEV)
+REAL(KIND=JPRB) :: ZALT(KLON,0:KLEV), ZDP(KLON,KLEV), ZDZ(KLON,KLEV)
+REAL(KIND=JPRB) :: ZFAER(KLON), ZFAERO(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO), ZFDRYD(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+!!! REAL(KIND=JPRB), ALLOCATABLE :: ZAEDRYDP(:,:,:), ZFAEDRYDP(:,:)
+REAL(KIND=JPRB) :: ZRHO(KLON,KLEV)
+REAL(KIND=JPRB) :: ZWND(KLON)
+REAL(KIND=JPRB) :: ZRHCL(KLON),ZQSAT(KLON,1),ZAHFSM(KLON)
+
+REAL(KIND=JPRB),PARAMETER :: PPRMAX=1E5 ! Maximum resistance
+
+!Output diagnostics
+REAL(KIND=JPRB) :: ZVDA (KLON,KLEV)
+
+!TYPE(MODAL_DATA),DIMENSION(NMOD), TARGET :: RW_MODE
+!TYPE(MODAL_DATA),DIMENSION(NMOD), TARGET :: DENS_MODE
+
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+REAL(KIND=JPRB)  :: ZEMIDIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
+
+!-----------------------------------------------------------------------
+
+!#include "tm5m7_drydep.intfb.h"
+!#include "tm5m7_sediment.intfb.h"
+#include "chem_inext.intfb.h"
+#include "tm5m7_src.intfb.h"
+!#include "satur.intfb.h"
+
+!-----------------------------------------------------------------------
+IF (LHOOK) CALL DR_HOOK('TM5M7_PHY2',0,ZHOOK_HANDLE)
+
+
+
+ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL, &
+  & YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
+  & YDEAERATM=>YDMODEL%YRML_PHY_RAD%YREAERATM, &
+  & YDCHEM=>YDMODEL%YRML_CHEM%YRCHEM, &
+  & YDRIP=>YDMODEL%YRML_GCONF%YRRIP)
+ASSOCIATE(NACTAERO=>YGFL%NACTAERO, NAERO=>YGFL%NAERO, &
+ & LAERSURF=>YDEAERATM%LAERSURF,  &
+ & NSTART=>YDRIP%NSTART, LCHEM_DIA=>YDCOMPO%LCHEM_DIA, NCHEM=>YGFL%NCHEM )
+!     ------------------------------------------------------------------
+
+!*         1.     PROGNOSTIC AEROSOLS - INITIAL COMPUTATIONS
+!                 ------------------------------------------
+
+ZAEROP(:,:,:) = 0.0_JPRB
+ZINJF = 0.0_JPRB
+LLPRINT=.FALSE.
+
+ZAEROP(KIDIA:KFDIA,1:KLEV,1:NACTAERO) = PCEN(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO))
+ZTAERI(KIDIA:KFDIA,1:KLEV,1:NACTAERO) = PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO))
+
+
+!----
+
+DO JK=1,KLEV
+  DO JL=KIDIA,KFDIA
+    ZRHO(JL,JK)=PRSF1(JL,JK)/(RD*PTP(JL,JK))
+    ZDP(JL,JK)= PRS1(JL,JK) - PRS1(JL,JK-1)
+    ZDZ(JL,JK)= ZDP(JL,JK) / (ZRHO(JL,JK)*RG)  
+  ENDDO
+ENDDO
+DO JL=KIDIA,KFDIA
+  ZALT(JL,KLEV)=PAPHI(JL,KLEV)/RG
+ENDDO
+DO JK=KLEV-1,0,-1
+  DO JL=KIDIA,KFDIA
+    ZALT(JL,JK)=ZALT(JL,JK+1)+ZDZ(JL,JK+1)
+  ENDDO
+ENDDO
+
+
+! WARNING: This should come from actual M7 aerosol information,
+! rather than initialized here.
+! Code to be updated once the M7 conversion routine has been introduced
+!DO IMODE=1,NMOD
+!   ALLOCATE(RW_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV))
+!   ALLOCATE(DENS_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV))
+!   
+!   ! Place holder - to be replaced with actual data using aedensm7 and aeradm7 etc!!
+!   RW_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV)  = 0.1e-6   ! m
+!   DENS_MODE(IMODE)%d2(KIDIA:KFDIA,1:KLEV)= 1800.0  ! kg/m3!
+!
+!ENDDO
+
+
+! NB: The physical calculations for the prognostic aerosols are done in a 
+!     sequential mode, with any given process adding its tendency to the 
+!     initial tendency (giving ZTENC), the field itself (ZCEN) remaining 
+!     the same.
+ 
+
+!-- set all fluxes relevant to surface emissions, dry deposition and sedimentation to zero
+IF (.NOT.LAERSURF) THEN
+  PAERMAP(:,:)  =0._JPRB
+  PAERFLX(:,:,:)=0._JPRB
+  PAERLIF(:,:)  =0._JPRB
+  PAERDDP(:,:)  =0._JPRB
+  PAERSDM(:,:)  =0._JPRB
+  PAERSRC(:,:)  =0._JPRB
+  ZWND(:)       =0._JPRB
+  DO JAER=1,NACTAERO
+    DO JL=KIDIA,KFDIA
+      ZFAERO(JL,JAER) =0._JPRB
+      PCFLX(JL,KAERO(JAER))=0._JPRB
+    ENDDO
+  ENDDO 
+ELSEIF (LAERSURF) THEN
+
+!*         2.     SURFACE FLUXES OF AEROSOLS
+!                 --------------------------
+
+! N.B: COMPUTATIONS USE SURFACE PRECIPITATION AT T-DT
+
+  DO JL=KIDIA,KFDIA
+!    ZWND(JL)=SQRT(PUP(JL)*PUP(JL)+PVP(JL)*PVP(JL))
+    ZWND(JL)=PAERWS(JL)
+    PLDAY(JL)=0._JPRB
+    PLISS(JL)=0._JPRB
+    PSO2(JL) =0._JPRB
+    PTDMS(JL)=0._JPRB
+    PODMS(JL)=0._JPRB
+  ENDDO  
+
+!  DO JTILE=1,KTILES
+!    write(8000+MYPROC,*)jtile,jl,PFRTI(JL,JTILE),PAHFSTI(JL,JTILE),PFRTI(JL,JTILE)*PAHFSTI(JL,JTILE)
+    !write(3334,*)jtile,jl,PFRTI(JL,JTILE),PAHFSTI(JL,JTILE)
+!end DO
+
+  CALL TM5M7_SRC &
+    &( YDGEOMETRY, YDMODEL,  KIDIA  , KFDIA , KLON , KTDIA, KLEV , KTILES, NSTART, NSTEP , KSTGLO, &
+    &  KSW    , KTRAC , KAERO, & 
+    &  PALB   , PALBD , PAPHI , &
+    &  PAERDEP,PAERLTS, PAERSCC, PAERGUST, ZALT, &
+    &  PRS1   , PRSF1 , PCI  , PCLAKE, ZINJF, PBLH, ZDP, PGELAM, PGELAT, PGEMU, PFRTI, PHSDFOR, &
+    &  PLSM   , PSST  , PQP   , ZRHO , PSNS , PTP  , PTL  , PTSPHY, PZ0M, KCHEM, &
+    &  ZWND   , PWSA1 , PSOIL_TYPE, &
+    &  PCVL  , PCVH, KTVL, KTVH, &
+    &  PLDAY  , PAERFLX, PCFLX, PCEN , PTENC, ZEMIDIAG, PSO2SRC,PSO4SRC, GPGAW)  
+  
+
+! sea salt and desert dust fluxes in kg m-2 s-1, thus:
+! dynamics, vert.diff, convection see mixing ratio in kg kg-1 (PCEN, ZAEROP) 
+! and corresponding tendencies ZTENC are in kg kg-1 s-1 
+
+  DO JAER=1,NACTAERO
+     DO JL=KIDIA,KFDIA
+        PAERSRC(JL,JAER)=ZEMIDIAG(JL,JAER) !PCFLX(JL,KAERO(JAER))
+        ! add SO2 and SO4 production for diagnostics in case of simple sulfur chemistry
+     ENDDO
+  ENDDO
+  ! collect distributed fluxes  
+  IF (LCHEM_DIA) THEN
+     CALL CHEM_INEXT( KIDIA , KFDIA  , KLON , KLEV , NACTAERO, NACTAERO ,  &
+          &    ZDP, PTSPHY, PTENC(:,:,KAERO(1):KAERO(NACTAERO)) , ZTAERI, PEXTRA(:,NCHEM+1:NCHEM+NACTAERO,IEXTR_EM))
+ ENDIF
+
+!*         3.     DRY DEPOSITION INCLUDED AS MODIFICATION TO SURFACE FLUXES
+!                 ---------------------------------------------------------
+
+!
+!  IF (LAERDRYDP) THEN
+!
+!   ! Compute relative humidity
+!   IFLAG=2
+!   CALL SATUR (KIDIA , KFDIA , KLON  , KTDIA , 1,&
+!     & PRSF1(:,KLEV), PTP(:,KLEV)    , ZQSAT(:,1) , IFLAG)  
+!
+!   DO JL=KIDIA,KFDIA
+!     ZRHCL(JL)=PQP(JL,KLEV)/(MAX(1.E-30_JPRB, ZQSAT(JL,1)))
+!   ENDDO
+!
+!
+!!-- Dry deposition is applied to all aerosols.
+!
+!     ZTENCI(KIDIA:KFDIA, 1:KLEV,:)=PTENC(KIDIA:KFDIA,1:KLEV,:)
+!
+!     ! Compute average fluxes over tiles
+!     DO JTILE=1,KTILES
+!       ZAHFSM(JL)=ZAHFSM(JL)+PFRTI(JL,JTILE)*PAHFSTI(JL,JTILE)
+!     ENDDO
+!
+!     CALL TM5M7_DRYDEP ( &
+! &    KIDIA , KFDIA   , KLON, KLEV, KTRAC, KAERO   , &
+! &    PTSPHY, ZTENCI, PTP(:,KLEV)   , PRSF1 , PRS1, ZWND, &
+! &    PLSM, PCI,PAERUST,PZ0M,ZRHCL,PGEOH, ZDZ(:,KLEV), &
+! &    ZAHFSM, PAHFLEV, &
+! &    RW_MODE, DENS_MODE, PCEN, &
+! &    PAERDDP, PTENC,ZVDA)  
+!
+!
+!     ! Compute dry deposition budgets
+!     IF (LCHEM_DIA) THEN 
+!       CALL CHEM_INEXT(KIDIA, KFDIA, KLON, KLEV, NACTAERO, NACTAERO , &  
+!        & ZDP, PTSPHY, PTENC(:,:, KAERO(1):KAERO(NACTAERO)), ZTENCI(:,:,KAERO(1):KAERO(NACTAERO)),PEXTRA(:,NCHEM+1:NCHEM+NACTAERO,IEXTR_DD) ) 
+!     ENDIF
+!
+!     ! Output deposition velocity fields..
+!     !IF(LCHEM_JOUT) THEN
+!     !  DO JK=1,KLEV
+!     !    DO JL=KIDIA,KFDIA
+!     !      PEXTRA(JL,JK,2)=ZVDA(JL,JK)
+!     !    ENDDO
+!     !  ENDDO
+!     !ENDIF
+!
+!
+!!--   The dry deposition at the surface has been explicitly computed, and the 
+!!     tendency in the first layer above the surface is to be updated. The 
+!!     emission flux is kept untouched.
+!
+!!VH      DO JAER=1,NACTAERO
+!!VH        DO JL=KIDIA,KFDIA
+!!VH          PAERDDP(JL,JAER)=ZFDRYD(JL,JAER)
+!!VH        ENDDO
+!!VH      ENDDO
+!!VH !-- update tendencies
+!!VH      PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO)) = ZTAERO(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
+!
+!  ENDIF ! LAERDRYDP
+
+ENDIF
+
+!!*         4.     SEDIMENTATION OF AEROSOLS
+!!                 -------------------------
+!
+!IF (LAERSEDIM) THEN
+!
+!ZTAERI(KIDIA:KFDIA,1:KLEV,1:NACTAERO) = PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO))
+!
+!CALL TM5M7_SEDIMENT & 
+! & ( KIDIA , KFDIA   , KLON, KLEV, KTRAC, KAERO   , &
+! &   PTSPHY, PTP     , PRSF1 , PRS1, &
+! &   RW_MODE, DENS_MODE, PCEN, &
+! &   PAERSDM, PTENC)  
+!
+!! collect distributed fluxes  - should really be given its own budget accumulator, and not combined with dry dep..
+! IF (LCHEM_DIA) THEN
+!    CALL CHEM_INEXT( KIDIA , KFDIA  , KLON , KLEV , NACTAERO, NACTAERO ,  &
+!   &    ZDP, PTSPHY, PTENC(:,:,KAERO(1):KAERO(NACTAERO)) , ZTAERI, PEXTRA(:,NCHEM+1:NCHEM+NACTAERO,IEXTR_DD))
+! ENDIF
+!
+!
+!ELSE
+!!-- If sedimentation is not called, tendencies after dry depo. stay the same.
+!  DO JL=KIDIA,KFDIA
+!    PAERSDM(JL,:)=0._JPRB
+!  ENDDO
+!ENDIF
+
+
+! Deallocate.. Here??
+!DO IMODE=1,NMOD
+!  DEALLOCATE(RW_MODE(IMODE)%d2)
+!  DEALLOCATE(DENS_MODE(IMODE)%d2)
+!ENDDO
+
+!-----------------------------------------------------------------------
+END ASSOCIATE
+END ASSOCIATE
+IF (LHOOK) CALL DR_HOOK('TM5M7_PHY2',1,ZHOOK_HANDLE)
+END SUBROUTINE TM5M7_PHY2

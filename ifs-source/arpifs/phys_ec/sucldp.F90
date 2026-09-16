@@ -421,8 +421,8 @@ RCL_KKBAC  = 1.15_JPRB
 RCL_KKAAU  = 1350._JPRB ! s-1
 RCL_KKBAUQ = 2.47_JPRB
 RCL_KKBAUN = -1.79_JPRB
-RCL_KK_CLOUD_NUM_SEA  =  50._JPRB ! m-3
-RCL_KK_CLOUD_NUM_LAND = 300._JPRB ! m-3
+RCL_KK_CLOUD_NUM_SEA  =  50._JPRB ! cm-3
+RCL_KK_CLOUD_NUM_LAND = 300._JPRB ! cm-3
 ! default false: use constant ZEaut, ZEacc
 ! if true, use regime-dependent FSD to calculate
 ! ZEaut and ZEacc

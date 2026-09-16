@@ -538,10 +538,10 @@ CALL SUNDISTCORR(IMONTH,IDAY,ZDISTFAC)
 
 ! Compute here 'roundoff' number - there is a paralellization
 ! issue when calling WLMACH as part of kpp-code.
-IF ( KSTEP == 0_JPIM ) THEN
+!IF ( KSTEP == 0_JPIM ) THEN  ! a more robust test on YDRIP%NSTADD instead of kstep, and done in a setup routine, should be devised
     CALL CIFS_KPP_WLAMCH(ROUNDOFF_BASCOE , 'E')
     ROUNDOFF_TM5=ROUNDOFF_BASCOE
-ENDIF
+!ENDIF
 
 ! 1.0 Initialize output tendencies to 0.
 PTENC1(KIDIA:KFDIA,:,:)=0.0_JPRB

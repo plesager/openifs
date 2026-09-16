@@ -79,7 +79,7 @@ contains
   subroutine allocate_aerosol_arrays_direct(this, config, &
        &                                    ncol, istartlev, iendlev)
 
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type
 
     class(aerosol_type), intent(inout) :: this

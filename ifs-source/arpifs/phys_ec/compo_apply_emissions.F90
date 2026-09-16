@@ -16,24 +16,51 @@ SUBROUTINE COMPO_APPLY_EMISSIONS(YDMODEL, &
     & PAPHIF, PBLH, &
     & PLSM)
 
-!-----------------------------------------------------------------------------
-! COMPO_APPLY_EMISSIONS
-!
-!   This routine iterates over the emission fields for the composition species
-!   (aerosols, chemistry, GHG) and applies them either to the surface flux or
-!   tendency arrays as appropriate.
-!
-! AUTHOR: Zak Kipling
-!-----------------------------------------------------------------------------
+! ╭────────────────────────────────────────────────────────────────────────────╮
+! │                                                       updated 3-Jun-2024   │
+! │ Purpose :                                                                  │
+! │ -------                                                                    │
+! │ This routine iterates over the emission fields for the composition species │
+! │ (aerosols, chemistry, GHG) and applies them either to the surface flux or  │
+! │ tendency arrays as appropriate.                                            │
+! │                                                                            │
+! │ Input :                                                                    │
+! │ -----                                                                      │
+! │                                                                            │
+! │                                                                            │
+! │ Output :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │                                                                            │
+! │ Externals :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Method :                                                                   │
+! │ ------                                                                     │
+! │                                                                            │
+! │ Reference :                                                                │
+! │ ---------                                                                  │
+! │                                                                            │
+! │ Author :                                                                   │
+! │ -------                                                                    │
+! │     Zak Kipling (ECMWF)                                                    │
+! │                                                                            │
+! │ Modifications :                                                            │
+! │ -------------                                                              │
+! │     May.  2024 - R. Checa-Garcia. Added aerosols-number particle emissions │
+! │                                                                            │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
 USE TYPE_MODEL,ONLY : MODEL
 
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
-USE YOMCST   , ONLY : RG
+USE YOMCST   , ONLY : RG, RPI
 USE YOMCHEM  , ONLY : IEXTR_EM
 USE YOMCOMPO , ONLY : TCOMPO_EMIS
 USE YOM_YGFL , ONLY : TYPE_GFL_COMP
+
 
 IMPLICIT NONE
 
@@ -48,17 +75,17 @@ REAL(KIND=JPRB), INTENT(IN) :: PGELAT(KLON), PGELAM(KLON)
 REAL(KIND=JPRB), INTENT(IN) :: PDELP(KLON,KLEV)
 
 ! Tracer state, flux and tendency arrays
-REAL(KIND=JPRB), INTENT(IN) :: PCEN(KLON,KLEV,KTRAC)
+REAL(KIND=JPRB), INTENT(IN)    :: PCEN(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB), INTENT(INOUT) :: PTENC(KLON,KLEV,KTRAC)
 REAL(KIND=JPRB), INTENT(INOUT) :: PCFLX(KLON,KTRAC) 
 
 ! Emission field inputs
-REAL(KIND=JPRB), INTENT(IN) :: PEMIS2D(KLON, YDMODEL%YRML_GCONF%YGFL%NEMIS2D)
-REAL(KIND=JPRB), INTENT(IN) :: PEMIS3D(KLON, KLEV, YDMODEL%YRML_GCONF%YGFL%NEMIS3D)
+REAL(KIND=JPRB), INTENT(IN)         :: PEMIS2D(KLON, YDMODEL%YRML_GCONF%YGFL%NEMIS2D)
+REAL(KIND=JPRB), INTENT(IN)         :: PEMIS3D(KLON, KLEV, YDMODEL%YRML_GCONF%YGFL%NEMIS3D)
 REAL(KIND=JPRB), INTENT(IN), TARGET :: PEMIS2DAUX(KLON, YDMODEL%YRML_GCONF%YGFL%NEMIS2DAUX)
 
 ! Optional diagnostic output arrays
-REAL(KIND=JPRB),INTENT(INOUT) :: PEXTRA(:,:,:)
+REAL(KIND=JPRB), INTENT(INOUT) :: PEXTRA(:,:,:)
 
 ! Tracer index arrays
 INTEGER(KIND=JPIM), INTENT(IN) :: KCHEM(YDMODEL%YRML_GCONF%YGFL%NCHEM)
@@ -75,11 +102,12 @@ INTEGER(KIND=JPIM) :: JK, JSPECIES, JEMIS
 INTEGER(KIND=JPIM) :: IFOUND
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
-REAL(KIND=JPRB) :: ZSFCFR_LAND, ZSFCFR_SEA, ZTANDEC
-REAL(KIND=JPRB), POINTER :: ZINJF(:), ZVOLCALTI(:), ZPARAM(:)
-REAL(KIND=JPRB) :: ZPROFILE(KLON, KLEV+1), ZPROFILE_LAND(KLON, KLEV+1), ZPROFILE_SEA(KLON, KLEV+1)
-REAL(KIND=JPRB) :: ZFLUX(KLON)
-REAL(KIND=JPRB) , DIMENSION (KLON) :: ZDIURN, ZDIURNTMP
+REAL(KIND=JPRB)   :: ZSFCFR_LAND, ZSFCFR_SEA, ZTANDEC
+REAL(KIND=JPRB)   :: ZPROFILE(KLON, KLEV+1)
+REAL(KIND=JPRB)   :: ZPROFILE_LAND(KLON, KLEV+1), ZPROFILE_SEA(KLON, KLEV+1)
+REAL(KIND=JPRB)   :: ZFLUX(KLON)
+REAL(KIND=JPRB), POINTER          :: ZINJF(:), ZVOLCALTI(:), ZPARAM(:)
+REAL(KIND=JPRB), DIMENSION (KLON) :: ZDIURN, ZDIURNTMP
 
 LOGICAL :: LLFIREPRESENT(KLON), LLHAVEFIREPRESENT
 
@@ -91,16 +119,20 @@ LOGICAL :: LLFIREPRESENT(KLON), LLHAVEFIREPRESENT
 !-----------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS',0,ZHOOK_HANDLE)
-ASSOCIATE(YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO, &
- & YDRIP=>YDMODEL%YRML_GCONF%YRRIP, &
- & YDPHY2=>YDMODEL%YRML_PHY_MF%YRPHY2,YGFL=>YDMODEL%YRML_GCONF%YGFL,YDERIP=>YDMODEL%YRML_PHY_RAD%YRERIP)
-ASSOCIATE(NAERO=>YGFL%NAERO, NACTAERO=>YGFL%NACTAERO, NGHG=>YGFL%NGHG, NCHEM=>YGFL%NCHEM, &
- & YCHEM=>YGFL%YCHEM, YAERO=>YGFL%YAERO, YGHG=>YGFL%YGHG, &
- & NEMIS2D_DESC=>YDCOMPO%NEMIS2D_DESC, YEMIS2D_DESC=>YDCOMPO%YEMIS2D_DESC, &
- & NEMIS3D_DESC=>YDCOMPO%NEMIS3D_DESC, YEMIS3D_DESC=>YDCOMPO%YEMIS3D_DESC, &
- & LCHEM_DIA=>YDCOMPO%LCHEM_DIA, &
- & RSIDECM=>YDERIP%RSIDECM,RCODECM=>YDERIP%RCODECM, &
- & TSPHY=>YDPHY2%TSPHY)
+ASSOCIATE( &
+ & YDCOMPO => YDMODEL%YRML_CHEM%YRCOMPO,  YDRIP => YDMODEL%YRML_GCONF%YRRIP,   &
+ & YDPHY2  => YDMODEL%YRML_PHY_MF%YRPHY2, YGFL  => YDMODEL%YRML_GCONF%YGFL,    &
+ & YDERIP  => YDMODEL%YRML_PHY_RAD%YRERIP )
+ASSOCIATE( &
+ ! --- [ YGL ] -----------------------------------------------------------------
+ & NAERO => YGFL%NAERO, NACTAERO => YGFL%NACTAERO, NGHG  => YGFL%NGHG,         &
+ & NCHEM => YGFL%NCHEM, YCHEM    => YGFL%YCHEM,    YAERO => YGFL%YAERO,        &
+ & YGHG  => YGFL%YGHG,                                                         &
+ ! --- [ YDCOMPO, YDPHY, YDERIP ] ----------------------------------------------
+ & NEMIS2D_DESC => YDCOMPO%NEMIS2D_DESC, YEMIS2D_DESC => YDCOMPO%YEMIS2D_DESC, &
+ & NEMIS3D_DESC => YDCOMPO%NEMIS3D_DESC, YEMIS3D_DESC => YDCOMPO%YEMIS3D_DESC, &
+ & LCHEM_DIA    => YDCOMPO%LCHEM_DIA,    TSPHY        => YDPHY2%TSPHY,         &
+ & RSIDECM      => YDERIP%RSIDECM,       RCODECM      => YDERIP%RCODECM )
 
 LLHAVEFIREPRESENT = .FALSE.
 NULLIFY(ZINJF)
@@ -130,6 +162,19 @@ ENDDO
 ZTANDEC = RSIDECM / MAX(RCODECM, 1.0E-12_JPRB)
 
 ! New-style flexible 2D emissions processing for chemistry species
+
+!-------------------------------------------------------------------------------
+! RCHG: the subroutines inside contains inherite the variables definitions. 
+! In particular PEMIS2D, PEMIS3D, PEMIS2DAUX are read INTENT(IN) in main subr.
+! and therefore avaliable in subroutines after CONTAINS. I understand that 
+! definitions are not going upwards from contained subroutine to main one. 
+! PEMIS2D, PEMIS3D and PEMIS2DAUX has the emitted fields from grib-files already
+! read. Here we try to "inject" into the tracers 
+! (techically assumening NON_SIMPLE_TRACER=TRUE we should either call other new 
+! APPLY_2D_EMISSION or modified versions. In anycase the work to be done is in 
+! APPLY_2D_EMISSION
+!-------------------------------------------------------------------------------
+
 DO JEMIS=1,NEMIS2D_DESC
   IF (.NOT. YEMIS2D_DESC(JEMIS)%NON_SIMPLE_TRACER) THEN
     IFOUND = 0
@@ -148,6 +193,7 @@ DO JEMIS=1,NEMIS2D_DESC
     ELSEIF (IFOUND > 1) THEN
       CALL ABOR1('COMPO_APPLY_EMISSIONS: (2D) Multiple tracers found for species '//TRIM(YEMIS2D_DESC(JEMIS)%SPECIES))
     ENDIF
+
   ENDIF
 ENDDO
 
@@ -181,8 +227,25 @@ IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS',1,ZHOOK_HANDLE)
 
 CONTAINS
 
-  SUBROUTINE APPLY_2D_EMISSION(KSPECIES, YDSPECIES, YDEMIS_DESC, LDDIAGFLUX, LDDIAGTEND, KDIAGSHIFT, KFOUND, KINDEX)
-  
+  SUBROUTINE APPLY_2D_EMISSION( KSPECIES,   YDSPECIES,  YDEMIS_DESC, LDDIAGFLUX,& 
+                              & LDDIAGTEND, KDIAGSHIFT, KFOUND, KINDEX)
+  !╭─────────────────────────────────────────────────────────────────────────────╮
+  !│                                                         (updated May-2024)  │
+  !│ Purpose :                                                                   │
+  !│ -------                                                                     │
+  !│     Apply 2D emissions to sfc flux and tendencies                           │
+  !│                                                                             │
+  !│ Author :                                                                    │
+  !│ -------                                                                     │
+  !│     Zak Kipling (ECMWF)                                                     │
+  !│                                                                             │
+  !│ Modifications :                                                             │
+  !│ -------------                                                               │
+  !│    May. 2024 - R. Checa-Garcia (KNMI) Added option for number particle emis │
+  !│                                                                             │
+  !│                                                                             │
+  !╰─────────────────────────────────────────────────────────────────────────────╯
+
     IMPLICIT NONE
 
     INTEGER(KIND=JPIM), INTENT(IN)              :: KSPECIES            ! = NCHEM, NAERO or NGHG
@@ -197,16 +260,20 @@ CONTAINS
     INTEGER(KIND=JPIM) :: ITRAC     ! index of current tracer in all-tracers arrays (looked up via KINDEX)
     INTEGER(KIND=JPIM) :: IDIAGSLOT ! index of current tracer in PEXTRA diagnostics (after adding KDIAGSHIFT)
 
-    REAL(KIND=JPRB) :: ZSFCFLUX(KLON) ! actual surface flux after elevated emissions applied
+    REAL(KIND=JPRB)    :: ZSFCFLUX(KLON) ! actual surface flux after elevated emissions applied
 
-    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+    ! ADDITIONAL ARRAYS/VARIABLES FOR NUM_PARTICLES FLUX 
+    REAL(KIND=JPRB)    :: ZFLUX_NUM(KLON), ZSFCFLUX_NUM(KLON)
+    INTEGER(KIND=JPIM) :: ITRAC_NUM    
+
+    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
     IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS:APPLY_2D_EMISSION',0,ZHOOK_HANDLE)
-    ASSOCIATE(YDRIP=>YDMODEL%YRML_GCONF%YRRIP, &
-            & YDPHY2=>YDMODEL%YRML_PHY_MF%YRPHY2)
-      ASSOCIATE(TSPHY=>YDPHY2%TSPHY)
-        DO JSPECIES=1,KSPECIES
-          IF (YDSPECIES(JSPECIES)%CNAME == YDEMIS_DESC%SPECIES) THEN
+
+    ASSOCIATE( YDRIP=>YDMODEL%YRML_GCONF%YRRIP, YDPHY2=>YDMODEL%YRML_PHY_MF%YRPHY2)
+    ASSOCIATE( TSPHY=>YDPHY2%TSPHY )
+      DO JSPECIES=1,KSPECIES
+         IF (YDSPECIES(JSPECIES)%CNAME == YDEMIS_DESC%SPECIES) THEN  ! YDEMIS_DESC% is the namelist for emission
             IF (PRESENT(KINDEX)) THEN
               ITRAC = KINDEX(JSPECIES)
             ELSE
@@ -215,11 +282,12 @@ CONTAINS
 
             IDIAGSLOT = KDIAGSHIFT + JSPECIES
 
-            CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, YDEMIS_DESC%DIURNAL_CYCLE_TYPE, &
-             &                 PGELAM, PGELAT, ZDIURN, &
-             &                 PAMPLITUDE=YDEMIS_DESC%DIURNAL_AMPLITUDE, &
-             &                 PHOURPEAK=YDEMIS_DESC%DIURNAL_PEAK_HOUR, &
-             &                 PBASELINE=YDEMIS_DESC%DIURNAL_BASELINE, &
+            CALL COMPO_DIURNAL(YDRIP, KIDIA, KFDIA, KLON, &
+             &                 YDEMIS_DESC%DIURNAL_CYCLE_TYPE, PGELAM, PGELAT, &
+             &                 ZDIURN,                                         &   ! [THIS IS THE OUTPUT] -> diurnal scale
+             &                 PAMPLITUDE=YDEMIS_DESC%DIURNAL_AMPLITUDE,       &   ! optional parameter default 0.0
+             &                 PHOURPEAK=YDEMIS_DESC%DIURNAL_PEAK_HOUR,        &   ! optional parameter default 12.0
+             &                 PBASELINE=YDEMIS_DESC%DIURNAL_BASELINE,         &   ! optional parameter default 0.0
              &                 PTANDEC=ZTANDEC)
       
             ! Legacy support: override diurnal cycle where fire present
@@ -231,10 +299,15 @@ CONTAINS
                                 & PHOURPEAK=13.5_JPRB, PBASELINE=0.2_JPRB )
               WHERE(LLFIREPRESENT(KIDIA:KFDIA)) ZDIURN(KIDIA:KFDIA) = ZDIURNTMP(KIDIA:KFDIA)
             ENDIF
-      
+     
             ! This is the surface / total column flux after scaling and diurnal cycle application
             ZFLUX(KIDIA:KFDIA) = - PEMIS2D(KIDIA:KFDIA,YDEMIS_DESC%PARAM_INDEX) * ZDIURN(KIDIA:KFDIA) * YDEMIS_DESC%SCALING
-      
+
+
+            ! HERE we have the ZFLUX and where is there we need to call a new function that digest the input of PSD_* 
+            ! and change the ZFLUX of the tracer with number of particles
+            ! probably this is the only ammount to be changed. 
+
             IF ( YDEMIS_DESC%VERTICAL_PROFILE_TYPE == 'HeightMap' .OR. &
                & YDEMIS_DESC%VERTICAL_PROFILE_TYPE == 'AltitudeMap' .OR. &
                & YDEMIS_DESC%VERTICAL_PROFILE_TYPE == 'GFAS' ) THEN
@@ -246,15 +319,16 @@ CONTAINS
             NULLIFY(ZPARAM)
             IF (YDEMIS_DESC%VERTICAL_PARAM_INDEX > 0) ZPARAM => PEMIS2DAUX(:,YDEMIS_DESC%VERTICAL_PARAM_INDEX)
 
-            CALL COMPO_INJECTION_PROFILE(KIDIA, KFDIA, KLON, KLEV, YDEMIS_DESC%VERTICAL_PROFILE_TYPE, &
-             &                           ZPROFILE, &
-             &                           PSFCFRAC=YDEMIS_DESC%VERTICAL_SURFACE_FRACTION, &
-             &                           PBASEHEIGHT=YDEMIS_DESC%VERTICAL_BASE_HEIGHT, &
-             &                           PTOPHEIGHT=YDEMIS_DESC%VERTICAL_TOP_HEIGHT, &
-             &                           PTHRESHOLD=YDEMIS_DESC%VERTICAL_THRESHOLD, &
-             &                           KBASELEV=YDEMIS_DESC%VERTICAL_BASE_LEVEL, &
-             &                           KTOPLEV=YDEMIS_DESC%VERTICAL_TOP_LEVEL, &
-             &                           PPARAM=ZPARAM, &
+            CALL COMPO_INJECTION_PROFILE(KIDIA, KFDIA, KLON, KLEV,                        &
+             &                           YDEMIS_DESC%VERTICAL_PROFILE_TYPE,               &
+             &                           ZPROFILE,                                        &
+             &                           PSFCFRAC=YDEMIS_DESC%VERTICAL_SURFACE_FRACTION,  &
+             &                           PBASEHEIGHT=YDEMIS_DESC%VERTICAL_BASE_HEIGHT,    &
+             &                           PTOPHEIGHT=YDEMIS_DESC%VERTICAL_TOP_HEIGHT,      &
+             &                           PTHRESHOLD=YDEMIS_DESC%VERTICAL_THRESHOLD,       &
+             &                           KBASELEV=YDEMIS_DESC%VERTICAL_BASE_LEVEL,        &
+             &                           KTOPLEV=YDEMIS_DESC%VERTICAL_TOP_LEVEL,          &
+             &                           PPARAM=ZPARAM,                                   &
              &                           PBLH=PBLH, PAPHIF=PAPHIF, PDELP=PDELP)
 
             ! Legacy support: override injection heights for fires, volcanoes and stacks
@@ -332,6 +406,7 @@ CONTAINS
               ENDIF
             ENDIF
       
+
             ! Note: ZPROFILE is always positive, for 1:KLEV and for KLEV+1;
             !       ZFLUX is negative for an emission as per usual IFS convention
             DO JK=1,KLEV
@@ -355,11 +430,27 @@ CONTAINS
               !   where GHG comes first!)
               PEXTRA(KIDIA:KFDIA,IDIAGSLOT,IEXTR_EM) = PEXTRA(KIDIA:KFDIA,IDIAGSLOT,IEXTR_EM) - ZSFCFLUX(KIDIA:KFDIA) * TSPHY
             ENDIF
-    
+  
+            ! RCHG -> If emission descripction indicate PSD_N0_TRACER then we have to add 
+            !         emission number to the specific mode. This is done in GET_2D_EMISSION_M7_NUMPAR
+            !         which has two outputs: ZFLUX for NUMPAR and the index of tracer for NUMPAR
+            ! In the case of EMISSION_M7_NUMPAR it is important to remember than 
+            ! several species can contribute to PCFLX and PTENC of emission numbers as there is 
+            ! one tracer of total number of particles per mode but several mass species per mode.
+
+            IF (YDEMIS_DESC%PSD_N0_TRACER /= 'NONE') THEN 
+                CALL GET_2D_EMISSION_M7_NUMPAR( JSPECIES, KSPECIES, YDSPECIES, YDEMIS_DESC, ZPROFILE, KINDEX, &
+                                               & ZFLUX, ZFLUX_NUM, ZSFCFLUX_NUM, ITRAC_NUM)
+                DO JK=1,KLEV
+                   PTENC(KIDIA:KFDIA,JK,ITRAC_NUM) = PTENC(KIDIA:KFDIA,JK,ITRAC_NUM) - ZPROFILE(KIDIA:KFDIA,JK) * ZFLUX_NUM(KIDIA:KFDIA)
+                ENDDO
+                PCFLX(KIDIA:KFDIA,ITRAC_NUM) = PCFLX(KIDIA:KFDIA,ITRAC_NUM) + ZFLUX_NUM(KIDIA:KFDIA)
+            ENDIF
+
             KFOUND = KFOUND + 1
           ENDIF
         ENDDO
-      END ASSOCIATE
+    END ASSOCIATE
     END ASSOCIATE
     IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS:APPLY_2D_EMISSION',1,ZHOOK_HANDLE)
   END SUBROUTINE APPLY_2D_EMISSION
@@ -440,5 +531,106 @@ CONTAINS
     END ASSOCIATE
     IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS:APPLY_3D_EMISSION',1,ZHOOK_HANDLE)
   END SUBROUTINE APPLY_3D_EMISSION
+
+
+  SUBROUTINE GET_2D_EMISSION_M7_NUMPAR( JSPECIES, KSPECIES, YDSPECIES, YDEMIS_DESC, &
+                                      & ZPROFILE, KINDEX,                           &
+                                      & ZFLUX, ZFLUX_NUM, ZSFCFLUX_NUM, ITRAC_NUM)
+
+  !╭─────────────────────────────────────────────────────────────────────────────╮
+  !│                                                         (updated May-2024)  │
+  !│ Purpose :                                                                   │
+  !│ -------                                                                     │
+  !│ SUBROUTINE TO CALLED WHEN NON_SIMPLE_TRACER and M7 inside APPLY_2D_EMISSION │
+  !│ for those modes where changes in NUMBER PARTICLES are needed                │
+  !│ The output of this function should be ZFLUX for number of particles and this│
+  !│ Note that this is not used for CHEM species only AERO                       │
+  !│                                                                             │
+  !│ Author :                                                                    │
+  !│ -------                                                                     │
+  !│     R.Checa-Garca (KNMI)                                                    │
+  !│                                                                             │
+  !│ Modifications :                                                             │
+  !│ -------------                                                               │
+  !│                                                                             │
+  !│                                                                             │
+  !╰─────────────────────────────────────────────────────────────────────────────╯
+
+    USE TM5M7_DATA, ONLY : sigma_lognormal, pom_density, carbon_density 
+
+    IMPLICIT NONE
+
+    INTEGER(KIND=JPIM) , INTENT(IN)              :: KSPECIES                 ! =
+    INTEGER(KIND=JPIM) , INTENT(IN)              :: JSPECIES                 ! = INDEX OF AEROSOL SPECIE with MASS-EMISSIONS
+    TYPE(TYPE_GFL_COMP), INTENT(IN)              :: YDSPECIES(KSPECIES)      ! = YCHEM, YAERO or YGHG
+    TYPE(TCOMPO_EMIS)  , INTENT(IN)              :: YDEMIS_DESC              !   descriptor for this emission
+    REAL(KIND=JPRB)    , INTENT(IN)              :: ZFLUX(KLON)
+    REAL(KIND=JPRB)    , INTENT(IN)              :: ZPROFILE(KLON,KLEV+1)    !
+    INTEGER(KIND=JPIM) , INTENT(OUT)             :: ITRAC_NUM                ! = INDEX OF AEROSOL NUM PARTICLE TRACER
+    REAL(KIND=JPRB)    , INTENT(OUT)             :: ZFLUX_NUM(KLON)          !
+    REAL(KIND=JPRB)    , INTENT(OUT)             :: ZSFCFLUX_NUM(KLON)      !
+    INTEGER(KIND=JPIM) , INTENT(IN), OPTIONAL    :: KINDEX(KSPECIES)         ! = KCHEM, KAERO or nothing for GHG
+    REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
+
+    ! LOCAL VARIABLES 
+    REAL(KIND=JPRB)    :: NUM_SCALE, MASS_TO_NUM_PSD, MASS_TO_NUM_EMI
+    INTEGER(KIND=JPIM) :: ISPECIES        
+
+    IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS:GET_2D_EMISSION_M7_NUMPAR',0,ZHOOK_HANDLE)
+    ! From YDEMIS_DESC%SPECIES and YDSPECIES%CNAME we need to get the mode-index for sigma 
+    ! (below rad_emi_ are probably the radius of emissions)
+    ITRAC_NUM=-1
+    DO ISPECIES=1,KSPECIES
+         IF (YDSPECIES(ISPECIES)%CNAME == YDEMIS_DESC%PSD_N0_TRACER) THEN  ! YDEMIS_DESC% is the namelist for emission
+            IF (PRESENT(KINDEX)) THEN
+              ITRAC_NUM = KINDEX(ISPECIES)
+            ELSE
+              ITRAC_NUM = ISPECIES
+            ENDIF
+        ENDIF
+    ENDDO
+    IF (ITRAC_NUM==-1) THEN
+      CALL ABOR1 ('COMPO_APPLY_EMISSIONS:GET_2D_EMISSION_M7_NUMPAR:ISSUE_NUM_N0_TRACER ' // TRIM(YDEMIS_DESC%PSD_N0_TRACER) // 'NOT FOUND')
+    ENDIF
+    ! ----------------------------------------------------------------------------------------------
+    ! RCHG -> here the implementation is general and the emission specification file and therefore 
+    !         the emission namelist YDEMIS_DESC has the parameters of the PSD to translated the 
+    !         mass-flux into the number-flux.
+    !         Note that for the mass-density and M7 this can be taken from the definition 
+    !         of the density of each specie. In no M7-scheme we need YDEMIS_DESC%DENSITY. 
+    !
+    !         YDEMIS_DESC%PSD_SIGMA  -> assumes a lognormal distribution 
+    !         YDEMIS_DESC%PSD_RADIUS -> assumes a lognormal distribution 
+    !         YDEMIS_DESC%DENSITY    -> mass-density of particle at emission 
+    !
+    !         Currently, it is needed at the namelist but the implementation for M7 can be:
+    ! ----------------------------------------------------------------------------------------------
+    ! IF (AERO_SCHEME="hamm7") THEN 
+    !   DO IMODE=1,NMOD 
+    !     DO INMODE=0,MODE_NM_SED(IMODE) 
+    !       JN=MODE_TRACERS_SED(INMODE_IMODE) 
+    !       IF KAERO(JN)=ITRAC_NUM 
+    !          density = ...
+    !       ENDIF
+    !     ENDDO 
+    !   ENDDO
+    ! ENDIF
+    !
+    ! Other option is to have an data-array with the values. It should be at module/tm5m7_data.F90  
+    ! but we load here. This data-array should relates ITRAC_NUM to density (if possible). In other 
+    ! words: DENSITY(1:NACTAERO) with DENSITY = DENSITY(KAERO(ITRAC_NUM))
+    !
+    !-----------------------------------------------------------------------------------------------
+    NUM_SCALE       = EXP(4.5*(LOG(YDEMIS_DESC%PSD_SIGMA))**2)
+    MASS_TO_NUM_PSD = 3./(4.*RPI*NUM_SCALE*YDEMIS_DESC%MASS_DENSITY)                     ! RPI -> real pi inherited from main sub.
+    MASS_TO_NUM_EMI = MASS_TO_NUM_PSD/(YDEMIS_DESC%PSD_RADIUS**3)
+
+    ! FLUX OUTPUTS 
+
+    ZFLUX_NUM(KIDIA:KFDIA)    = ZFLUX(KIDIA:KFDIA)*MASS_TO_NUM_EMI
+    ZSFCFLUX_NUM(KIDIA:KFDIA) = ZPROFILE(KIDIA:KFDIA,KLEV+1) * ZFLUX_NUM(KIDIA:KFDIA)
+
+    IF (LHOOK) CALL DR_HOOK('COMPO_APPLY_EMISSIONS:GET_2D_EMISSION_M7_NUMPAR',1,ZHOOK_HANDLE)
+  END SUBROUTINE GET_2D_EMISSION_M7_NUMPAR
 
 END SUBROUTINE COMPO_APPLY_EMISSIONS

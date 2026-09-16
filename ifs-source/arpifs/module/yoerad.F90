@@ -141,6 +141,14 @@ REAL(KIND=JPRB),ALLOCATABLE:: CVDAESU(:)
 
 ! Look-up table for Planck function in emissivity intervals
 TYPE(TSPECTRALPLANCK) :: YSPECTPLANCK
+
+!CMIP6/7 Stratospheric aerosols
+CHARACTER(LEN=500) :: CCMIP_STRAT_FULL, CCMIP_STRAT_FULL_CLIM
+LOGICAL :: LSTRATAERO_UPDATED, LCMIP_STRATAER_CMIP6, LCMIP_STRATAER_CMIP7, LCMIP_STRATAER_BCKGD
+
+INTEGER :: NCLOUDACT
+INTEGER :: NAEROOPT
+
 !----------------------------------------------------------------------------
 CONTAINS
   PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
@@ -416,7 +424,15 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! LDUSEASON : LOGICAL enables a monthly-varying scale height for the 
 !                     dust aerosol climatology
 ! LAER3D : LOGICAL : to enable aerosol climatology in 3D
-
+!
+!   ----[ AERO_SCHEME HAMM7 ]---------------------------------------------------
+! NAEROOPT  : INTEGER : M7 aerosols optical properties calculation method
+!                       0: not calculated
+!                       1: TM5 code for SW, not calculated for LW
+!                       2: HAM code for both SW and LW
+! NCLOUDACT : INTEGER : Computation of effective radii (liq & ice)
+!                       0: IFS default parametrization
+!                       > 0: use Abdul-Razzak & Ghan activation scheme from HAMM7
 
 CONTAINS
 
@@ -480,6 +496,8 @@ WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NVOLCVERT = ', SELF%NVOLCVERT
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NREDGLW = ', SELF%NREDGLW
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NREDGSW = ', SELF%NREDGSW
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NAERMACC = ', SELF%NAERMACC
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NAEROOPT (M7) = ', SELF%NAEROOPT
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NCLOUDACT (M7) = ', SELF%NCLOUDACT
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NMCLAT = ', SELF%NMCLAT
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NMCLON = ', SELF%NMCLON
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NMCLEV = ', SELF%NMCLEV
