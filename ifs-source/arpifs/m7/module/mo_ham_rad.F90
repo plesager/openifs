@@ -83,9 +83,9 @@ MODULE mo_ham_rad
   PRIVATE
 
   PUBLIC ham_rad,                  & !
-#ifdef HAMMOZ
+!#ifdef HAMMOZ
          ham_rad_diag,             & !
-#endif
+!#endif
          ham_rad_cache,            & !
          ham_rad_cache_cleanup,    & ! 
          ham_rad_mem,              & !
@@ -873,9 +873,15 @@ CONTAINS
 
   SUBROUTINE ham_rad(kproma, kbdim, klev, krow, kpband, kb_sw,                 &
        pxtm1,         ppd_hl,                                    &
-       aer_tau_sw_vr, aer_piz_sw_vr, aer_cg_sw_vr, aer_tau_lw_vr, rwet_m7, &
+       aer_tau_sw_vr, aer_piz_sw_vr, aer_cg_sw_vr, aer_tau_lw_vr, &
        & ldiag_aeropt, kb_diag, ntype_diaf, &
-       & lambda_diag, zaer_tau_diag, zaer_ssa_diag, zaer_asym_diag)
+       & lambda_diag, zaer_tau_diag, zaer_ssa_diag, zaer_asym_diag,&
+#ifdef HAMMOZ
+  )
+#else
+       & rwet_m7, tau_mode,omega )
+       
+#endif
     ! *ham_rad* calculates optical properties for
     !            aerosol distributions from look-up
     !            tables.
@@ -957,9 +963,11 @@ CONTAINS
                 ni_diag(kbdim,klev,kb_diag,nclass)
     !--- Local Variables:
 #ifdef HAMMOZ       
-
+    REAL(dp) ::               omega(kbdim,klev,Nwv_sw_tot,nclass)
 #else
     REAL(dp), INTENT(in)    ::    rwet_m7(kbdim,klev,nclass) 
+    REAL(dp), INTENT(out) :: tau_mode(kbdim,klev,nclass,Nwv_tot)
+    REAL(dp), INTENT(out)  :: omega(kbdim,klev,Nwv_sw_tot,nclass)
 #endif  
     INTEGER  :: jclass, jl, jk, jwv, jwv_diag, itable, itrac, ikl
 
@@ -982,7 +990,9 @@ CONTAINS
 
 
     REAL(dp) :: sigma(kbdim,klev,Nwv_tot,nclass),    &
+#ifdef HAMMOZ
                 omega(kbdim,klev,Nwv_sw_tot,nclass), &
+#endif
                 asym (kbdim,klev,Nwv_sw_tot,nclass), &
                 nr(kbdim,klev,Nwv_tot,nclass),       &
                 ni(kbdim,klev,Nwv_tot,nclass),       &
@@ -1144,17 +1154,22 @@ CONTAINS
        END DO
 
        !--- Diagnose AOD for requested each mode (nrad) and wavelength (nraddiagwv):
-#ifdef HAMMOZ
+
        DO jclass=1, nclass
           IF(nrad(jclass)>0) THEN
              DO jwv=1, Nwv_sw+Nwv_sw_opt
                 IF (nraddiagwv(jwv)>0) THEN
-                   tau_mode(jclass,jwv)%ptr(1:kproma,:,krow)=zaer_tau_sw_vr(1:kproma,:,jwv,jclass)
+#ifdef HAMMOZ
+                  tau_mode(jclass,jwv)%ptr(1:kproma,:,krow)=zaer_tau_sw_vr(1:kproma,:,jwv,jclass)
+#else
+                  tau_mode(1:kproma,:,jclass,jwv)=zaer_tau_sw_vr(1:kproma,:,jwv,jclass)
+                  
+#endif
                 END IF
              END DO
           END IF
        END DO
-#endif
+
        !--- Calculation of weighted properties and vertical reordering to RRTM structure:
 
        DO jwv=1, Nwv_sw !ham_ps +Nwv_sw_opt
@@ -1315,11 +1330,15 @@ CONTAINS
                 END DO
 
                 !--- Diagnose AOD for requested each mode (nrad) and wavelength (nraddiagwv):
+                IF (nraddiagwv(jlwv)>0) THEN
 #ifdef HAMMOZ
-                IF (nraddiagwv(jwv)>0) THEN
+
                    tau_mode(jclass,jwv)%ptr(1:kproma,:,krow)=zaer_tau_lw_vr(1:kproma,:,jwv,jclass)
-                END IF
+#else 
+                   tau_mode(1:kproma,:,jclass,jlwv)=zaer_tau_lw_vr(1:kproma,:,jwv,jclass)  
+
 #endif
+               END IF
              END DO
           END IF
        END DO
@@ -1941,25 +1960,18 @@ CONTAINS
              CALL message('','',level=em_param)
              CALL message('', ' SW wavelengths (optional) [um] : ', level=em_param)
 
-             DO jwv=1, Nwv_sw_opt
-                iwv=Nwv_sw+jwv
-                lambda(iwv)=lambda_sw_opt(jwv)
-                WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp
-                CALL message('', message_text, level=em_param)
-             END DO
 #else
 
              DO jwv=1, Nwv_sw  !Laakso: note different order than HAM (here same as RRTM)        
                 lambda(jwv)=ASWBAND(jwv)%wl*1.E-6_dp
              END DO
-             !!! include diagnostic wavelengths, lhw
-             DO jwv=1, Nwv_sw_opt
+#endif             
+	DO jwv=1, Nwv_sw_opt
                 iwv=Nwv_sw+jwv
                 lambda(iwv)=lambda_sw_opt(jwv)
                 WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp
                 CALL message('', message_text, level=em_param)
              END DO
-#endif
           END IF
 
           !--- 4) LW initializations:
@@ -2318,6 +2330,366 @@ CONTAINS
           END IF
 
         END SUBROUTINE ham_rad_diag
+#else
+         SUBROUTINE ham_rad_diag(kproma, kbdim, klev, krow, pxtm1,tau_mode,abs_mode,omega,tau_comp,abs_comp,tau_2d)
+
+            ! *ham_rad_diag* calculated type specific diagnostics
+            !                 of aerosol optical properties
+            !
+            ! Authors:
+            ! --------
+            ! Philip Stier, MPI-Met, Hamburg,       05/2003
+            ! 
+            ! Modified:
+            ! ---------
+            ! Declan O'Donnell MPI-Met Hamburg : modifications for SOA
+            ! Interface:
+            ! ----------
+            ! *ham_rad_diag* is called from *radiation*
+  
+  
+            USE mo_kind,         ONLY: dp
+            USE mo_tracdef,      ONLY: ntrac 
+            USE mo_ham,          ONLY: nrad,nmaxclass 
+            USE mo_ham_rad_data, ONLY: nraddiagwv, nradang,Nwv_tot
+            
+            !USE mo_ham_streams,  &
+            
+            !ONLY: tau_mode, abs_mode, omega_mode, sigma_mode, asym_mode,    &
+            !     tau_comp, abs_comp, tau_2d,     abs_2d,     ang,          &
+            !     nr_mode,    ni_mode,                  &
+            !     omega_2d_mode, sigma_2d_mode, asym_2d_mode,               &
+            !     nr_2d_mode,    ni_2d_mode
+
+
+
+            USE mo_species,      ONLY: aero_idx, speclist
+  
+            IMPLICIT NONE
+  
+            INTEGER   :: kproma, kbdim, klev, krow
+  
+            REAL(dp)  :: pxtm1(kbdim,klev,ntrac)
+
+            REAL(dp), INTENT(in)  :: tau_mode(kbdim,klev,nclass,Nwv_tot)
+            REAL(dp), INTENT(in)  :: abs_mode(kbdim,klev,nclass,Nwv_tot)  
+            REAL(dp), INTENT(in)  :: omega(kbdim,klev,Nwv_sw_tot,nclass)
+            REAL(dp), INTENT(out)  :: tau_comp(kbdim,naerospec,Nwv_tot)  
+            REAL(dp), INTENT(out)  :: abs_comp(kbdim,naerospec,Nwv_tot)
+            REAL(dp), INTENT(out)  :: tau_2d(kbdim,Nwv_tot)
+            INTEGER   :: jl, jk, jclass, ikey, jt
+  
+            REAL(dp)  :: zv, zdensity, zeps
+  
+            REAL(dp)  :: ztaucomp(kbdim), zabscomp(kbdim)
+  
+            REAL(dp)  :: zomega(kbdim), zsigma(kbdim), zasym(kbdim), &
+                 znr(kbdim),    zni(kbdim),    ztau(kbdim),  &
+                 znr_2d(kbdim), zni_2d(kbdim)
+  
+            REAL(dp)  :: zvsum(kbdim,klev,nclass), znivsum(kbdim,klev,nclass)
+  
+            REAL(dp)  :: zvcomp(kbdim,klev,naerospec,nclass)
+  
+            REAL(dp), POINTER :: tau_2d_p(:,:)
+            !REAL(dp), POINTER :: tau_p(:,:),    abs_p(:,:)
+            REAL(dp)  tau_p(kbdim,klev),    abs_p(kbdim,klev)
+            REAL(dp) :: ztmp1(kbdim), ztmp2(kbdim) !SF #458 temporary vars.
+  
+            LOGICAL  :: ll1(kbdim)   !SF #458 temporary var.
+  
+            INTEGER :: jspec, jwv
+
+          
+
+            REAL(dp)  :: sigma_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp)  :: omega_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp)  :: asym_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp)  :: nr_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp)  :: ni_mode(kbdim,klev,nmaxclass,Nwv_tot)
+             
+            REAL(dp) :: sigma_2d_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp) :: omega_2d_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp) :: asym_2d_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp) :: nr_2d_mode(kbdim,klev,nmaxclass,Nwv_tot)
+            REAL(dp)  :: ni_2d_mode(kbdim,klev,nmaxclass,Nwv_tot)
+               !PUBLIC :: tau_2d(Nwv_tot)
+               !PUBLIC :: abs_2d(Nwv_tot)
+               !PUBLIC :: ant_2d(Nwv_tot)
+      
+
+            !--- 0)
+  
+            zeps=EPSILON(1.0_dp)
+  
+            !--- Optical thickness for optional wavelengths:
+            !Alaak: Changed to include SW wavelengths only. Should be changed so that only certain wavelengths are calculated (550nm?)
+            DO jwv=1, Nwv_tot  !
+               !Alaak:AOD calculated now in hamm7_inter.-could be also done here as in HAM
+               !IF ( nraddiagwv(jwv) > 0 ) THEN
+  
+               !   tau_2d_p => tau_2d(jwv)%ptr
+               !   tau_2d_p(1:kproma,krow) = 0._dp
+  
+               !   DO jclass=1, nclass
+               !     IF( nrad(jclass) > 0 )THEN
+  
+               !         tau_p    => tau_mode(jclass,jwv)%ptr
+  
+                        !--- Optical thickness per mode at optional wavelengths:
+  
+               !         tau_p(1:kproma,:,krow) = znum(1:kproma,:,jclass)*sigma(1:kproma,:,jwv,jclass)
+  
+                        !--- 2) Vertical integral summed over all modes:
+  
+  
+               !         DO jk=1, klev
+               !            DO jl=1, kproma
+               !               tau_2d_p(jl,krow)=tau_2d_p(jl,krow)+tau_p(jl,jk,krow)
+               !            END DO
+               !         END DO
+  
+               !      END IF
+  
+               !   END DO
+  
+               !END IF ! nraddiagwv(jwv)>0
+  
+               !--- 2) 2D extended diatnostics of mode radiative parameters:
+               
+                IF (nraddiagwv(jwv)>1) THEN
+                 !alaak: I commented out these too:
+               !    IF (nraddiag>0) THEN
+  
+               !       !--- Integrate mode radiative properties to 2D and weight with aerosol optical depth:
+  
+               !       znr_2d(1:kproma)=0.0_dp
+               !       zni_2d(1:kproma)=0.0_dp
+  
+               !       DO jclass=1, nclass
+               !          IF( nrad(jclass) > 0 )THEN
+  
+               !             tau_p => tau_mode(1:kproma,:,jclass,jwv)
+  
+               !             zomega(1:kproma)=0.0_dp
+               !             zsigma(1:kproma)=0.0_dp
+               !             zasym(1:kproma) =0.0_dp
+               !             znr(1:kproma)   =0.0_dp
+               !             zni(1:kproma)   =0.0_dp
+               !             ztau(1:kproma)  =0.0_dp
+  
+               !             DO jk=1, klev
+               !                DO jl=1, kproma
+               !                   zomega(jl)=zomega(jl)+omega(jl,jk,jwv,jclass)*tau_p(jl,jk)
+               !                   zsigma(jl)=zsigma(jl)+sigma(jl,jk,jwv,jclass)*tau_p(jl,jk)
+               !                   zasym(jl) =zasym(jl) +asym(jl,jk,jwv,jclass) *tau_p(jl,jk)
+               !                   znr(jl)   =znr(jl)   +nr(jl,jk,jwv,jclass)   *tau_p(jl,jk)
+               !                   zni(jl)   =zni(jl)   +ni(jl,jk,jwv,jclass)   *tau_p(jl,jk)
+               !                   znr_2d(jl)=znr_2d(jl)+nr(jl,jk,jwv,jclass)   *tau_p(jl,jk)
+               !                   zni_2d(jl)=zni_2d(jl)+ni(jl,jk,jwv,jclass)   *tau_p(jl,jk)
+               !                   ztau(jl)  =ztau(jl)  +tau_p(jl,jk)
+               !                END DO
+               !             END DO
+  
+               !             !>>SF #458 (replacing WHERE statements)
+               !             ll1(1:kproma) = (ztau(1:kproma) > zeps)
+               !             ztmp1(1:kproma) = MERGE(ztau(1:kproma), 1._dp, ll1(1:kproma)) !SF 1._dp is a dummy val.
+  
+               !             ztmp1(1:kproma) = 1._dp / ztmp1(1:kproma)
+  
+               !             omega_2d_mode(1:kproma,:,jclass,jwv) = &
+               !                  MERGE(zomega(1:kproma)*ztmp1(1:kproma), 0._dp, ll1(1:kproma))
+  
+               !             sigma_2d_mode(1:kproma,:,jclass,jwv) = &
+               !                  MERGE(zsigma(1:kproma)*ztmp1(1:kproma), 0._dp, ll1(1:kproma))
+  
+               !             asym_2d_mode(1:kproma,:,jclass,jwv) = &
+               !                  MERGE(zasym(1:kproma)*ztmp1(1:kproma), 0._dp, ll1(1:kproma))
+  
+               !             nr_2d_mode(1:kproma,:,jclass,jwv) = &
+               !                  MERGE(znr(1:kproma)*ztmp1(1:kproma), 0._dp, ll1(1:kproma))
+  
+               !             ni_2d_mode(1:kproma,:,jclass,jwv) = &
+               !                  MERGE(zni(1:kproma)*ztmp1(1:kproma), 0._dp, ll1(1:kproma))
+  
+               !             !<<SF #458 (replacing WHERE statements)
+               !          END IF
+               !       END DO
+  
+               !    END IF ! nraddiag
+  
+                  !--- 3) 3D extended diatnostics of mode radiative parameters:
+                  !alaak: Propably not needed, but can be included later.
+                  !IF (nraddiag==2) THEN
+                  !   DO jclass=1, nclass
+                  !      IF( nrad(jclass) > 0 )THEN
+                  !         omega_mode(1:kproma,:,jclass,jwv)=omega(1:kproma,:,jwv,jclass)
+                  !         sigma_mode(1:kproma,:,jclass,jwv)=sigma(1:kproma,:,jwv,jclass)
+                  !         asym_mode(1:kproma,:,jclass,jwv)=asym(1:kproma,:,jwv,jclass)
+                  !         nr_mode(1:kproma,:,jclass,jwv)=nr(1:kproma,:,jwv,jclass)
+                  !         ni_mode(1:kproma,:,jclass,jwv)=ni(1:kproma,:,jwv,jclass)
+                  !      END IF
+                  !   END DO
+                  !END IF
+  
+                  !--- 4) Calculate absorption optical depth:
+  
+                  !abs_2d(jwv)%ptr(1:kproma,krow)=0.0_dp
+  
+                  DO jclass=1, nclass
+                     IF(nrad(jclass)>0)THEN
+                        !write(*,*) tau_mode(1:kproma,:,jclass,jwv)
+                        !abs_p   = abs_mode(1:kproma,:,jclass,jwv)
+                        tau_p(1:kproma,:)    = tau_mode(1:kproma,:,jclass,jwv)
+  
+                        !--- For each mode:
+  
+                        !abs_p(1:kproma,:)  =(1.0_dp-omega(1:kproma,:,jwv,jclass))*tau_p(1:kproma,:)
+  
+                        !--- Total vertical integral:
+                        
+                        DO jk=1, klev
+                           tau_2d(1:kproma,jwv)=tau_2d(1:kproma,jwv)+tau_p(1:kproma,jk)
+                           !abs_2d(jwv)%ptr(1:kproma,krow)=abs_2d(jwv)%ptr(1:kproma,krow)+abs_p(1:kproma,jk)
+                        END DO
+  
+                     END IF
+                  END DO
+  
+                  !--- 5) Split up according to compounds 
+                  !       (based on volume average for optical thickness,
+                  !        additionally weighted with ni for absorption ):
+  
+                  zvcomp(1:kproma,:,:,:)  = 0._dp
+                  zvsum(1:kproma,:,:)     = 0._dp
+                  znivsum(1:kproma,:,:)   = 0._dp
+  
+                  DO jclass=1,nclass
+                     DO jspec=1,naerospec
+  
+                        !--- Check if species jspec exists in mode jclass:
+  
+                        !ham_ps: this has been included until consistent definition of aerosol water as species within HAM / M7:
+                        !        iaerocomp of water is currently set to -1 in mo_ham_init
+                        IF (speclist(aero_idx(jspec))%iaerocomp(jclass)>0) THEN
+  
+                           jt=aerocomp( speclist(aero_idx(jspec))%iaerocomp(jclass) )%idt
+  
+                           zdensity=speclist(aero_idx(jspec))%density
+  
+                           IF (nrad(jclass)>0) THEN
+  
+                              !                jspec = aerocomp(jn)%spid
+                              !                ikey = aerocomp(jn)%species%iaerorad
+                              ikey=speclist(aero_idx(jspec))%iaerorad
+  
+                              !--- Sum volume of compound weighted by volume:
+  
+                              DO jk=1, klev
+                                 DO jl=1, kproma
+                                    IF(pxtm1(jl,jk,jt)>zeps) THEN
+  
+                                       !ham_ps:redundant
+                                       !                         zv=pxtm1(jl,jk,jt)*zmassfac/zdensity
+                                       zv=pxtm1(jl,jk,jt)/zdensity
+  
+                                       zvcomp(jl,jk,jspec,jclass)=zvcomp(jl,jk,jspec,jclass) + zv
+                                       zvsum(jl,jk,jclass)       =zvsum(jl,jk,jclass)        + zv
+                                       znivsum(jl,jk,jclass)     =znivsum(jl,jk,jclass)      + zv * cni(jwv,ikey)
+  
+                                    END IF
+                                 END DO
+                              END DO
+                           END IF
+  
+                        END IF
+  
+                     END DO
+                  END DO
+  
+                  ! add aerosol water
+  
+                  DO jclass=1,nclass
+                     IF (nrad(jclass) > 0 .AND. sizeclass(jclass)%lsoluble) THEN
+                        jt = aerowater(jclass)%idt
+                        ikey = speclist(id_wat)%iaerorad
+                        zdensity = speclist(id_wat)%density
+  
+                        DO jk=1, klev
+                           DO jl=1, kproma
+                              zv=pxtm1(jl,jk,jt)/zdensity
+  
+                              zvcomp(jl,jk,aero_ridx(id_wat),jclass)=zvcomp(jl,jk,aero_ridx(id_wat),jclass) + zv
+                              zvsum(jl,jk,jclass)       =zvsum(jl,jk,jclass)        + zv
+                              znivsum(jl,jk,jclass)     =znivsum(jl,jk,jclass)      + zv * cni(jwv,ikey)
+                           END DO
+                        END DO
+                     END IF
+                  END DO
+  
+                  DO jspec=1,naerospec
+  
+                     ztaucomp(1:kproma)    =0._dp
+                     !zabscomp(1:kproma)    =0._dp
+                     !ham_ps:why m7 specific?
+                     !ikey = speclist(subm_aerospec(jspec))%iaerorad
+                     ikey=speclist(aero_idx(jspec))%iaerorad
+  
+                     !--- Weighted averaging and vertical integration:
+  
+                     DO jclass=1, nclass
+                        IF (nrad(jclass) > 0) THEN
+  
+                           tau_p(1:kproma,:)    = tau_mode(1:kproma,:,jclass,jwv)
+                           !abs_p     = abs_mode(1:kproma,:,jclass,jwv)
+  
+                           DO jk=1, klev
+                              DO jl=1, kproma
+                                 IF (zvsum(jl,jk,jclass)>zeps) THEN
+                                    ztaucomp(jl)=ztaucomp(jl) + &
+                                         tau_p(jl,jk)*zvcomp(jl,jk,jspec,jclass)/zvsum(jl,jk,jclass)
+                                    !zabscomp(jl)=zabscomp(jl) + &
+                                    !     abs_p(jl,jk)*zvcomp(jl,jk,jspec,jclass)*cni(jwv,ikey) / &
+                                    !    znivsum(jl,jk,jclass)
+                                 END IF
+                              END DO
+                           END DO
+  
+                        END IF
+                     END DO     !jclass
+  
+                     !--- Store in output streams:
+                     
+                     tau_comp(1:kproma,jspec,jwv)=ztaucomp(1:kproma)
+                     !abs_comp(1:kproma,jspec,jwv)=zabscomp(1:kproma)
+  
+                  END DO     !jspec   
+
+               END IF !nraddiagwv(jwv)>1
+  
+            END DO !jwv
+  
+            !--- 5) Calculate Angstroem parameter between two wavelengths:
+            !--Commented for now:
+            !IF (nradang(1)/=0 .AND. nradang(2)/=0) THEN 
+  
+               !>>SF #458 (replacing WHERE statements)
+            !   ll1(1:kproma) = (tau_2d(nradang(1))%ptr(1:kproma,krow)>zeps) &
+            !        .AND. (tau_2d(nradang(2))%ptr(1:kproma,krow)>zeps)
+  
+            !   ztmp1(1:kproma) = MERGE(tau_2d(nradang(1))%ptr(1:kproma,krow), 1._dp, ll1(1:kproma)) !SF 1. is dummy
+            !   ztmp2(1:kproma) = MERGE(tau_2d(nradang(2))%ptr(1:kproma,krow), 1._dp, ll1(1:kproma)) !SF 1. is dummy
+  
+            !   ang(1:kproma,krow) = MERGE( &
+            !        LOG(ztmp2(1:kproma)/ztmp1(1:kproma)) / LOG(lambda(nradang(1))/lambda(nradang(2))), &
+            !        ang(1:kproma,krow), &                           
+            !        ll1(1:kproma))
+  
+               !<<SF #458 (replacing WHERE statements)
+  
+            !END IF
+  
+          END SUBROUTINE ham_rad_diag
 #endif
         !----------------------------------------------------------------------------------------------------------------
 
