@@ -67,7 +67,7 @@ bbt *temp;
     return temp;
 }
 
-static bbt *delete_treap(bbt *old, bbt *t, int (*compare)()) {
+static bbt *delete_treap(bbt *old, bbt *t, int (*compare)(const void *, const void *)) {
 int c;
 
     if (t == NULL)
@@ -87,7 +87,7 @@ int c;
     return t;
 }
 
-void bbt_delete_bbt(void *root, void *old, int (*compare)()) {
+void bbt_delete_bbt(void *root, void *old, int (*compare)(const void *, const void *)) {
 bbt **t;
 
     t = (bbt **) root; 
@@ -95,13 +95,13 @@ bbt **t;
     *t = delete_treap((bbt *) old, *t, compare);
 }
 
-static bbt *insert(bbt *new, bbt *t, int (*compare)()) {
+static bbt *insert(bbt *new, bbt *t, int (*compare)(const void *, const void *)) {
 int c;
 
     if (t == NULL)
 	return new;
 
-    c = (*compare)(new, t);
+    c = compare(new, t);
 
     if (c == 0)
 	return NULL;
@@ -121,7 +121,7 @@ int c;
   return t;
 }
 
-void bbt_insert_bbt(void *root, void *new, int (*compare)()) {
+void bbt_insert_bbt(void *root, void *new, int (*compare)(const void *, const void *)) {
 bbt **r, *n;
 
     r = (bbt **) root; 

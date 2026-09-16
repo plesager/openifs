@@ -47,8 +47,8 @@
 static int *re_start;
 static int *go_on;
 
-static void (*sigcheck)();
-static void (*sigrestart)();
+static void (*sigcheck)(int);
+static void (*sigrestart)(int);
 
 static int    mask;
 
