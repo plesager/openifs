@@ -220,9 +220,15 @@ IF (MYPROC == 1.OR.NPROC == 1) THEN
   WRITE(NULOUT,*)
   WRITE(NULOUT,*) '-----------------------  ' , CLDOMAIN, 'MASS BUDGETS before vs after SL ', CLT, ' ----------------------------'
   WRITE(NULOUT,*) ' init MASS(kgr/m**2)     current MASS        total MASS(kgr)         mean PRESS(Pa)     '
+  WRITE(NULOUT,*) ' [ For number particle modes of M7 (AS_N ...) units are number of particles       ]     '
   WRITE(NULOUT,*) '----------------------------------------------------------------------------------------'
-  WRITE(NULOUT,'(2(F20.12,2X),E20.15,2X,F20.12)') YDDYN%GPMASSI,ZPNORMS(1,1),ZAREA*ZPNORMS(1,1),RG*ZPNORMS(1,1)
-  WRITE(NULOUT,'(22X,F20.12,2X,E20.15,2X,F20.12)') ZPNORMS(1,2),ZAREA*ZPNORMS(1,2),RG*ZPNORMS(1,2)
+  if (ZPNORMS(1,1) <= 10000.0) then
+    WRITE(NULOUT,'(2(F20.12,2X),E20.15,2X,F20.12)') YDDYN%GPMASSI,ZPNORMS(1,1),ZAREA*ZPNORMS(1,1),RG*ZPNORMS(1,1)
+    WRITE(NULOUT,'(22X,F20.12,2X,E20.15,2X,F20.12)') ZPNORMS(1,2),ZAREA*ZPNORMS(1,2),RG*ZPNORMS(1,2)
+  else
+    WRITE(NULOUT,'(2(E20.12,2X),E20.15,2X,E20.12)') YDDYN%GPMASSI,ZPNORMS(1,1),ZAREA*ZPNORMS(1,1),RG*ZPNORMS(1,1)
+    WRITE(NULOUT,'(22X,E20.12,2X,E20.15,2X,E20.12)') ZPNORMS(1,2),ZAREA*ZPNORMS(1,2),RG*ZPNORMS(1,2)
+  endif 
   WRITE(NULOUT,*) '----------------------------------------------------------------------------------------'
 ENDIF
 
