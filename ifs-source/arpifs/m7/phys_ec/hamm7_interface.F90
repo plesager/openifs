@@ -469,6 +469,7 @@ REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_
 #include "troplev.intfb.h"
 #include "chem_inext.intfb.h"
 #include "ice_effective_radius.intfb.h"
+#include "hamm7_diag_pm.intfb.h"
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('HAMM7_INTERFACE',0,ZHOOK_HANDLE)
@@ -1113,7 +1114,7 @@ ENDDO
         DO JL=KIDIA,KFDIA
           ! effective radius (in um) calculated similarly as in radlswr.F90 
           ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
+          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**(1.0_JPRB/3.0_JPRB)
         END DO
       END DO
 
@@ -1423,7 +1424,7 @@ ENDDO
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
           ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
           ZCDNL(JL)  = PAERUST(JL)                 ! adding ustar to not used variable
-          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*PAERUST(JL)) ! calculate aerodyn. resistance on surface to not used variable
+          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/ZAZ0W(JL))/(VKARMAN*MAX(PAERUST(JL), 1.0E-3_JPRB)) ! calculate aerodyn. resistance on surface to not used variable
         END DO
         
         !--> init values
@@ -1457,9 +1458,9 @@ ENDDO
           END DO
         END DO
 
+        CALL GSTATS(2505,1)
       ENDIF ! LAERDRYDP
     END IF
-    CALL GSTATS(2505,1)
 
     !<-- End dry deposition for HAM-M7
     !-----------------------------------------------------------------
@@ -1525,7 +1526,9 @@ ENDDO
 IF (LAERNGAT) THEN
 
   IF (LCHEM_DIA) THEN
-    ZTAERO0(KIDIA:KFDIA,1:KLEV,1:NACTAERO) =  ZTAEROK(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
+    DO JAER=1,NACTAERO
+      ZTAERO0(KIDIA:KFDIA,1:KLEV,JAER) = ZTAEROK(KIDIA:KFDIA,1:KLEV,KAERO(JAER))
+    ENDDO
   ENDIF
 
   DO JAER=1,NACTAERO
@@ -1562,7 +1565,9 @@ IF (LAERNGAT) THEN
 
   ! do not fix the tendencies for now, number concentration fixes will break the
   ! correlation between mass and number
-  PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO)) = ZTAERO(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
+  DO JAER=1,NACTAERO
+    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(JAER)) = ZTAERO(KIDIA:KFDIA,1:KLEV,JAER)
+  ENDDO
 
 ENDIF
 
