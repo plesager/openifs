@@ -1,3 +1,9 @@
+! (C) Copyright 2026- KNMI.
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- BSC.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_SRC( &
  & YDGEOMETRY, YDMODEL, KIDIA, KFDIA, KLON , KTDIA, KLEV, KTILES, KSTART, KSTEP ,KSTGLO,  &
  & KSW  , KTRAC, KAERO,                                                                   &
