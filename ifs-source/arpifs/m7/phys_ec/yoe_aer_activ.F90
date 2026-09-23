@@ -1,4 +1,9 @@
-  MODULE YOE_AER_ACTIV
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
+MODULE YOE_AER_ACTIV
 
   !---inherited functions, types, variables and constants 
   USE PARKIND1,            ONLY: JPIM, JPRB
