@@ -512,7 +512,7 @@ IF (NAERO > 0 .AND. NCONF /= 131 ) THEN
       ! all other processes are dealt with in TM5-M7
       ! therefore we also have to initialize TM5-M7
       CALL TM5M7_INIT(YDGEOMETRY, YDMODEL%YRML_CHEM, YGFL, YDMODEL%YRML_PHY_RAD%YRERAD)
-      CALL HAMM7_INIT(YGFL, YDRIP, YDMODEL%YRML_CHEM%YRCHEM%CHEM_SCHEME) !requires stuff which is defined in TM5M7_INIT
+      CALL HAMM7_INIT(YGFL, YDRIP, YDMODEL%YRML_CHEM%YRCHEM%CHEM_SCHEME, YDMODEL%YRML_PHY_RAD%YREAERATM%LHAMSOA) !requires stuff which is defined in TM5M7_INIT
 
    CASE DEFAULT     
       ! Option not implemented

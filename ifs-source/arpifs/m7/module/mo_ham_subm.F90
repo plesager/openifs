@@ -59,7 +59,7 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
                         pxtm1,  pxtte,                    &
                         pm6rp,  pm6dry, prhop,  pww,                    &
                         paclc,  pgrvolm1, ppbl, zout3, &
-                        pforest,pout_dnuc)
+                        pelvoc, psvoc, pforest,pout_dnuc)
   !
   ! Authors:
   ! --------
@@ -153,6 +153,7 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   REAL(dp)  :: paclc   (kbdim,klev)       ! cloud cover [0,1]
   REAL(dp)  :: pgrvolm1(kbdim,klev)       ! grid box volume [m3]
   REAL(dp)  :: ppbl    (kbdim)            ! Planetary boundary layer top level
+  REAL(dp)  :: pelvoc(kbdim,klev), psvoc(kbdim,klev)! ELVOC and SVOC mass concentrations
   REAL(dp), OPTIONAL :: pforest(kbdim)    ! forest fraction
   REAL(dp), OPTIONAL :: pout_dnuc(kbdim,klev,4)
 
@@ -490,7 +491,8 @@ INTEGER:: KIDIA
              zm6rp,   zm6dry,  zrhop,   zww,  &  ! Aerosol properties
              zipr,    paclc,                  &  ! Ionization rate, cloud cover
              zdz,     pgrvolm1,               &  ! Layer thickness, grid box volume 
-             ppbl,    zout3,   pforest, pout_dnuc   ) ! Planetary boundary layer top level, zout, forest fraction
+             ppbl,    zout3,   pelvoc, psvoc, &  ! Planetary boundary layer top level, zout, ELVOC and SVOC
+             pforest, pout_dnuc   )              ! forest fraction
 
 
 #ifdef HAMMOZ
@@ -720,7 +722,7 @@ SUBROUTINE subm_mass_sum(kbdim, kproma, klev, krow, pgas, paerml, pdpg, pmasssum
   USE mo_kind,             ONLY: dp
   USE mo_ham,              ONLY: naerocomp, aerocomp, nsoa, nsoaspec, nham_subm, HAM_SALSA
   USE mo_ham,              ONLY: subm_ngasspec, subm_naerospec
-  USE mo_ham_subm_species, ONLY: isubm_so2, isubm_so4, isubm_so4g, isubm_oc, isubm_ocnv
+  USE mo_ham_subm_species, ONLY: isubm_so2, isubm_so4, isubm_so4g, isubm_oc, isubm_ocnv, isubm_soa
   USE mo_geoloc,           ONLY: gboxarea_2d
   USE mo_ham_soa,          ONLY: soaprop
 

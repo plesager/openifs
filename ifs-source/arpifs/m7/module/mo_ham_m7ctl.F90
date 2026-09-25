@@ -70,6 +70,7 @@ MODULE mo_ham_m7ctl
   PUBLIC :: dna2so4, dh2so4, dnacl, dnahso4
   PUBLIC :: dbc, doc, ddust
   PUBLIC :: crh
+  PUBLIC :: dsoa
 
   PUBLIC :: sigma, sigmaln
   PUBLIC :: crdiv, caccso4, gmb, wvb, dh2o
@@ -98,7 +99,8 @@ MODULE mo_ham_m7ctl
                                     ! nonucl = 0 off
                                     !        = 1 Activation nucleation, Kulmala et al., ACP 2006
                                     !        = 2 Activation nucleation, Laakso et al., ACP 2004
-  
+                                    !        = 3 Organic nucleation, Bergman et al. 2022
+
   LOGICAL :: lnucl_stat = .FALSE.   ! Sample the cloud-free volume as function of T, RH, [H2SO4(g)],
                                     ! H2SO4 condensation sink, and ionization rate (memory intensive)
 
@@ -141,6 +143,7 @@ MODULE mo_ham_m7ctl
                              ibcki,                  &
                              iocks,  iocas,  ioccs,  &
                              iocki,                  &
+                             isoans, isoaks,  isoaas,  isoacs,  isoaki,  &
                                      issas,  isscs,  &
                                      iduas,  iducs,  &
                                      iduai,  iduci
@@ -233,6 +236,7 @@ MODULE mo_ham_m7ctl
                      ddust   = 2.650_dp,      & ! Density          du     [g cm-3]
                      dbc     = 1.8_dp,        & ! Density          bc     [g cm-3]
                      doc     = 1.3_dp,        & ! Density          oc     [g cm-3]
+                     dsoa    = 2._dp,         & ! Density          soa    [g cm-3]
                      dnacl   = 2.165_dp,      & ! Density          NaCl   [g cm-3]
                      dna2so4 = 2.68_dp,       & ! Density          Na2SO4 [g cm-3]
                      dnahso4 = 2.435_dp,      & ! Density          NaHSO4 [g cm-3]

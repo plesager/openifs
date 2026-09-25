@@ -804,6 +804,64 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
     ENDDO
     
   END SUBROUTINE nucl_kinetic
+
+!=============================================================================
+
+  SUBROUTINE nucl_org(kproma,kbdim,klev,ph2so4,ppbl,ppfr, pelvoc, pns)
+    
+    ! *nucl_org* returns the formation rate of aerosol particles from
+    ! organic nucleation.
+    !
+    ! References:
+    !
+    ! Bergman, T., Makkonen, R., Schrödner, R., Swietlicki, E., Phillips, V. T. J., 
+    ! Le Sager, P., and van Noije, T.: Description and evaluation of a secondary 
+    ! organic aerosol and new particle formation scheme within TM5-MP v1.2, Geosci. 
+    ! Model Dev., 15, 683–713, 2022. 
+    
+    IMPLICIT NONE
+    
+    !
+    ! Input variables:
+    !
+    
+    INTEGER :: kproma,              & !   "    geographic block number of locations
+               kbdim,               & !   "    geographic block maximum number of locations
+               klev                   !   "    numer of levels
+    
+    REAL(dp):: ph2so4(kbdim,klev),  & ! Gas phase H2SO4 concentration [molec. cm-3]
+               ppbl(kbdim),         & ! Planetary boundary layer top level
+               pelvoc(kbdim,klev),  & ! ELVOC concentration
+               pns(kbdim,klev)        ! Number of H2SO4 molecules in the newly formed aerosol particles
+    
+    !
+    ! Output variables:
+    !
+    
+    REAL(dp) :: ppfr(kbdim,klev)      ! Nucleation rate (cm-3 s-1)
+    
+    !
+    ! Local variables:
+    !
+    
+    INTEGER :: jk,jl
+   
+   ! Above the boundary layer:
+   DO jl = 1, kproma
+     DO jk = 1, int(ppbl(jl)) - 1
+       ppfr(jl,jk) = 0.0_dp
+       pns(jl,jk) = 0.0_dp
+     END DO
+   END DO
+   ! In the boundary layer:
+   DO jl = 1, kproma
+     DO jk = int(ppbl(jl)), klev
+       ppfr(jl,jk) = 3.27E-21_dp*ph2so4(jl,jk)*ph2so4(jl,jk)*pelvoc(jl,jk)
+       pns(jl,jk) = 2.0_dp
+     END DO
+   END DO
+    
+  END SUBROUTINE nucl_org
   
 !=============================================================================
 #ifdef HAMMOZ  

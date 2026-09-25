@@ -195,6 +195,7 @@ USE TM5M7_OPTICS_DATA,       ONLY : NWDEP, NASWBAND, ASWBAND !,WDEP, AER_TAU, AE
 USE TM5_PHOTOLYSIS,          ONLY : NBANDS_TROP, WAV_GRID, WAV_GRIDA
 USE TM5M7_EMIS_DATA,         ONLY : VKARMAN ! von karman constant for dry deposition
 USE TM5_CHEM_MODULE,         ONLY : NCHEM2AER
+USE mo_ham,                  ONLY : lscond_org      ! Organic condensation
 !-----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -298,8 +299,7 @@ REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)! NMOD=7
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZRHOP(KLON,KLEV,NMOD)
-REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV)
-REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
+REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV), ZELVOC(KLON,KLEV)
 !THIS-IS-NEVER-USED   REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
@@ -870,7 +870,7 @@ ENDDO
  
     ! Initializations for submodel interface
     ZGRVOL(KIDIA:KFDIA,1:KLEV) = 1.79e12_JPRB ! ZGRVOL is only used for diagnostics (only when HAMMOZ is on)
-    ZPBL = 1 ! boundary layer top = 1 (ITOP=1)
+    ZPBL = 101 ! boundary layer top = 1 (ITOP=1)
     ! Allocate variables for aerosol processes
     ALLOCATE(ZW(KLON,KLEV,nw))
     ALLOCATE(ZWPDF(KLON,KLEV,nw))
@@ -890,6 +890,12 @@ ENDDO
     ENDDO
     ! End allocate variables for aerosol processes
 
+    ! SOG partitioning to ELVOC and SVOC
+    IF (lscond_org) THEN
+        ZELVOC(KIDIA:KFDIA,1:KLEV) = MIN(((PCHEM2AER(KIDIA:KFDIA,1:KLEV,5) + 0.25*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
+        ZSVOC(KIDIA:KFDIA,1:KLEV) = MIN(((0.75*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
+    END IF
+
     ZWPDF(KIDIA:KFDIA,1:KLEV,:) = 0.0_JPRB
     
     !-----------------------------------------------------------------
@@ -905,7 +911,9 @@ ENDDO
          & ZM6RP, ZM6DRY,             & !mean mode actual radius [m], dry radius for soluble modes [m] 
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
-         & ZBLHIDX,  ZOUT3,PCVH, zout_dnuc)                !boundary layer top level, outputs, high vegetation
+         & ZBLHIDX,  ZOUT3,           & !boundary layer top level, outputs
+         & ZELVOC, ZSVOC,             & !ELVOC, SVOC
+         & PCVH, zout_dnuc)             !high vegetation
     
     CALL GSTATS(2501,1)
 

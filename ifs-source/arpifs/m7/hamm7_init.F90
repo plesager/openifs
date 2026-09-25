@@ -2,7 +2,7 @@
 ! (C) Copyright 2026- KNMI.
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME)
+SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME, LHAMSOA)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 14-MAY-2024) │
@@ -68,7 +68,8 @@ USE MO_HAM, ONLY:     &
      aerocomp,        & ! aerosol compounds by size class in HAM
      naerocomp,       & ! amount of aerosol mass tracers in HAM
      subm_gasspec,    & ! gas phase species in HAM
-     subm_ngasspec      ! number of gas phase species in HAM
+     subm_ngasspec,   & ! number of gas phase species in HAM
+     lscond_org         ! switch for SOA
 
 USE OIFS_to_HAM, ONLY: init_ind_oifs_ham, &  ! init index list for OIFS and HAM
    &                   ind_oifs_ham          ! index list type
@@ -131,10 +132,15 @@ LOGICAL, PARAMETER :: LLDEBUG=.FALSE.                  ! Debug flag
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE                      ! return status
 
+LOGICAL :: LHAMSOA
+
 !----------------------------------------------------------------------
 !*       1.0   EXECUTABLE CODE
 !              ---------------
 !ASSOCIATE(NACTAERO=>YGFL%NACTAERO, LAERCHEM=>YGFL%LAERCHEM)
+
+! Updating HAM SOA switch according to OpenIFS SOA switch.
+lscond_org = LHAMSOA
 
 IF (LHOOK) CALL DR_HOOK('HAMM7_INIT',0,ZHOOK_HANDLE)
 
