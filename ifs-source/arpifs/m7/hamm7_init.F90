@@ -145,7 +145,12 @@ CALL init_mo_time_control(YRRIP)
 iadvec = tpcore !comes from ECHAM mo_control.f90
 !eehol: activation initialization 
 nactivpdf = 1 !eehol: using PDF to calculate updraft. Hardcoded for now.. need to check this later (add setphys to oifs?)
-ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)
+
+! 2=Abdul-Razzak and Ghan activation scheme (HAMM7 flag). So must be 2
+! if NCLOUDACT=2 (OIFS flag). However, it also affects the wet removal
+! (see mo_ham_wetdep, in-cloud scavenging) by choosing dry or wet
+! radius for some calculation. Use 2 for all cases of NCLOUDACT.
+ncd_activ = 2
 lcdnc_progn = .TRUE.
 
 !eehol: set submodel parameters and flags
