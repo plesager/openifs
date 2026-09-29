@@ -186,7 +186,7 @@ USE MO_TIME_CONTROL,         ONLY: time_step_len    ! time step length for tende
 USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface call
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
-USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
+USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface, ustarmin ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
 
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
@@ -1429,7 +1429,7 @@ ENDDO
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
           ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
           ZCDNL(JL)  = PAERUST(JL)                 ! adding ustar to not used variable
-          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*MAX(PAERUST(JL), 1.0E-3_JPRB)) ! calculate aerodyn. resistance on surface to not used variable
+          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*MAX(PAERUST(JL), ustarmin)) ! calculate aerodyn. resistance on surface to not used variable
         END DO
         
         !--> init values
