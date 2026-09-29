@@ -605,6 +605,8 @@ ZCEN(KIDIA:KFDIA,:,:)   = 0._JPRB
 
 ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !fraction of activated particles per mode
 
+ZTENCIH(KIDIA:KFDIA,:,:) = 0._JPRB ! Tracer tendencies before sedimentation/dry deposition
+
 ZRG=1/RG
 
 ! computation of tropopause level 
