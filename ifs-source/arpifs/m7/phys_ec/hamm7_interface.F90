@@ -786,19 +786,18 @@ DO JMASS=1,naerocomp
     DO JL=KIDIA,KFDIA
       ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KAERO(JO))
       ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
-      ! in case of simple sulfur scheme add SO4_AQ part into SO4_ACS
-      ! both original tendency and m7tendency [FIXME: what??]
-      
-      !ADD SO4 from wet chemistry to tendencies
-      if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
-        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+PCHEM2AER(JL,JK,2)!!! need to be verrified, Lianghai
-      end if
-      !if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4') then!!! add SO4 into tendency, ugly loop for now,Lianghai
-      !  ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,1)
-      !end if
-
     END DO
   END DO
+
+  ! ADD SO4_AQ from wet chemistry to tendencies
+  if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+PCHEM2AER(JL,JK,2)
+      ENDDO
+    ENDDO
+  END IF
+  
 END DO
 
 !gas
