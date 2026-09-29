@@ -1423,7 +1423,7 @@ ENDDO
             ZAZ0W(JL) = 0._JPRB
           END IF
           ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! threshold roughness length to min value
-          ZFRW(JL)   = MAX(0.,1.-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
+          ZFRW(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
           ZCVS(JL)   = PFRTI(JL,5)+PFRTI(JL,7)     ! snow cover fraction = Snow on low-veg + snow on bare-soil + snow under high-veg
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
           ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
@@ -1581,13 +1581,16 @@ ENDIF
 
 DO JAER=1,NACTAERO
   DO JL=KIDIA,KFDIA
+    ! 3rd dimension is JPAERODIAG_MSS (=8, see yoe_aerodiag.F90, and FLUX%PAERODDF in postphy_layer.F90)
+    ! Supposed to hold the total column mass
     PAERODDF(JL,JAER,1)=PAERSRC(JL,JAER) ! aerosol so4 source term
     PAERODDF(JL,JAER,2)=PAERDDP(JL,JAER) ! aerosol dry deposition
     PAERODDF(JL,JAER,3)=PAERSDM(JL,JAER) ! aerosol sedimentation 
-    PAERODDF(JL,JAER,4)=0.0              ! (todo) so2 sink added to scavenging
-    PAERODDF(JL,JAER,5)=0.0              ! (todo) scavenging (in-cloud & below cloud) so wet deposition
+    PAERODDF(JL,JAER,4)=0.0_JPRB         ! (todo) so2 sink added to scavenging
+    PAERODDF(JL,JAER,5)=0.0_JPRB         ! (todo) scavenging (in-cloud & below cloud) so wet deposition
     PAERODDF(JL,JAER,6)=ZAERNGT(JL,JAER)
-    PAERODDF(JL,JAER,7)=0.0              ! (todo) total AOD?
+    PAERODDF(JL,JAER,7)=0.0_JPRB
+    PAERODDF(JL,JAER,8)=0.0_JPRB
   ENDDO
 ENDDO
 
