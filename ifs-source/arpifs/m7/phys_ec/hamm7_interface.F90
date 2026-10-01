@@ -186,7 +186,7 @@ USE MO_TIME_CONTROL,         ONLY: time_step_len    ! time step length for tende
 USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface call
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
-USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface ! dry deposition interface call
+USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface, ustarmin ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache
 
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
@@ -249,7 +249,6 @@ REAL(KIND=JPRB),INTENT(INOUT) :: PAERSDM(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 ! with what is used in IFS-AER
 REAL(KIND=JPRB),INTENT(OUT)   :: PODTO(KLON)
 
-!REAL(KIND=JPRB),INTENT(OUT)   :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 !REAL(KIND=JPRB),INTENT(IN)    :: PALBD(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW), PFRTI(KLON,KTILES)
 
 REAL(KIND=JPRB),INTENT(INOUT)   :: PAERO_WVL_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES)
@@ -286,7 +285,7 @@ REAL(KIND=JPRB) :: ZTAERO0(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZFAERO(KLON,ntrac)!YGFL%NACTAERO)
 REAL(KIND=JPRB) :: ZAER(KLON,KLEV), ZAERNEG(KLON,KLEV)
 REAL(KIND=JPRB) :: ZAP(KLON,KLEV), ZAP_COV(KLON,KLEV)
-REAL(KIND=JPRB) :: ZSO2(KLON,KLEV), ZDP(KLON,KLEV), ZDZ(KLON,KLEV) 
+REAL(KIND=JPRB) :: ZDP(KLON,KLEV), ZDZ(KLON,KLEV) 
 REAL(KIND=JPRB) :: ZITSO2(KLON,KLEV)
 REAL(KIND=JPRB) :: ZFSO2(KLON)  , ZFSO4(KLON), ZFSO4_AQ(KLON)
 REAL(KIND=JPRB) :: ZTSO2(KLON, KLEV)  , ZTSO4(KLON, KLEV,1), ZTSO4_AQ(KLON, KLEV)
@@ -302,7 +301,7 @@ REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
 !THIS-IS-NEVER-USED   REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
-REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
+!UNUSED  REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,16)
 
 ! Optics output fields (to be used and allocated by methods using the optics)
@@ -425,15 +424,15 @@ REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,NTRAC) !tracer mixing ratios for HAM drydep 
 ! output diagnostics
 INTEGER, PARAMETER :: N_NUC_DIAG=5
 REAL(KIND=JPRB) :: ZOUT3(KLON,KLEV,2*(NAEROCOMP+NCLASS)), ZOUT_DNUC(KLON,KLEV,N_NUC_DIAG)  
-REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
-REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
-REAL(KIND=JPRB) :: SEDOUT_2D(KLON,KTRAC)
+!UNUSED  REAL(KIND=JPRB) :: SEDOUT(KLON,KLEV,KTRAC)   ! changed ntrack to ktrac (RCHG)
+!UNUSED  REAL(KIND=JPRB) :: DDEPOUT(KLON,KLEV,KTRAC)
+!UNUSED  REAL(KIND=JPRB) :: WDEPOUT(KLON,KLEV,KTRAC)
+!UNUSED  REAL(KIND=JPRB) :: SEDOUT_2D(KLON,KTRAC)
 
 REAL(KIND=JPRB) :: WDEPOUT_2D(KLON,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT_IC_2D(KLON,KTRAC)
 REAL(KIND=JPRB) :: WDEPOUT_BC_2D(KLON,KTRAC)
-
+  
 REAL(KIND=JPRB) :: ZSEDIFLUX(KLON,KLEV,NTRAC)
 REAL(KIND=JPRB) :: ZSEDIFLUXSURF(KLON,NTRAC)  
 REAL(KIND=JPRB) :: ZDDEPFLUX(KLON,NTRAC)
@@ -474,6 +473,7 @@ REAL(KIND=JPRB) :: ZABS_DIAG(KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG), ZASY_
 #include "troplev.intfb.h"
 #include "chem_inext.intfb.h"
 #include "ice_effective_radius.intfb.h"
+#include "hamm7_diag_pm.intfb.h"
 
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('HAMM7_INTERFACE',0,ZHOOK_HANDLE)
@@ -582,14 +582,14 @@ ZVDEP(KIDIA:KFDIA,:) = 0._JPRB ! ddep velocity as zero
 ZXTEMS(KIDIA:KFDIA,:) = 0._JPRB ! surface emissions as zero for input
 ZXTMD1(KIDIA:KFDIA,:,:) = 0._JPRB 
 
-SEDOUT(KIDIA:KFDIA,:,:)      = 0._JPRB
-DDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
-WDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
+!UNUSED  SEDOUT(KIDIA:KFDIA,:,:)      = 0._JPRB
+!UNUSED  DDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
+!UNUSED  WDEPOUT(KIDIA:KFDIA,:,:)     = 0._JPRB
 ZSEDIFLUX(KIDIA:KFDIA,:,:)   = 0._JPRB
 ZSEDIFLUXSURF(KIDIA:KFDIA,:) = 0._JPRB
 ZDDEPFLUX(KIDIA:KFDIA,:)     = 0._JPRB
 ZDDEPFLUX_SO2(KIDIA:KFDIA)   = 0._JPRB
-SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
+!UNUSED  SEDOUT_2D(KIDIA:KFDIA,:)     = 0._JPRB
 WDEPOUT_2D(KIDIA:KFDIA,:)    = 0._JPRB
 WDEPOUT_IC_2D(KIDIA:KFDIA,:) = 0._JPRB
 WDEPOUT_BC_2D(KIDIA:KFDIA,:) = 0._JPRB
@@ -603,6 +603,8 @@ ZCDNCACT(KIDIA:KFDIA,:) = 0._JPRB     !number of activated particles [m-3]
 ZCEN(KIDIA:KFDIA,:,:)   = 0._JPRB
 
 ZFRACN(KIDIA:KFDIA,:,:) = 0._JPRB !fraction of activated particles per mode
+
+ZTENCIH(KIDIA:KFDIA,:,:) = 0._JPRB ! Tracer tendencies before sedimentation/dry deposition
 
 ZRG=1/RG
 
@@ -783,19 +785,18 @@ DO JMASS=1,naerocomp
     DO JL=KIDIA,KFDIA
       ZXTM1(JL,JK,JH) = ZCEN(JL,JK,KAERO(JO))
       ZXTTE(JL,JK,JH) = PTENC(JL,JK,KAERO(JO))
-      ! in case of simple sulfur scheme add SO4_AQ part into SO4_ACS
-      ! both original tendency and m7tendency [FIXME: what??]
-      
-      !ADD SO4 from wet chemistry to tendencies
-      if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
-        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+PCHEM2AER(JL,JK,2)!!! need to be verrified, Lianghai
-      end if
-      !if(trim(YAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))%CNAME)=='SO4') then!!! add SO4 into tendency, ugly loop for now,Lianghai
-      !  ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))=ZXTTE(JL,JK,ind_oifs_ham%ind_mass_HAM(JMASS))+PCHEM2AER(JL,JK,1)
-      !end if
-
     END DO
   END DO
+
+  ! ADD SO4_AQ from wet chemistry to tendencies
+  if(trim(YAERO(JO)%CNAME)=='SO4_AS') then   
+    DO JK=1,KLEV
+      DO JL=KIDIA,KFDIA
+        ZXTTE(JL,JK,JH)=ZXTTE(JL,JK,JH)+PCHEM2AER(JL,JK,2)
+      ENDDO
+    ENDDO
+  END IF
+  
 END DO
 
 !gas
@@ -979,7 +980,7 @@ ENDDO
                     &  PVERVEL, ZAP,     PLP,      PIP,              &
                     &  PLSM,    PGELAM,   PGEMU, & !PSLON,   PGEMU,  &
                     &  PGFL, YDMODEL, ZCDNCACT, ZICNC, REFFL(1:KLON,1:KLEV,ZKROW), REFFI(1:KLON,1:KLEV,ZKROW), &
-                    &  ZSMAXMN, ZM6DRY, ZXTP1, KTRAC, ZSIGMA_W, ZFRACN, ZMIN_CDNC, ZDEF_CDNC, &
+                    &  ZSMAXMN, ZM6DRY, ZXTP1, NTRAC, ZSIGMA_W, ZFRACN, ZMIN_CDNC, ZDEF_CDNC, &
                     &  ZQLWP, LLIQCLD, LICECLD, ZDEF_RE_LIQ, ZDEF_RE_ICE)
        
        ! Store effective radii in PGFL
@@ -1006,11 +1007,9 @@ ENDDO
        DO JT = 1,NTRAC
           ZXTP1(KIDIA:KFDIA,1:KLEV,JT)  = ZXTM1(KIDIA:KFDIA,1:KLEV,JT) + ZXTTE(KIDIA:KFDIA,1:KLEV,JT) * TIME_STEP_LEN
        END DO
-       
-       IF (NCD_ACTIV == 2 .OR. NCCNDIAG > 0) THEN
-          CALL HAM_ACTIV_KOEHLER_AB(KFDIA, KLON, KLEV, ZKROW, KTDIA, & ! krow=1 ktdia=1
-               ZXTP1, PTP, ZA, ZB)
-       END IF
+
+       CALL HAM_ACTIV_KOEHLER_AB(KFDIA, KLON, KLEV, ZKROW, KTDIA, & ! krow=1 ktdia=1
+            ZXTP1, PTP, ZA, ZB)
        
        DO JCLASS = 1,NCLASS
           IF (SIZECLASS(JCLASS)%LSOLUBLE) THEN 
@@ -1118,7 +1117,7 @@ ENDDO
         DO JL=KIDIA,KFDIA
           ! effective radius (in um) calculated similarly as in radlswr.F90 
           ! 2.387e-10 is 3/(4*pi*rho_liq*10^6)  [10^6 for N in right units]
-          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**0.333_JPRB
+          ZRE_LIQ(JL,JK) = 1.E+06_JPRB*(2.387e-10_JPRB*ZRHO(JL,JK)*ZQLWP(JL,JK)/PGFL(JL,JK,YCDNC%MP9_PH))**(1.0_JPRB/3.0_JPRB)
         END DO
       END DO
 
@@ -1354,15 +1353,17 @@ ENDDO
              ZM6RP, ZRHOP, & ! mean mode actual radius [m], mean mode particle density [kg m-3]
              ZXTM1, ZXTTE, ZSEDIFLUX, ZSEDIFLUXSURF) ! tracer mixing ratios and tendency (sediflux for diagnostics)
 
-        SEDOUT(KIDIA:KFDIA, 1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA, 1:KLEV,1:NTRAC) - ZXTTE(KIDIA:KFDIA, 1:KLEV,1:NTRAC)
-        DO JK=1,KLEV
-          DO JCLASS=1,NCLASS
-            SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS)))=SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))) + ZSEDIFLUX(KIDIA:KFDIA, JK,ind_oifs_ham%ind_class_HAM(JCLASS))
-          END DO
-          DO JMASS=1,NAEROCOMP
-            SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))=SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))) + ZSEDIFLUX(KIDIA:KFDIA,JK,ind_oifs_ham%ind_mass_HAM(JMASS))
-          END DO
-        END DO
+        !UNUSED  ! Loop missing - need to decide if SEDOUT is KTRAC with KAERO indicing or NTRAC array
+        !UNUSED  SEDOUT(KIDIA:KFDIA, 1:KLEV,1:NTRAC) = ZTENCIH(KIDIA:KFDIA, 1:KLEV,1:NTRAC) - ZXTTE(KIDIA:KFDIA, 1:KLEV,1:NTRAC)
+        !UNUSED  
+        !UNUSED  DO JK=1,KLEV
+        !UNUSED    DO JCLASS=1,NCLASS
+        !UNUSED      SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS)))=SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_class_OIFS(JCLASS))) + ZSEDIFLUX(KIDIA:KFDIA, JK,ind_oifs_ham%ind_class_HAM(JCLASS))
+        !UNUSED    END DO
+        !UNUSED    DO JMASS=1,NAEROCOMP
+        !UNUSED      SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS)))=SEDOUT_2D(KIDIA:KFDIA,KAERO(ind_oifs_ham%ind_mass_OIFS(JMASS))) + ZSEDIFLUX(KIDIA:KFDIA,JK,ind_oifs_ham%ind_mass_HAM(JMASS))
+        !UNUSED    END DO
+        !UNUSED  END DO
       END IF
     ENDIF
     CALL GSTATS(2504,1)
@@ -1423,12 +1424,12 @@ ENDDO
             ZAZ0W(JL) = 0._JPRB
           END IF
           ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! threshold roughness length to min value
-          ZFRW(JL)   = MAX(0.,1.-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
+          ZFRW(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
           ZCVS(JL)   = PFRTI(JL,5)+PFRTI(JL,7)     ! snow cover fraction = Snow on low-veg + snow on bare-soil + snow under high-veg
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
           ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
           ZCDNL(JL)  = PAERUST(JL)                 ! adding ustar to not used variable
-          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*PAERUST(JL)) ! calculate aerodyn. resistance on surface to not used variable
+          ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*MAX(PAERUST(JL), ustarmin)) ! calculate aerodyn. resistance on surface to not used variable
         END DO
         
         !--> init values
@@ -1462,9 +1463,9 @@ ENDDO
           END DO
         END DO
 
+        CALL GSTATS(2505,1)
       ENDIF ! LAERDRYDP
     END IF
-    CALL GSTATS(2505,1)
 
     !<-- End dry deposition for HAM-M7
     !-----------------------------------------------------------------
@@ -1530,6 +1531,8 @@ ENDDO
 IF (LAERNGAT) THEN
 
   IF (LCHEM_DIA) THEN
+    ! TODO - duplicate of l.682 (just before "COMPUTE RELATIVE HUMIDITY.." section)
+    ! TODO - Double check and remove once LCHEM_DIA is working
     ZTAERO0(KIDIA:KFDIA,1:KLEV,1:NACTAERO) =  ZTAEROK(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
   ENDIF
 
@@ -1567,7 +1570,9 @@ IF (LAERNGAT) THEN
 
   ! do not fix the tendencies for now, number concentration fixes will break the
   ! correlation between mass and number
-  PTENC(KIDIA:KFDIA,1:KLEV,KAERO(1):KAERO(NACTAERO)) = ZTAERO(KIDIA:KFDIA,1:KLEV,1:NACTAERO)
+  DO JAER=1,NACTAERO
+    PTENC(KIDIA:KFDIA,1:KLEV,KAERO(JAER)) = ZTAERO(KIDIA:KFDIA,1:KLEV,JAER)
+  ENDDO
 
 ENDIF
 
@@ -1577,13 +1582,16 @@ ENDIF
 
 DO JAER=1,NACTAERO
   DO JL=KIDIA,KFDIA
+    ! 3rd dimension is JPAERODIAG_MSS (=8, see yoe_aerodiag.F90, and FLUX%PAERODDF in postphy_layer.F90)
+    ! Supposed to hold the total column mass
     PAERODDF(JL,JAER,1)=PAERSRC(JL,JAER) ! aerosol so4 source term
     PAERODDF(JL,JAER,2)=PAERDDP(JL,JAER) ! aerosol dry deposition
     PAERODDF(JL,JAER,3)=PAERSDM(JL,JAER) ! aerosol sedimentation 
-    PAERODDF(JL,JAER,4)=0.0              ! (todo) so2 sink added to scavenging
-    PAERODDF(JL,JAER,5)=0.0              ! (todo) scavenging (in-cloud & below cloud) so wet deposition
+    PAERODDF(JL,JAER,4)=0.0_JPRB         ! (todo) so2 sink added to scavenging
+    PAERODDF(JL,JAER,5)=0.0_JPRB         ! (todo) scavenging (in-cloud & below cloud) so wet deposition
     PAERODDF(JL,JAER,6)=ZAERNGT(JL,JAER)
-    PAERODDF(JL,JAER,7)=0.0              ! (todo) total AOD?
+    PAERODDF(JL,JAER,7)=0.0_JPRB
+    PAERODDF(JL,JAER,8)=0.0_JPRB
   ENDDO
 ENDDO
 
@@ -1825,10 +1833,10 @@ ENDIF
 !*
 DO JL=KIDIA,KFDIA
   PODTO(JL)    =PTAUS_AER(JL,KLEV,1,1)
-  PODTO469(JL) =PTAUS_AER(JL,KLEV,2,1)
-  PODTO670(JL) =PTAUS_AER(JL,KLEV,3,1)
-  PODTO865(JL) =PTAUS_AER(JL,KLEV,4,1)
-  PODTO1240(JL)=PTAUS_AER(JL,KLEV,5,1)
+  !UNUSED  PODTO469(JL) =PTAUS_AER(JL,KLEV,2,1)
+  !UNUSED  PODTO670(JL) =PTAUS_AER(JL,KLEV,3,1)
+  !UNUSED  PODTO865(JL) =PTAUS_AER(JL,KLEV,4,1)
+  !UNUSED  PODTO1240(JL)=PTAUS_AER(JL,KLEV,5,1)
 ENDDO
 
 
@@ -1869,6 +1877,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !** YAEROUT(3) : COLUMN INTEGRATED WET-DEPOSITION
 
   DO JN=1,NACTAERO
+    ! Experimental/research output: beware of the left indexing !
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(3)%MP)  = WDEPOUT_2D(KIDIA:KFDIA,KAERO(JN))
   END DO
   
@@ -1881,10 +1890,12 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,ind_oifs_ham%ind_class_OIFS(JN),YAEROUT(4)%MP) = ZSEDIFLUXSURF(KIDIA:KFDIA,ind_oifs_ham%IND_class_HAM(JN))
   END DO
 
-  !** YAEROUT(5) : NET AEROSOLS FLUXES (EMISSIONS - ???) ; level index of top of boundary layer ; boundary layer height
+  !** YAEROUT(5) : NET SURFACE AEROSOLS FLUXES WITHOUT EMISSIONS ; level index of top of boundary layer ; boundary layer height
   
   DO JN=1,NACTAERO
-    PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(5)%MP)  = PAERSRC(KIDIA:KFDIA,KAERO(JN)) - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
+    ! Experimental/research output: beware of the left indexing !
+    ! Units: kg/m2/sec or #/m2/sec. Negative if increases the mass/nb
+    PGFL(KIDIA:KFDIA,JN,YAEROUT(5)%MP) = PAERSRC(KIDIA:KFDIA,JN) + PCFLX(KIDIA:KFDIA,KAERO(JN))
   END DO
   PGFL(KIDIA:KFDIA,NACTAERO+2,YAEROUT(5)%MP)  = ZBLHIDX(KIDIA:KFDIA)
   PGFL(KIDIA:KFDIA,NACTAERO+3,YAEROUT(5)%MP)  = PBLH(KIDIA:KFDIA)
@@ -1934,14 +1945,14 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   END DO
 
   !** YAEROUT(12) : mass and number tendency
-  ! kg/kg -> kg/m2 N/kg-> N/m2
+  ! kg/kg/s -> kg/m2/s     N/kg/s-> N/m2/s
   DO JN=1,NAEROCOMP    !ntrac!NACTAERO   
     JO=ind_oifs_ham%ind_mass_OIFS(JN)  ! JO -> index context OIFS 
     JH=ind_oifs_ham%IND_mass_HAM(JN)   ! JH -> index context HAM 
     JY=YAEROUT(12)%MP
     ZTMP(KIDIA:KFDIA)=0.0_JPRB
     DO JK=1,KLEV
-      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
+      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH) * ZDPG(KIDIA:KFDIA,JK)
     END DO
     PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
   END DO
@@ -1952,7 +1963,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     JY=YAEROUT(12)%MP
     ZTMP(KIDIA:KFDIA)=0.0_JPRB
     DO JK=1,KLEV
-      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH)
+      ZTMP(KIDIA:KFDIA) = ZTMP(KIDIA:KFDIA) + ZXTTE(KIDIA:KFDIA,JK,JH) * ZDPG(KIDIA:KFDIA,JK)
     END DO
     PGFL(KIDIA:KFDIA,JO,JY) = ZTMP(KIDIA:KFDIA)
   END DO
@@ -1960,12 +1971,9 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !** YAEROUT(13) : Surface fluxes of tracers (not emissions)
   
   DO JN=1,NACTAERO
-    !ZTMP(KIDIA:KFDIA)=0.0_JPRB
-    !DO JK=1,KLEV
-    !  ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PCEN(KIDIA:KFDIA,JK,KAERO(JN))
-    !END DO
-    !PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(13)%MP)  = ZTMP(KIDIA:KFDIA)
-    PGFL(KIDIA:KFDIA,KAERO(JN),YGFL%YAEROUT(13)%MP)= - PCFLX(KIDIA:KFDIA,KAERO(JN))* ZDPG(KIDIA:KFDIA,KLEV)
+    ! Experimental/research output: beware of the left indexing !
+    ! Units: kg/m2/sec or #/m2/sec
+    PGFL(KIDIA:KFDIA,KAERO(JN),YGFL%YAEROUT(13)%MP)= - PCFLX(KIDIA:KFDIA,KAERO(JN))
   END DO
 
   !** YAEROUT(14) : Total column tracer/number PREVIOUS (before call to M7) concentration
@@ -1973,8 +1981,9 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   DO JN=1,NACTAERO
     ZTMP(KIDIA:KFDIA)=0.0_JPRB
     DO JK=1,KLEV
-      ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+ZCEN(KIDIA:KFDIA,JK,KAERO(JN))
+      ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+ZCEN(KIDIA:KFDIA,JK,KAERO(JN)) * ZDPG(KIDIA:KFDIA,JK)
     END DO
+    ! Experimental/research output: beware of the left indexing !
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(14)%MP)  = ZTMP(KIDIA:KFDIA)
   END DO
 
@@ -1983,8 +1992,9 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   DO JN=1,NACTAERO
     ZTMP(KIDIA:KFDIA)=0.0_JPRB
     DO JK=1,KLEV
-      ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PTENC(KIDIA:KFDIA,JK,KAERO(JN))
+      ZTMP(KIDIA:KFDIA)=ZTMP(KIDIA:KFDIA)+PTENC(KIDIA:KFDIA,JK,KAERO(JN)) * ZDPG(KIDIA:KFDIA,JK)
     END DO
+    ! Experimental/research output: beware of the left indexing !
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(15)%MP)  = ZTMP(KIDIA:KFDIA)
   END DO
 
@@ -2009,6 +2019,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !** YAEROUT(17-18) : IN-CLOUD & BELOW CLOUD WET DEPOSITION
   
   DO JN=1,NACTAERO
+    ! Experimental/research output: beware of the left indexing !
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(17)%MP) = WDEPOUT_IC_2D(KIDIA:KFDIA,KAERO(JN))
     PGFL(KIDIA:KFDIA,KAERO(JN),YAEROUT(18)%MP) = WDEPOUT_BC_2D(KIDIA:KFDIA,KAERO(JN))
   END DO
@@ -2041,13 +2052,13 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   !** YAEROUT(28) :  EMISSIONS
   
   DO JN=1,NACTAERO
-    PGFL(KIDIA:KFDIA, JN, YAEROUT(28)%MP) = PAERSRC(KIDIA:KFDIA,KAERO(JN))
+    PGFL(KIDIA:KFDIA, JN, YAEROUT(28)%MP) = PAERSRC(KIDIA:KFDIA,JN)
   END DO
 
   !** YAEROUT(29) : SURFACE EMISSIONS MODIFIED BY DRY DEPOSITION
   
   DO JN=1,NTRAC
-    PGFL(KIDIA:KFDIA,JN,YAEROUT(39)%MP)=ZXTEMS(KIDIA:KFDIA,JN)
+    PGFL(KIDIA:KFDIA,JN,YAEROUT(29)%MP)=ZXTEMS(KIDIA:KFDIA,JN)
   END DO
 
   !** YAEROUT(30) : --

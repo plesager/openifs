@@ -936,14 +936,11 @@ CONTAINS
              ENDIF
              
              !---why is this recalculated here ? 
-             ZRE_ICE=(0.75_JPRB*PRHO(JL,JK)*ZCLD/(RPI*ZRHO_ICE*1.E6_JPRB*ZICNC))**(1.0_JPRB/3.0_JPRB)
-             ZRE_ICE=ZRE_ICE*1.E6_JPRB
+             ZRE_ICE=(0.75_JPRB*PRHO(JL,JK)*ZCLD/(RPI*ZRHO_ICE*1.E6_JPRB*ZICNC))**(1.0_JPRB/3.0_JPRB) ! [m]
+             ZRE_ICE=ZRE_ICE*1.E6_JPRB ! [um]
 
-             !PGFL(JL,JK,YICNC%MP9_PH) = ZICNC
-             PICNC(JL,JK) = ZICNC
-             PRE_ICE(JL,JK) = 1.E-6_JPRB*ZRE_ICE
-             !PGFL(JL,JK,YRE_ICE%MP9_PH) = ZRE_ICE
-             !PGFL(JL,JK,YRE_ICE%MP9_PH) = 1.E-6_JPRB*ZRE_ICE !eehol add to PGFL in meters (convert from um to m)
+             PICNC(JL,JK) = ZICNC ! [cm-3]
+             PRE_ICE(JL,JK) = ZRE_ICE ! [um]
           ENDIF
        ENDDO
     ENDDO
