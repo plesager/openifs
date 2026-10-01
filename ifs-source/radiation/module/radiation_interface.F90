@@ -550,7 +550,7 @@ contains
     type(flux_type)           :: flux_rev
 
     ! Start and end levels for aerosol data
-    integer :: istartlev, iendlev
+    integer :: istartlev, iendlev, istartlev_strat, iendlev_strat
 
     if (config%iverbose >= 2) then
       write(nulout,'(a)') 'Reversing arrays to be in order of increasing pressure'
@@ -569,7 +569,10 @@ contains
     if (aerosol%is_direct) then
       istartlev = nlev + 1 - aerosol%iendlev
       iendlev   = nlev + 1 - aerosol%istartlev
+      istartlev_strat = nlev + 1 - strat_aerosol%iendlev
+      iendlev_strat   = nlev + 1 - strat_aerosol%istartlev
       call aerosol_rev%allocate_direct(config, ncol, istartlev, iendlev)
+      call strat_aerosol_rev%allocate_direct(config, ncol, istartlev_strat, iendlev_strat)
     end if
 
     ! Fill reversed thermodynamic arrays
@@ -614,6 +617,7 @@ contains
            &  = aerosol%mixing_ratio(:,aerosol%iendlev:aerosol%istartlev:-1,:)
     end if
 
+    ! Direct aerosol optics
     if (allocated(aerosol%od_sw)) then
       aerosol_rev%od_sw(:,istartlev:iendlev,:) &
            &  = aerosol%od_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
@@ -627,17 +631,44 @@ contains
            &  = aerosol%g_sw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
     end if
 
+    if (allocated(aerosol%od_lw)) then
+      aerosol_rev%od_lw(:,istartlev:iendlev,:) &
+           &  = aerosol%od_lw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%ssa_lw)) then
+      aerosol_rev%ssa_lw(:,istartlev:iendlev,:) &
+           &  = aerosol%ssa_lw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+    if (allocated(aerosol%g_lw)) then
+      aerosol_rev%g_lw(:,istartlev:iendlev,:) &
+           &  = aerosol%g_lw(:,aerosol%iendlev:aerosol%istartlev:-1,:)
+    end if
+
+    ! Direct stratospheric aerosol optics
     if (allocated(strat_aerosol%od_sw)) then
-      strat_aerosol_rev%od_sw(:,istartlev:iendlev,:) &
+      strat_aerosol_rev%od_sw(:,istartlev_strat:iendlev_strat,:) &
            &  = strat_aerosol%od_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
     end if
     if (allocated(strat_aerosol%ssa_sw)) then
-      strat_aerosol_rev%ssa_sw(:,istartlev:iendlev,:) &
+      strat_aerosol_rev%ssa_sw(:,istartlev_strat:iendlev_strat,:) &
            &  = strat_aerosol%ssa_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
     end if
-    if (allocated(aerosol%g_sw)) then
-      strat_aerosol_rev%g_sw(:,istartlev:iendlev,:) &
+    if (allocated(strat_aerosol%g_sw)) then
+      strat_aerosol_rev%g_sw(:,istartlev_strat:iendlev_strat,:) &
            &  = strat_aerosol%g_sw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+
+    if (allocated(strat_aerosol%od_lw)) then
+      strat_aerosol_rev%od_lw(:,istartlev_strat:iendlev_strat,:) &
+           &  = strat_aerosol%od_lw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+    if (allocated(strat_aerosol%ssa_lw)) then
+      strat_aerosol_rev%ssa_lw(:,istartlev_strat:iendlev_strat,:) &
+           &  = strat_aerosol%ssa_lw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
+    end if
+    if (allocated(strat_aerosol%g_lw)) then
+      strat_aerosol_rev%g_lw(:,istartlev_strat:iendlev_strat,:) &
+           &  = strat_aerosol%g_lw(:,strat_aerosol%iendlev:strat_aerosol%istartlev:-1,:)
     end if
 
     ! Run radiation scheme on reversed profiles
