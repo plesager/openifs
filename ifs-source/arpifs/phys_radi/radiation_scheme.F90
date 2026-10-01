@@ -458,7 +458,7 @@ YLCLOUD%FRACTION(KIDIA:KFDIA,:) = PCLOUD_FRAC(KIDIA:KFDIA,:)
 
 ! Get/Compute effective radii and convert to metres
 IF( NCLOUDACT > 0 .AND. PRESENT(PRE_LIQ) .AND. PRESENT(PRE_ICE) ) THEN
-   ZRE_LIQUID_UM(KIDIA:KFDIA,:) = MAX(2.0E-06_JPRB, PRE_LIQ(KIDIA:KFDIA,:)) * 1.E6_JPRB
+   ZRE_LIQUID_UM(KIDIA:KFDIA,:) = PRE_LIQ(KIDIA:KFDIA,:) * 1.E6_JPRB
    ZRE_ICE_UM(KIDIA:KFDIA,:) = PRE_ICE(KIDIA:KFDIA,:) * 1.E6_JPRB
 ELSE
 ! Compute effective radii and convert to metres
@@ -475,9 +475,13 @@ ELSE
         &  ZRE_ICE_UM, PPERT=PPERT)
 ENDIF
 
-YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = MIN((MAX((ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),2.0E-6_JPRB)), 50.0E-6_JPRB) ! threshold liq effective radius 2-50 um
-YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = MIN((MAX((ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB),  10.0E-6_JPRB)),150.0E-6_JPRB) ! threshold ice effective radius 10-150 um
-
+YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+IF(TRIM(AERO_SCHEME) == "hamm7") THEN
+  YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = MIN(MAX(YLCLOUD%RE_LIQ(KIDIA:KFDIA,:), 2.0E-6_JPRB), 50.0E-6_JPRB) ! threshold liq effective radius 2-50 um
+  YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = MIN(MAX(YLCLOUD%RE_ICE(KIDIA:KFDIA,:),10.0E-6_JPRB),150.0E-6_JPRB) ! threshold ice effective radius 10-150 um
+ENDIF
+  
 ! Get the cloud overlap decorrelation length (for cloud boundaries),
 ! in km, according to the parameterization specified by NDECOLAT,
 ! and insert into the "cloud" object. Also get the ratio of
