@@ -1125,9 +1125,14 @@ IF (LUSEKF_REF) CALL UPDATE_FIELDS(YDPHY2, 2,KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, 
 
 IF (NAERCLD > 0) THEN
   IF ( NACTAERO /= 0 .AND. TRIM(AERO_SCHEME) == "hamm7") THEN
-    ! To avoid modification within cloud_layer.F90
-    AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH) ! liquid cloud condensation nuclei
-    AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH) ! ice number concentration (cf. CCN)
+    ! This test should be in some setup routine, but we expect to remove it altogether soon.
+    IF (.NOT. ANY(NAERCLD == (/1, 8, 9/))) THEN
+      CALL ABOR1('CALLPAR: UNSUPPORTED M7-NAERCLD CONFIGURATION')
+    ELSE
+      ! To avoid modification within cloud_layer.F90
+      AUXL%ZCCN(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV)  = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YCDNC%MP9_PH) ! liquid cloud condensation nuclei
+      AUXL%ZNICE(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV) = PGFL(KDIM%KIDIA:KDIM%KFDIA,1:KDIM%KLEV,YGFL%YICNC%MP9_PH) ! ice number concentration (cf. CCN)
+    ENDIF
   ELSE
     CALL AER_CLOUD_LAYER(YDMODEL,KDIM,PAUX,STATE_T0,PDIAG,GEMSL,AUXL)
   ENDIF
