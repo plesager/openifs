@@ -569,9 +569,11 @@ contains
     if (aerosol%is_direct) then
       istartlev = nlev + 1 - aerosol%iendlev
       iendlev   = nlev + 1 - aerosol%istartlev
+      call aerosol_rev%allocate_direct(config, ncol, istartlev, iendlev)
+    end if
+    if (strat_aerosol%is_direct) then
       istartlev_strat = nlev + 1 - strat_aerosol%iendlev
       iendlev_strat   = nlev + 1 - strat_aerosol%istartlev
-      call aerosol_rev%allocate_direct(config, ncol, istartlev, iendlev)
       call strat_aerosol_rev%allocate_direct(config, ncol, istartlev_strat, iendlev_strat)
     end if
 
