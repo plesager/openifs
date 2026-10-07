@@ -1898,9 +1898,9 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     !
     ! NOTE: PAERSRC only holds the sea-salt and dust emissions from
     !       tm5m7_src, while PCFLX also contains the surface part of
-    !       the emissions applied in compo_apply_emissions. For
-    !       species with such emissions the result still includes
-    !       them.
+    !       the emissions applied in compo_apply_emissions. Then the
+    !       difference "all-surface-fluxes (PCFLX) - emissions
+    !       (PAERSRC)" removes only dust and seasalt emissions
     PGFL(KIDIA:KFDIA,JN,YAEROUT(5)%MP) = PAERSRC(KIDIA:KFDIA,JN) + PCFLX(KIDIA:KFDIA,KAERO(JN))
   END DO
   PGFL(KIDIA:KFDIA,NACTAERO+2,YAEROUT(5)%MP)  = ZBLHIDX(KIDIA:KFDIA)

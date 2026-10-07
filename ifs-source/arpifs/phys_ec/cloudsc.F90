@@ -2011,7 +2011,7 @@ DO JK=NCLDTOP,KLEV
       IF (LLPERT_RCLCRIT) THEN  !Apply SPP perturbations
         IF (PLSM(JL) > 0.5_JPRB) THEN
           !
-          ! Since NCLOUDACT>0 means M7 is activated, CDCN is always
+          ! Since NCLOUDACT>0 means M7 is activated, CDNC is always
           ! correct. However, this is not handled correctly:
           ! - NCLOUDACT > 0 and NAERCLD=0 (see callpar)
           ! 
