@@ -1463,8 +1463,8 @@ ENDDO
           END DO
         END DO
 
-        CALL GSTATS(2505,1)
       ENDIF ! LAERDRYDP
+      CALL GSTATS(2505,1)
     END IF
 
     !<-- End dry deposition for HAM-M7
