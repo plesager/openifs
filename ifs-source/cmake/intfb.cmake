@@ -31,6 +31,7 @@ if( NOT TARGET arpifs_intfb )
         arpifs/glomap_mode
         arpifs/interpol
         arpifs/kalman
+        arpifs/m7
         arpifs/mwave
         arpifs/nemo
         arpifs/obs_error

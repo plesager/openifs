@@ -96,6 +96,7 @@ env | grep -i slurm
 ####export MBX_SIZE=128000000
 
 #  Make sure process stack limit is increased
+export OMP_STACKSIZE=128M
 ulimit -s unlimited
 
 ./oifs-run

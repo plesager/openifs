@@ -1,0 +1,189 @@
+# Source common environment variables
+. ../common/env_vars
+
+# Pre-empt some common namelist settings.
+# NAMARG:
+CNMEXP="'hmec'"
+
+# NAEPHY:
+LEO3CH=".TRUE."
+NAEPHY_EXTRA="LO3CH_HLO=.FALSE.,"
+
+# NAMDPHY:
+NVEXTR="7"
+NCEXTR="102"
+
+# NAMCT0:
+NFRPOS=3
+# NAMCT0_EXTRA="NSPPR=1,"  # uncomment for per-level norms
+
+# Include common namelists
+. ../common/namelists
+
+# Note: In this setup we include some details by blocks to have a 
+#       more structured and easier to read setup file. For the final
+#       namelist please check fort.4 after run the experiment.
+
+cat >> fort.4 << EOF
+&NAMGFL
+NGHG=2,
+YLRCH4_NL%CNAME='kCH4',
+YLRCH4_NL%IGRBCODE=210071,
+YLRCH4_NL%LGP=.TRUE.,YLRCH4_NL%LTRAJIO=.FALSE.,
+YGHG_NL(1)%CNAME='CO2_GHG',
+YGHG_NL(1)%IGRBCODE=210061,
+YGHG_NL(1)%LADV5=true,
+YGHG_NL(1)%LASSIM=true,
+YGHG_NL(1)%LMASSFIX=true,
+YGHG_NL(1)%LNEGFIX=.FALSE.,
+YGHG_NL(1)%LQM=false,
+YGHG_NL(1)%LQM3D=true,
+YGHG_NL(1)%BETAMFBC=2,
+YGHG_NL(2)%CNAME='CH4_GHG',
+YGHG_NL(2)%IGRBCODE=210062,
+YGHG_NL(2)%LADV5=true,
+YGHG_NL(2)%LASSIM=true,
+YGHG_NL(2)%LMASSFIX=true,
+YGHG_NL(2)%LNEGFIX=.FALSE.,
+YGHG_NL(2)%LQM=false,
+YGHG_NL(2)%LQM3D=true,
+YGHG_NL(2)%BETAMFBC=2,
+EOF
+
+#      Include  NAMGLF for aerosols (m7)
+. ../common/namelist_m7_aero 
+
+cat >> fort.4 << EOF
+LAERAOT=false,
+LAERLISI=false,
+NAEROUT=0,
+!YAEROUT_NL(1)%CNAME='AEROUT-7',
+!YAEROUT_NL(1)%IGRBCODE=210022,
+NUVP=1,
+YUVP_NL(1)%CNAME='UVP2DRAD',
+YUVP_NL(1)%IGRBCODE=210055,
+EOF
+
+#      Include  NAMGLF for NAERO_WVL_DIAG
+. ../common/namelist_m7_aerowvldiag
+
+
+#      Include chem NAMGLF and YEXT_NL (but only to describe species/outputs) 
+. ../common/namelist_aer_chem 
+
+cat >> fort.4 << EOF
+ LAERCHEM=true
+ YQ_NL%LGP=true,
+ YQ_NL%LSP=false,
+ YL_NL%LGP=true,
+ YI_NL%LGP=true,
+ YA_NL%LGP=true,
+ YO3_NL%LGP=true,
+ YQ_NL%LGPINGP=true,
+ !YR_NL%NREQIN=-1,
+ !YS_NL%NREQIN=-1,
+/
+&NAERAD
+ LECOMPGRID=false,
+ RMUZUV=0.01,
+ NUVTIM=72,
+ NRADUV=1,
+ NUV=24,
+ LUVPROC=false,  !CHECK
+ LUVAERP=true,
+ KMODTS=2,
+ NRPROMA=0,
+ LEPO3RA=true,
+ LO3_CHEM_UV=true,
+ NGHGRAD=20,
+ NAERMACC=1,
+ LAER3D=.false.,
+/
+&NAMFPC
+ CFPFMT="MODEL",
+ NFP3DFS=3,
+ NFP3DFP=4,
+ MFP3DFS(:)=210203,210061,212255
+ MFP3DFP(:)=210011,217003,210062,212253
+ NFP2DF=1,
+ MFP2DF(:)=152,
+ NFPPHY=8,
+ MFPPHY(:)=210072,210073,210074,210208,210052,214002,210207,215089,
+!MFPPHY(:)=210031,210072,210073,210074,210119,215022,215020,210208,210052,214002,210207,215104,210217,215099,215120,215143,215179,215028,215032,215055,215058,215194,210206,215089,210064,219005,219052
+ NRFP3S(:)=-99,
+ RFP3P=100000.,85000.,70000.,50000.,
+/
+&NAEAER
+EOF
+
+#      Include  NAEAER description (YAERO_DESC)
+. ../common/namelist_m7_yaerodesc 
+
+cat >> fort.4 << EOF
+ LAERVOL=false,
+ NDRYDEPVEL_DYN=2,
+  LAERDUSTSOURCE=true,
+  LAERDUSTSIZEVAR=true,
+  LAERDUST_NEWBIN=false,
+  RAERDUST_REBOUND=0.1, 
+ LAERNGAT=true,
+ NAERSCAV=3,
+ LAERGTOP=true,
+ LAERSEDIM=true,
+  LAERSEDIMSS=true,
+ LAERDRYDP=true,
+ LAERSURF=true,
+  NSSALT=1,
+  NDDUST=3,
+  NSO4SCHEME=1,
+  LSEASALT_RH80=true,
+ LAERHYGRO=true,
+ LAERRRTM=false,
+/
+&NAMCOMPO
+  LCHEM_DIA=true,
+  LCHEM_DDFLX=true,
+  LCOMPO_DDFLX_DIR=true,
+  LCHEM_TROPO=true,
+  LCOMPO_DCDD=true,
+  LAERNITRATE=true,
+  LAEREQSAM4CLIM=false,
+  LAERSOA=false,
+  LAERSOA_COUPLED=false,
+  KGHG_CHEMTEND_CH4=0,
+  LAERNUCL=true,
+  AERO_SCHEME="hamm7",
+/
+&NAMCHEM
+  CHEM_SCHEME="tm5",
+  LCHEM_DIAC=false,
+  LCHEM_LIGHT=true,
+  KCHEM_DRYDEP=2,
+  LCHEM_0NOX=false,
+  KCHEM_NOXADV=0,
+  LCHEM_ANAO3=false,
+  KCHEM_SOLVE=2,
+    LCHEM_REVCHEM=false,
+    LCHEM_BASCOE_JON=false,
+    LCHEM_BASCOE_HETCHEM=true,
+    LCHEM_EXTENDJNO2=true,
+  LCHEM_JOUT=false,
+  LCHEM_AEROI=false,
+  LCHEM_O3RAD=true,
+  LCHEM_CSHAPE=.false.,
+  LCHEM_WDFR=.true.,
+/
+
+&NAMMCC
+  LMCCEC=true,
+  LMCCIEC=false,
+  LMCC_COMPO=false,
+/
+EOF
+#       Do NOT include compo emissions namelist since LMCC_COMPO=F
+#. ../common/namelist_m7_compoemis
+
+cat >> fort.4 << EOF
+&NAMM7CTL
+/
+EOF

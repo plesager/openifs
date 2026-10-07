@@ -13,20 +13,26 @@ MODULE YOMAFN
 
 USE PARKIND1, ONLY : JPIM
 USE PARFPOS, ONLY : JPOSDYN, JPOSSCVA, JPOSPHY, JPOSVX2, JPOSFSU, &
- & JPOSAERO, JPOSGHG, JPOSCHEM, JPOSERA40, JPOSNOGW, JPOSCHEMFLX, & 
+ & JPOSAERO, JPOSTRAC, JPOSGHG, JPOSCHEM, JPOSERA40, JPOSNOGW, JPOSCHEMFLX, & 
  & JPOSAEROUT, JPOSAEROCLIM, JPOSUVP, JPOSSFX, JPOSEZDIAG, JPOSAERODIAG, &
  & JPOSAERAOT, JPOSAERLISI, JPOSAERO_WVL_DIAG, JPOSAERO_WVL_DIAG_TYPES, &
  & JPOSEDRP, JPOSEMIS2D, JPOSEMIS2DAUX, JPOSEMIS3D
 USE FULLPOS_MIX, ONLY : FULLPOS_TYPE
 USE TYPE_FPDSPHYS, ONLY : FPDSPHY
 
-!====================================================================================
-! Identifiers, used for example in FULL-POS.                                        |
-! Fields are divided into 5 classes: DYN3D, DYN2D, PHYSOL, CFU, XFU                 |
-! Some redundancies may occur.                                                      |
-! Identifiers are TFP_[rootfield] for DYN3D and DYN2D                               |
-! Identifiers are GFP_[rootfield] for PHYSOL, CFU, XFU                              |
-!====================================================================================
+! ╒════════════════════════════════════════════════════════════════════════════╕
+! │ MODULE YOMAFN                                        (updated 16-MAY-2024) │
+! │                                                                            │
+! │ Identifiers, used for example in FULL-POS.                                 │
+! │ Fields are divided into 5 classes: DYN3D, DYN2D, PHYSOL, CFU, XFU          │
+! │ Some redundancies may occur.                                               │
+! │ Identifiers are TFP_[rootfield] for DYN3D and DYN2D                        │
+! │ Identifiers are GFP_[rootfield] for PHYSOL, CFU, XFU                       │
+! │                                                                            │
+! │ Author : ECMWF(?)                                                          │
+! │ -------                                                                    │
+! │                                                                            │
+! ╰────────────────────────────────────────────────────────────────────────────╯
 
 IMPLICIT NONE
 
@@ -486,6 +492,60 @@ TYPE(FPDSPHY) :: AERODIAG(JPOSAERO,JPOSAERODIAG)                          ! Per-
 TYPE(FPDSPHY) :: AERO_WVL_DIAG(JPOSAERO_WVL_DIAG,JPOSAERO_WVL_DIAG_TYPES) ! Per-aerosol-type diagnostic fields
 TYPE(FPDSPHY) :: EMIS2D(JPOSEMIS2D)   ! 2D emission fluxes for composition
 TYPE(FPDSPHY) :: EMIS2DAUX(JPOSEMIS2DAUX) ! 2D emission auxiliary fields for composition
+
+TYPE(FPDSPHY) :: SOILTYPE
+!TYPE(FPDSPHY) :: BCBF
+!TYPE(FPDSPHY) :: BCFF
+!TYPE(FPDSPHY) :: BCGF
+!TYPE(FPDSPHY) :: OMFF
+!TYPE(FPDSPHY) :: OMBF
+!TYPE(FPDSPHY) :: OMGF
+!TYPE(FPDSPHY) :: SO2L
+!TYPE(FPDSPHY) :: SO2H
+!TYPE(FPDSPHY) :: SOGF
+!TYPE(FPDSPHY) :: VOLC
+!TYPE(FPDSPHY) :: VOLE
+!TYPE(FPDSPHY) :: SOA
+!TYPE(FPDSPHY) :: TRACFLX
+!TYPE(FPDSPHY) :: CO2NBF
+!TYPE(FPDSPHY) :: CO2OF
+!TYPE(FPDSPHY) :: CO2APF
+!TYPE(FPDSPHY) :: CO2FIRE
+!TYPE(FPDSPHY) :: CH4AG
+!TYPE(FPDSPHY) :: CH4F
+
+! RCHG -> Added but unclear if this is a CY48R1 feature not included before. 
+!         TRACFLX(JPOSTRAC) as surface flux flexible tracers (ECMWF) seems to be new
+!         using the JPOSTRAC index.
+
+
+TYPE(FPDSPHY) :: CO2NBF   ! CO2 surface flux - biosphere
+TYPE(FPDSPHY) :: CO2OF    ! CO2 surface flux - ocean
+TYPE(FPDSPHY) :: CO2APF   ! CO2 surface flux - anthropogenic emission
+TYPE(FPDSPHY) :: CO2FIRE  ! CO2 surface flux - fire emissions
+TYPE(FPDSPHY) :: CH4AG    ! CH4 surface fluxes - all sources aggregated except fire emissions
+TYPE(FPDSPHY) :: CH4F     ! CH4 surface fluxes - fire emissions
+
+TYPE(FPDSPHY) :: BCBF     ! Black carbon biogenic flux        (ECMWF)
+TYPE(FPDSPHY) :: INJF     ! Biomass burning emissions injection height        (ECMWF)
+TYPE(FPDSPHY) :: BCFF     ! Black carbon fossil fuel flux     (ECMWF)
+TYPE(FPDSPHY) :: OMBF     ! Organic matter biogenic flux      (ECMWF)
+TYPE(FPDSPHY) :: OMFF     ! Organic matter fossil fuel flux   (ECMWF)
+TYPE(FPDSPHY) :: SO2L     ! Sulphate low-level flux           (ECMWF)
+TYPE(FPDSPHY) :: SO2H     ! Sulphate high-level flux          (ECMWF)
+TYPE(FPDSPHY) :: VOLC     ! Volcanic continuous flux          (ECMWF)
+TYPE(FPDSPHY) :: VOLE     ! Volcanic explosive flux           (ECMWF)
+TYPE(FPDSPHY) :: SOA      ! Secondary organic components flux (ECMWF)
+TYPE(FPDSPHY) :: SOACO    ! SOA from CO                       (ECMWF)
+TYPE(FPDSPHY) :: BCGF     ! Black carbon GFED flux            (ECMWF)
+TYPE(FPDSPHY) :: ODTO     ! Optical depth total aerosols      (ECMWF)
+TYPE(FPDSPHY) :: ODTO469  ! Optical depth total aerosols @ 469 nm  (ECMWF)
+TYPE(FPDSPHY) :: ODTO670  ! Optical depth total aerosols @ 670 nm  (ECMWF)
+TYPE(FPDSPHY) :: ODTO865  ! Optical depth total aerosols @ 865 nm  (ECMWF)
+TYPE(FPDSPHY) :: ODTO1240 ! Optical depth total aerosols @ 1240 nm (ECMWF)
+TYPE(FPDSPHY) :: OMGF     ! Organic matter GFED flux          (ECMWF)
+TYPE(FPDSPHY) :: SOGF     ! Sulphate GFED flux                (ECMWF)
+TYPE(FPDSPHY) :: TRACFLX(JPOSTRAC) ! surface flux flexible tracers (ECMWF)
 
 TYPE(FPDSPHY) :: SO2DD                ! SO2 dry deposition velocity       (ECMWF)
 TYPE(FPDSPHY) :: VIWVE                ! Vertical integral of eastward water vapour flux (ECMWF)

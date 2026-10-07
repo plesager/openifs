@@ -1,0 +1,208 @@
+################################################################################
+# Setup file for m7 tests in openifs/ac  
+#
+# Created Feb-2024       Ramiro Checa-Garcia (KNMI)
+#
+# Updates: 
+#      01-03-2024        Ramiro Checa-Garcia (KNMI)
+#
+
+# Source common environment variables
+. ../common/env_vars
+
+# Pre-empt some common namelist settings.
+# NAMARG:
+CNMEXP="'ham7'"
+
+# NAEPHY:
+LEO3CH=".TRUE."
+NAEPHY_EXTRA="LO3CH_HLO=.TRUE.,"
+
+# NAMDPHY:
+NVEXTR="7"
+NCEXTR="137"
+
+# NAMRIP
+CSTOP=${CSTOP:-"'t48'"}            # CSTOP: define num. timesteps
+TSTEP=${TSTEP:-"1800.000000"}        # TSTEP: define time-step in seconds
+
+# NAMCT0:
+NFRPOS=3
+# NAMCT0_EXTRA="NSPPR=1,"  # uncomment for per-level norms
+
+# Include common namelists
+. ../common/namelists
+
+cp ../common/fort.4-oac-adapted fort.4
+
+#NOTYET # Note: In this setup we include some details by blocks to have a 
+#NOTYET #       more structured and easier to read setup file. For the final
+#NOTYET #       namelist please check the generated fort.4 after running the experiment.
+#NOTYET 
+#NOTYET cat >> fort.4 << EOF
+#NOTYET &NAMGFL
+#NOTYET !NGHG=2,
+#NOTYET !YLRCH4_NL%CNAME='kCH4',
+#NOTYET !YLRCH4_NL%IGRBCODE=210071,
+#NOTYET !YLRCH4_NL%LGP=.TRUE.,YLRCH4_NL%LTRAJIO=.FALSE.,
+#NOTYET !YGHG_NL(1)%CNAME='CO2_GHG',
+#NOTYET !YGHG_NL(1)%IGRBCODE=210061,
+#NOTYET !YGHG_NL(1)%LADV5=true,
+#NOTYET !YGHG_NL(1)%LASSIM=true,
+#NOTYET !YGHG_NL(1)%LMASSFIX=true,
+#NOTYET !YGHG_NL(1)%LNEGFIX=.FALSE.,
+#NOTYET !YGHG_NL(1)%LQM=false,
+#NOTYET !YGHG_NL(1)%LQM3D=true,
+#NOTYET !YGHG_NL(1)%BETAMFBC=2,
+#NOTYET !YGHG_NL(2)%CNAME='CH4_GHG',
+#NOTYET !YGHG_NL(2)%IGRBCODE=210062,
+#NOTYET !YGHG_NL(2)%LADV5=true,
+#NOTYET !YGHG_NL(2)%LASSIM=true,
+#NOTYET !YGHG_NL(2)%LMASSFIX=true,
+#NOTYET !YGHG_NL(2)%LNEGFIX=.FALSE.,
+#NOTYET !YGHG_NL(2)%LQM=false,
+#NOTYET !YGHG_NL(2)%LQM3D=true,
+#NOTYET !YGHG_NL(2)%BETAMFBC=2,
+#NOTYET EOF
+#NOTYET 
+#NOTYET #      Include  NAMGLF for aerosols (m7)
+#NOTYET . ../common/namelist_m7_aero 
+#NOTYET 
+#NOTYET cat >> fort.4 << EOF
+#NOTYET LAERAOT=false,
+#NOTYET LAERLISI=false,
+#NOTYET EOF
+#NOTYET 
+#NOTYET # === Include  NAMGLF for NAERO_WVL_DIAG
+#NOTYET #     Please comment/uncomment the appropiate line 
+#NOTYET #
+#NOTYET #. ../common/namelist_aer_aerowvldiag       # aerwvl used in test_compo_fc 
+#NOTYET . ../common/namelist_m7_aerowvldiag         # aerwvl used in openifs/ac/m7 
+#NOTYET 
+#NOTYET  
+#NOTYET # === Include chem NAMGLF and YEXT_NL (but only to describe species/outputs) 
+#NOTYET #     Please comment/uncomment the appropiate line 
+#NOTYET #
+#NOTYET #. ../common/namelist_aer_chem              # original test_compo_fc settings
+#NOTYET . ../common/namelist_m7_chem                # chem used in openifs/ac
+#NOTYET 
+#NOTYET cat >> fort.4 << EOF
+#NOTYET  LAERCHEM=true
+#NOTYET  YQ_NL%LGP=true,
+#NOTYET  YQ_NL%LSP=false,
+#NOTYET  YL_NL%LGP=true,
+#NOTYET  YI_NL%LGP=true,
+#NOTYET  YA_NL%LGP=true,
+#NOTYET  YO3_NL%LGP=true,
+#NOTYET  YQ_NL%LGPINGP=true,
+#NOTYET /
+#NOTYET &NAERAD
+#NOTYET  CRTABLEDIR='./ifsdata/rtables/',
+#NOTYET  LECOMPGRID=false,
+#NOTYET  RMUZUV=0.01,
+#NOTYET  NUVTIM=72,
+#NOTYET  NRADUV=1,
+#NOTYET  NUV=24,
+#NOTYET  LUVPROC=false,
+#NOTYET  LUVAERP=true,
+#NOTYET  KMODTS=2,
+#NOTYET  NRPROMA=0,
+#NOTYET  LO3_CHEM_UV=true,
+#NOTYET  NAERMACC=0,
+#NOTYET  NAEROOPT=2,
+#NOTYET  NCLOUDACT=0,
+#NOTYET /
+#NOTYET &NAMFPC
+#NOTYET  CFPFMT="MODEL",
+#NOTYET  NFP3DFS=2,
+#NOTYET  NFP3DFP=2,
+#NOTYET  MFP3DFS(:)=210203,212255
+#NOTYET  MFP3DFP(:)=210011,217003
+#NOTYET  NFP2DF=1,
+#NOTYET  MFP2DF(:)=152,
+#NOTYET  NFPPHY=8,
+#NOTYET  MFPPHY(:)=210072,210073,210074,210208,210052,214002,210207,215089,
+#NOTYET  NRFP3S(:)=-99,
+#NOTYET  RFP3P=100000.,85000.,70000.,50000.,
+#NOTYET /
+#NOTYET &NAEAER
+#NOTYET EOF
+#NOTYET 
+#NOTYET # === Include  NAEAER description (YAERO_DESC) => possible not for m7
+#NOTYET #     Please comment/uncomment the appropiate line 
+#NOTYET . ../common/namelist_aer_yaerodesc         # original test_compo_fc description 
+#NOTYET 
+#NOTYET cat >> fort.4 << EOF
+#NOTYET  LAERVOL=false,
+#NOTYET  NDRYDEPVEL_DYN=2,
+#NOTYET  LAERDUSTSOURCE=true,
+#NOTYET  LAERDUSTSIZEVAR=true,
+#NOTYET  LAERDUST_NEWBIN=false,
+#NOTYET  RAERDUST_REBOUND=0.1,
+#NOTYET  LAERNGAT=true,
+#NOTYET  NAERSCAV=3,
+#NOTYET  LAERGTOP=true,
+#NOTYET  LAERHYGRO=true,
+#NOTYET  LAERSEDIM=true,
+#NOTYET  LAERSEDIMSS=true,
+#NOTYET  LAERDRYDP=false,
+#NOTYET  LAERSURF=true,
+#NOTYET  NSSALT=1,
+#NOTYET  NDDUST=3,
+#NOTYET  NSO4SCHEME=1,
+#NOTYET  LSEASALT_RH80=true,
+#NOTYET  LAERRRTM=true,
+#NOTYET /
+#NOTYET &NAMCOMPO
+#NOTYET   LCHEM_DIA=false,
+#NOTYET   LCHEM_DDFLX=true,
+#NOTYET   LCOMPO_DDFLX_DIR=true,
+#NOTYET   LCHEM_TROPO=true,
+#NOTYET   LCOMPO_DCDD=true,
+#NOTYET   LAERNITRATE=false,
+#NOTYET   LAEREQSAM4CLIM=false,
+#NOTYET   LAERSOA=false,
+#NOTYET   LAERSOA_COUPLED=false,
+#NOTYET   KGHG_CHEMTEND_CH4=0,
+#NOTYET   LAERNUCL=true,
+#NOTYET   AERO_SCHEME="hamm7",
+#NOTYET /
+#NOTYET &NAMCHEM
+#NOTYET   CHEM_SCHEME="tm5",
+#NOTYET   LCHEM_DIAC=false,
+#NOTYET   LCHEM_LIGHT=true,
+#NOTYET   KCHEM_WETDEP=2,
+#NOTYET   KCHEM_DRYDEP=3,
+#NOTYET   LCHEM_0NOX=false,
+#NOTYET   KCHEM_NOXADV=0,
+#NOTYET   LCHEM_ANAO3=false,
+#NOTYET   KCHEM_SOLVE=2,
+#NOTYET   LCHEM_REVCHEM=false,
+#NOTYET   LCHEM_BASCOE_JON=false,
+#NOTYET   LCHEM_BASCOE_HETCHEM=true,
+#NOTYET   LCHEM_EXTENDJNO2=true,
+#NOTYET   LCHEM_JOUT=false,
+#NOTYET   LCHEM_AEROI=false,
+#NOTYET   LCHEM_O3RAD=true,
+#NOTYET   LCHEM_CSHAPE=.false.,
+#NOTYET   LCHEM_WDFR=.true.,
+#NOTYET /
+#NOTYET 
+#NOTYET &NAMMCC
+#NOTYET   LMCCEC=true,
+#NOTYET   LMCCIEC=false,
+#NOTYET   LMCC_COMPO=true,
+#NOTYET /
+#NOTYET EOF
+#NOTYET 
+#NOTYET # === Include compo emissions namelist (moved to end of file)
+#NOTYET #     Please comment/ uncomment the appropiate line 
+#NOTYET #
+#NOTYET #. ../common/namelist_aer_compoemis         # original test_compo_fc emissions 
+#NOTYET 
+#NOTYET . ../common/namelist_m7_compoemis           # emissions used in openifs/ac 
+#NOTYET 
+#NOTYET cat >> fort.4 << EOF
+#NOTYET &NAMM7CTL
+#NOTYET /
+#NOTYET EOF

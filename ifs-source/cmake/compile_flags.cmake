@@ -312,7 +312,7 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   endif()
 
   string(CONCAT IFS_Fortran_FLAGS "${IFS_Fortran_FLAGS} ${IFS_GNU64_FLAG} "
-      "-fconvert=big-endian -fPIC -fopenmp "
+      "-fconvert=big-endian -fPIC -fopenmp -Wunused "
       "-fno-range-check -ffree-line-length-none -fbacktrace -fno-second-underscore "
       "-ffpe-trap=invalid,zero,overflow -fconvert=swap")
   
