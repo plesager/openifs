@@ -638,8 +638,8 @@ ELSE
 ENDIF
 !eehol: added cloud properties
 !IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
-YCDNC_NL%NREQIN=0
-YICNC_NL%NREQIN=0
+YCDNC_NL%NREQIN=-1
+YICNC_NL%NREQIN=-1
 YRE_LIQ_NL%NREQIN=-1
 YRE_ICE_NL%NREQIN=-1
 !END IF
@@ -829,10 +829,10 @@ ELSE
 ENDIF
 !eehol: added cloud properties
 !IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
-YCDNC_NL%REFVALI = ZREFVALI_USELESS
-YICNC_NL%REFVALI = ZREFVALI_USELESS
-YRE_LIQ_NL%REFVALI = 4.0_JPRB
-YRE_ICE_NL%REFVALI = 20.0_JPRB
+YCDNC_NL%REFVALI = 125.0_JPRB  ! default CDNC in cm-3
+YICNC_NL%REFVALI = 0.027_JPRB  ! default ICNC in cm-3 (RNICE from sucldp.F90)
+YRE_LIQ_NL%REFVALI = 4.0E-6_JPRB  ! 4.0 micron in meters
+YRE_ICE_NL%REFVALI = 20.0E-6_JPRB  ! 20.0 micron in meters
 
 ! * Default for attribute LREQOUT
 !   ky: I don't know exactly what to do for conf other than 1,601,801.
