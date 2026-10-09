@@ -298,6 +298,7 @@ LOGICAL, POINTER :: LSTRATAERO_UPDATED
 
 #include "naerad.nam.h"
 #include "naercli.nam.h"
+#include "compute_m7_optics_coldstart.intfb.h"
 #include "namrgri.nam.h"
 
 !-------------------------------------------------------------------------------
@@ -2155,7 +2156,8 @@ IF (NACTAERO > 0) THEN
      ALLOCATE(YDAERM7%M7SSA(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7ASYM( NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7AODLW(NPROMA, NFLEVG, NTSW+2,NGPBLKS))
-     ! RCHG -> be careful with this initializations in the case of parallel programming.
+     ! For cold start; filled bwith 0.
+     ! For restart, read from restart files in reresf_part2
      YDAERM7%M7AOD(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7ASYM(:,:,:,:)  = 0.0_JPRB
@@ -2164,6 +2166,7 @@ IF (NACTAERO > 0) THEN
      IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF
+
 
 IF (TRIM(AERO_SCHEME) /= "hamm7" .AND. NCLOUDACT /= 0) THEN
   ! Ideally the code is robust enough and ignores NCLOUDACT if not
