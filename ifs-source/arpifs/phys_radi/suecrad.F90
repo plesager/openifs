@@ -298,7 +298,6 @@ LOGICAL, POINTER :: LSTRATAERO_UPDATED
 
 #include "naerad.nam.h"
 #include "naercli.nam.h"
-#include "compute_m7_optics_coldstart.intfb.h"
 #include "namrgri.nam.h"
 
 !-------------------------------------------------------------------------------
@@ -2166,7 +2165,6 @@ IF (NACTAERO > 0) THEN
      IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF
-
 
 IF (TRIM(AERO_SCHEME) /= "hamm7" .AND. NCLOUDACT /= 0) THEN
   ! Ideally the code is robust enough and ignores NCLOUDACT if not
