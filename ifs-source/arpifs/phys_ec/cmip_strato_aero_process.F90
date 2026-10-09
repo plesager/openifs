@@ -1,3 +1,7 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 SUBROUTINE CMIP_STRATO_AERO_PROCESS                      &
 &(YDMODEL, KIDIA , KFDIA , KLON , KLEV,                           &
 & KRINT , KSHIFT,                                         &
@@ -79,7 +83,7 @@ INTEGER(KIND=JPIB) :: ITIME, IZT
 INTEGER(KIND=JPIM) :: ISTADD
 INTEGER(KIND=JPIM) :: IMV1, IMV2, IYR1, IYR2, INYR, INDY, INMN, IT1, IT2, IMP1, IMP2
 INTEGER(KIND=JPIM) :: ILMO(12)
-INTEGER(KIND=JPIM) :: IDY0,IMN0,IYR0,IYNR
+INTEGER(KIND=JPIM) :: IDY0,IMN0,IYR0
 INTEGER(KIND=JPIM) :: JK,JL
 REAL(KIND=JPRB)    :: ZW1, ZW2, ZSIG
 REAL(KIND=JPRB)    :: ZTRPAUS(KLON), ZPAPHD(KLON)
@@ -165,7 +169,7 @@ IF(INDY >= 16) THEN
    ELSE
     IYR1=INYR-1
   ENDIF
-  IYR2=IYNR
+  IYR2=INYR
   IT1=16-ILMO(IMV1)
   IT2=16
 ENDIF

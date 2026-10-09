@@ -1,3 +1,8 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE m7(KIDIA, KFDIA, KLON,   KLEV,             &  ! TM5  indices
               papp1,  prelhum, ptp1,                  &  !   "   thermodynamics
               pso4g,  pelvoc, psvoc,  paerml, paernl, &  !  M7   tracers

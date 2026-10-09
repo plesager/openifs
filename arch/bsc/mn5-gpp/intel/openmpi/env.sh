@@ -1,3 +1,6 @@
+# (C) Copyright 2026- BSC.
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 # Source me to get the correct configure/build/run environment
 
 # Store tracing and disable (module is *way* too verbose)

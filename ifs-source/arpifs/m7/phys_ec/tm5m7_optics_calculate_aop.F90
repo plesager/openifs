@@ -1,3 +1,8 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_OPTICS_CALCULATE_AOP(KIDIA,KFDIA,KLON,KLEV, nwl,NCONTR, wdep, ecearth_units, &
                           &         AOP_IN, &
                           &         PAOP_OUT_EXT, PAOP_OUT_A, PAOP_OUT_G, PAOP_OUT_ADD )

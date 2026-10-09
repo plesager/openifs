@@ -1015,7 +1015,12 @@ CONTAINS
 
     DO jclass=1, nclass
        itrac=sizeclass(jclass)%idt_no
+       ! [#/kg] * [Pa] / [m/s2] -> #/m2 - Layer integrated
        znum(1:kproma,:,jclass)=pxtm1(1:kproma,:,itrac)*zdpg(1:kproma,:)
+       ! IDEA: minimum density [#/m3] = 1e-15 (as used in
+       ! tm5m7_optics_aop_get.F90). Applying to layer makes it a
+       ! smaller limit.
+       WHERE(znum(1:kproma,:,jclass) .lt. 1.e-15_dp ) znum(1:kproma,:,jclass) = 1.e-15_dp
     END DO
 
     !--- 1) Calculate optical properties for GCM SW bands:

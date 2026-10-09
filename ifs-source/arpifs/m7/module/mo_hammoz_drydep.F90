@@ -73,6 +73,7 @@ MODULE mo_hammoz_drydep
   TYPE (t_diag_list), PUBLIC   :: vddep        ! dry deposition velocity
 #endif 
   INTEGER :: idt_ddep_detail
+  REAL(dp), PARAMETER, PUBLIC :: ustarmin=1.e-5_dp
 
   CONTAINS
 #ifdef HAMMOZ
@@ -358,9 +359,6 @@ MODULE mo_hammoz_drydep
   REAL(dp), INTENT(in)     :: pcdnl    (kbdim)            ! see mo_surface_land
   REAL(dp), INTENT(in)     :: pcdnw    (kbdim)            ! see mo_surface_ocean
   REAL(dp), INTENT(in)     :: pcdni    (kbdim)            ! see mo_surface_ice
-#ifndef HAMMOZ
-  REAL(dp), PARAMETER      :: ustarmin=1.e-5_dp
-#endif
 !<<gf
 
   !--- Local variables

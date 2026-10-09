@@ -1,3 +1,6 @@
+# (C) Copyright 2026- BSC.
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 # Source me to get the correct configure/build/run environment
 
 # Store tracing and disable (module is *way* too verbose)
@@ -34,6 +37,14 @@ export MKL_CBWR=AUTO,STRICT
 
 # Record the RPATH in the executable
 export LD_RUN_PATH=$LD_LIBRARY_PATH
+
+# Prevent pip from trying to access the Internet during the ifs-test
+# configuration and use local repo instead.  Create repo using
+#
+# pip -r requirements.txt -d /path/to/repo
+#
+export PIP_NO_INDEX=1
+export PIP_FIND_LINKS=/gpfs/projects/bsc32/models/openifs/python/repo
 
 # Undo stack size limitation enforced by Python module (prevent segfault during
 # runtime)

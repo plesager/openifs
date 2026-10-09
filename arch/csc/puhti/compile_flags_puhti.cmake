@@ -1,3 +1,7 @@
+# (C) Copyright 2026- CSC.
+# (C) Copyright 2026- FMI.
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 
 # noopt:        -DCMAKE_BUILD_TYPE=Debug
 # NANS_C:       -DCMAKE_BUILD_TYPE=Bit   -DIFS_CHECK_BOUNDS=ON -DIFS_INIT_SNAN=ON

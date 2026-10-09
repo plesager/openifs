@@ -1,3 +1,9 @@
+! (C) Copyright 2026- KNMI.
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- BSC.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_SRC_SS &
   &( KIDIA, KFDIA, KLON, KLEV, &
   &  PCI  , PCLAKE, PLSM , PSST, PWIND, &
@@ -152,12 +158,13 @@ IF (NSEASALT==0) THEN
 !VH   but dxy11 is not available.. use unity area and per sec. instead..
 
       ! sea fraction
-      xsea=1.-PLSM(JL)
+      xsea=1._JPRB - PLSM(JL)-PCLAKE(JL)
 
       ! sea salt is emitted only over sea without ice cover
-      area_frac = xsea * (1.-PCI(JL))
-      !write(6566,*)area_frac,xsea,PCI(JL),PCLAKE(JL)
-      if (area_frac .LT. 1.e-10_JPRB .or. PCLAKE(JL)>0.0_JPRB) CYCLE
+      ! PCI interpreted as gridbox fraction. See aer_ssalt.F90 for a different treatment.
+      area_frac = MAX(0._JPRB, xsea - PCI(JL))
+      
+      if (area_frac .LT. 1.e-10_JPRB ) CYCLE
 
       emis_fac(JL) = norm * area_frac
 

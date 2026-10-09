@@ -1,3 +1,8 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! 
 !****  YOMM7CTL
 !
 !     PURPOSE.
@@ -13,11 +18,7 @@
 !     AUTHOR.
 !     -------
 !     2020-11-17   Tero Mielonen (TeMi)
-
-
-! RCHG -> A natural place for this module is arpifs/module 
-!         we moved to arpifs/m7/modules for the developing
-!         process (easier track of files for m7)
+!
 MODULE YOMM7CTL
 
 USE PARKIND1  ,ONLY : JPIM

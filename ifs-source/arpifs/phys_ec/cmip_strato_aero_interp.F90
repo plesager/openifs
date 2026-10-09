@@ -1,3 +1,7 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 SUBROUTINE CMIP_STRATO_AERO_INTERP & 
 &(YDMODEL, KIDIA, KFDIA, KLON ,KLEV,        &
 & KRINT, KSHIFT,                    &
@@ -108,10 +112,10 @@ ASSOCIATE(&
   STRATAAOD(KIDIA:KFDIA,:,:,:)=0._JPRB 
   STRATREFAOD(KIDIA:KFDIA,:,:,:)=0._JPRB 
   STRATAAOD_LW(KIDIA:KFDIA,:,:,:)=0._JPRB 
-  ZAOD_SUN(KIDIA:KFDIA,:)=0._JPRB 
-  ZAAOD_SUN(KIDIA:KFDIA,:)=0._JPRB 
-  ZREFAOD_SUN(KIDIA:KFDIA,:)=0._JPRB 
-  ZAAOD_EARTH(KIDIA:KFDIA,:)=0._JPRB 
+  ZAOD_SUN   (:,:) = 0._JPRB
+  ZAAOD_SUN  (:,:) = 0._JPRB
+  ZREFAOD_SUN(:,:) = 0._JPRB
+  ZAAOD_EARTH(:,:) = 0._JPRB
 
   ZSTRATAOD(KIDIA:KFDIA,:)=0._JPRB
   ZSTRATAAOD(KIDIA:KFDIA,:)=0._JPRB

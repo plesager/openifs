@@ -1,3 +1,9 @@
+! (C) Copyright 2026- KNMI.
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- BSC.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_SRC( &
  & YDGEOMETRY, YDMODEL, KIDIA, KFDIA, KLON , KTDIA, KLEV, KTILES, KSTART, KSTEP ,KSTGLO,  &
  & KSW  , KTRAC, KAERO,                                                                   &
@@ -342,7 +348,6 @@ ZAEROK (KIDIA:KFDIA, 1:KLEV, 1:NACTAERO) = PCEN (KIDIA:KFDIA, 1:KLEV, KAERO(1):K
 ZTAEROK(KIDIA:KFDIA, 1:KLEV, 1:NACTAERO) = PTENC(KIDIA:KFDIA, 1:KLEV, KAERO(1):KAERO(NACTAERO))
 PEMIDIAG(KIDIA:KFDIA,        1:NACTAERO) = 0.0_JPRB
 
-! RCHG: FIXME -> there were are recurrent sematic error ARRAY(:) = 0.0_JPRB is dangerous.
 ZOMBF(KIDIA:KFDIA) = 0.0_JPRB
 ZOMFF(KIDIA:KFDIA) = 0.0_JPRB
 ZOMGF(KIDIA:KFDIA) = 0.0_JPRB
@@ -488,7 +493,7 @@ DO JL=KIDIA,KFDIA
   DO IMODE=1,NMOD                                 ! loop in each mode 
     DO INMODE=0,MODE_NM_SED(IMODE)                ! loop in aerosols species per mode 
        JN = MODE_TRACERS_SED(INMODE,IMODE)        ! retrieve indentifier of each specie
-       PEMIDIAG(JL,KAERO(JN))= PEMIDIAG(JL,KAERO(JN)) + ZCFLX(JL,KAERO(JN))*(-1._JPRB) ! assign ZCFLX to emissions (we still not added dep. to PCFLX) 
+       PEMIDIAG(JL,JN)= PEMIDIAG(JL,JN) + ZCFLX(JL,KAERO(JN))*(-1._JPRB) ! assign ZCFLX to emissions (we still not added dep. to PCFLX) 
     ENDDO
   ENDDO
 ENDDO

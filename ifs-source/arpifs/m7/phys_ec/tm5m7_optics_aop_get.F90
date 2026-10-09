@@ -1,3 +1,8 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_OPTICS_AOP_GET(YGFL, YREAERSRC, KIDIA,KFDIA,KLON, KLEV, NACTAERO, &
           &  nwav, wdep, ncontr, ecearth_units, &
           &  PRHO, PAERO, RW_MODE,RWD_MODE,H2O_MODE, &

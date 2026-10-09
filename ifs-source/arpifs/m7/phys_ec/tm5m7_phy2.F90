@@ -1,3 +1,9 @@
+! (C) Copyright 2026- FMI.
+! (C) Copyright 2026- KNMI.
+! (C) Copyright 2026- BSC.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
 SUBROUTINE TM5M7_PHY2 &
  &( YDGEOMETRY, YDMODEL,  KIDIA, KFDIA, KLON , KTDIA , KLEV , KFLDX, KLEVX, KTILES, KSTGLO, &
  &  KTRAC, KAERO, KSW, &
@@ -300,10 +306,6 @@ ELSEIF (LAERSURF) THEN
     PODMS(JL)=0._JPRB
   ENDDO  
 
-!  DO JTILE=1,KTILES
-!    write(8000+MYPROC,*)jtile,jl,PFRTI(JL,JTILE),PAHFSTI(JL,JTILE),PFRTI(JL,JTILE)*PAHFSTI(JL,JTILE)
-    !write(3334,*)jtile,jl,PFRTI(JL,JTILE),PAHFSTI(JL,JTILE)
-!end DO
 
   CALL TM5M7_SRC &
     &( YDGEOMETRY, YDMODEL,  KIDIA  , KFDIA , KLON , KTDIA, KLEV , KTILES, NSTART, NSTEP , KSTGLO, &
