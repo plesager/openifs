@@ -12,15 +12,15 @@
 #define SIZE_ROUTINES_H
 
 static fortint prodsize(fortint, char *, fortint, fortint *,
-                        fortint (*fileRead)(), void *);
+                        fortint (*fileRead)(char *, fortint, void *), void *);
 static fortint gribsize(char * , fortint, fortint * , 
-                        fortint (*fileRead)(), void * );
+                        fortint (*fileRead)(char *, fortint, void *), void * );
 static fortint bufrsize(char * , fortint, fortint * , 
-                        fortint (*fileRead)(), void * );
+                        fortint (*fileRead)(char *, fortint, void *), void * );
 static fortint tide_budg_size(char *, fortint, fortint *,
-                        fortint (*fileRead)(), void *);
+                        fortint (*fileRead)(char *, fortint, void *), void *);
 static fortint lentotal(char *, fortint *, fortint, fortint , fortint ,
-                        fortint , fortint (*fileRead)(), void *);
+                        fortint , fortint (*fileRead)(char *, fortint, void *), void *);
 static fortint waveLength(char *);
 
 static fortint crex_size( void * );
