@@ -124,6 +124,9 @@ REAL(KIND=JPRB) :: ZTAUS_AER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB) :: ZTAUA_AER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB) :: ZPMAER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 
+!Alaakso: needed for save values for timesteps without calculation
+REAL(KIND=JPRB) :: PAOD_COMP(KDIM%KLON,5)
+
 
 !-----------------------------------------------------------------------
 
@@ -262,6 +265,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
       !&  PSURF%PSD_VD(:,YSD_VD%YODTO865%MP), PSURF%PSD_VD(:,YSD_VD%YODTO1240%MP), &
       &  GEMSL%ZAEROTAU, GEMSL%ZAEROSSA,GEMSL%ZAEROASY, GEMSL%ZAEROTAULW,       &
       !VH Variables ZTAUS_AER etc ideally convoluted with GEMSL%ZAERTAULT, or similar.
+      &  PAOD_COMP, &
       &  ZTAUS_AER , ZTAUA_AER, ZPMAER,                                         &
       !VH
       &  PSURF%PSD_XA, PAUX%PVERVEL, AUXL%ZCCNL, AUXL%ZCCNO, PSURF%PAHFSTI, PSURF%PSD_VF(:,YSD_VF%YCI%MP), GEMSL%ZAZ0M, FLUX%PFTLHEV, &
@@ -284,6 +288,12 @@ SELECT CASE (TRIM(AERO_SCHEME))
             YDAERM7%M7AODLW(JL,JK,JAER,IBLK) = GEMSL%ZAEROTAULW(JL,JK,JAER)
          ENDDO
        ENDDO
+    ENDDO
+ 
+    DO JAER=1,5
+      DO JL=KDIM%KIDIA,KDIM%KFDIA
+        YDAERM7%AODCOMP(JL,JAER,IBLK)=PAOD_COMP(JL,JAER)
+      ENDDO
     ENDDO
 
    CASE ("aer")
