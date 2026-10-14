@@ -1,1 +1,0 @@
-../../t21/ifsdata/aerosol_cams_climatology_43R3a.nc
