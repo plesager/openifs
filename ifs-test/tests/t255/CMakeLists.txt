@@ -10,7 +10,7 @@ if( IFS_EXECUTABLE_NAME STREQUAL ifsMASTER.DP )
   set(DOUBLE_PRECISION ON)
 endif()
 
-set(APATH_255l_2 /ec/res4/hpcperm/nld5163/openifs/oifs_data/48r1/climate.v020/255l_2) 
+set(APATH_255l_2 /hpcperm/nm6/oifs48r1-data/48r1/climate.v020/255l_2) 
 
 execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
   ${CMAKE_CURRENT_SOURCE_DIR}/ifsdata ${CMAKE_CURRENT_BINARY_DIR}/ifsdata )
@@ -99,7 +99,13 @@ function( add_ifs_test TARGET )
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
       ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/haloe_ch4clim.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/haloe_ch4clim.dat )
 
+    execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/255l_2/L91/aeroclim.grib ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aeroclim.grib )
+    
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink ${APATH_255l_2} ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/255l_2 )
+
+    execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
+      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/composition ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/composition )
 
     # execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
     #  ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/255l_2 ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/255l_2 )
