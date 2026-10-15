@@ -1,1 +1,0 @@
-../../t21/ifsdata/fu_ice_scattering_rrtm.nc
