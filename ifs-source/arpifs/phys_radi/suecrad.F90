@@ -2155,7 +2155,7 @@ IF (NACTAERO > 0) THEN
      ALLOCATE(YDAERM7%M7SSA(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7ASYM( NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7AODLW(NPROMA, NFLEVG, NTSW+2,NGPBLKS))
-     ! For cold start; filled bwith 0.
+     ! For cold start; filled with 0.
      ! For restart, read from restart files in reresf_part2
      YDAERM7%M7AOD(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
