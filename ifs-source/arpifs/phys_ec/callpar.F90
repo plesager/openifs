@@ -1124,14 +1124,6 @@ IF (LUSEKF_REF) CALL UPDATE_FIELDS(YDPHY2, 2,KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, 
 !                  ------------------------------------------------------
 
 IF (NAERCLD > 0) THEN
-  ! See trap in SUCLDP.
-  !
-  ! Ideally there should be a routine HAMM7_CLD.F90, which should be
-  ! called from AER_CLOUD_LAYER, and which should mimic for M7 what is
-  ! done for AER with AER_CLD.F90 (incl. computing ZLCRIT_AER and ZICRIT_AER) 
-  !
-  ! Also, these variables are available if NAERCLD=0
-  !
   CALL AER_CLOUD_LAYER(YDMODEL,KDIM,PAUX,STATE_T0,PDIAG,GEMSL,PGFL,AUXL)
 ELSE
   ! routine is by-passed
