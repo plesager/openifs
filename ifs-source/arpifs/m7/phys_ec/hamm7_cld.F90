@@ -1,4 +1,4 @@
-! (C) Copyright 1989- ECMWF.
+! (C) Copyright 2026- KNMI.
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 ! 
@@ -17,14 +17,14 @@ SUBROUTINE HAMM7_CLD ( &
  & PCCN      , PNICE &
  & )    
 
-!     CLOUDAER 
+!     HAMM7_CLD 
 !     --------
 !          Sets up all information for subsequent calculation 
 !          of the effect of prognostic aerosols on clouds and convection
 !          (2nd indirect effect)
 
 !     AUTHOR
-!          A. Tompkins/JJMorcrette  E.C.M.W.F.
+!          Codes built upon aer_cld.F90
 
 !     PURPOSE.
 !     --------
@@ -32,7 +32,7 @@ SUBROUTINE HAMM7_CLD ( &
 !     INTERFACE.
 !     ----------
 
-!          *HAMM7_CLD* IS CALLED FROM *CALLPAR*
+!          *HAMM7_CLD* IS CALLED FROM *AER_CLOUD_LAYER*
 
 !     PARAMETER     DESCRIPTION                                   UNITS
 !     ---------     -----------                                   -----
@@ -111,11 +111,7 @@ IF (LHOOK) CALL DR_HOOK('HAMM7_CLD',0,ZHOOK_HANDLE)
 ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL, YDECLDP=>YDMODEL%YRML_PHY_EC%YRECLDP)
 ASSOCIATE(LAERICEAUTO=>YDECLDP%LAERICEAUTO, LAERICESED=>YDECLDP%LAERICESED, &
  & LAERLIQAUTOLSP=>YDECLDP%LAERLIQAUTOLSP, LAERLIQCOLL=>YDECLDP%LAERLIQCOLL, &
- & NAECLBC=>YDECLDP%NAECLBC, NAECLDU=>YDECLDP%NAECLDU, NAECLOM=>YDECLDP%NAECLOM, &
- & NAECLSS=>YDECLDP%NAECLSS, NAECLSU=>YDECLDP%NAECLSU, RCCNOM=>YDECLDP%RCCNOM, &
- & RCCNSS=>YDECLDP%RCCNSS, RCCNSU=>YDECLDP%RCCNSU, & !RCLCRIT=>YDECLDP%RCLCRIT, 
- & RCLDMAX=>YDECLDP%RCLDMAX, & !RLCRITSNOW=>YDECLDP%RLCRITSNOW, 
- & NDIM=>YGFL%NDIM) !RNICE=>YDECLDP%RNICE,
+ & RCLDMAX=>YDECLDP%RCLDMAX)  
 
 !###############################################################
 !                1. Basic variables
@@ -166,20 +162,22 @@ ENDIF
 !###############################################################
 !                3. ICE PHASE MICROPHYSICS
 !###############################################################
-DO JK=1,KLEV
-  DO JL=KIDIA,KFDIA
-    ! ice critical mmr, same condition structure as AER_CLD
-    IF (PT(JL,JK) < 238.0_JPRB .AND. PI(JL,JK) > ZEPSEC) THEN ! or PNICE? xw
-      PICRIT_AER(JL,JK) = 1.333E6_JPRB*RPI*ZRHO_ICE*PNICE(JL,JK)*ZRICE_CRIT**3/ZRHO(JL,JK)
-      PICRIT_AER(JL,JK) = MAX(PICRIT_AER(JL,JK), 0.1_JPRB*YDECLDP%RLCRITSNOW)
-      PICRIT_AER(JL,JK) = MIN(PICRIT_AER(JL,JK), 10.0_JPRB*YDECLDP%RLCRITSNOW)
-    ELSE
-      PICRIT_AER(JL,JK) = YDECLDP%RLCRITSNOW
-    ENDIF
-    ! CLOUDSC computes (RNICE/PNICE)**0.333 in the LAERICEAUTO branch: avoid PNICE=0
-    IF (PNICE(JL,JK) <= 0.0_JPRB) PNICE(JL,JK) = YDECLDP%RNICE
+IF (LAERICESED.OR.LAERICEAUTO) THEN
+  DO JK=1,KLEV
+    DO JL=KIDIA,KFDIA
+      ! ice critical mmr, same condition structure as AER_CLD
+      IF (PT(JL,JK) < 238.0_JPRB .AND. PI(JL,JK) > ZEPSEC) THEN ! or PNICE? xw
+        PICRIT_AER(JL,JK) = 1.333E6_JPRB*RPI*ZRHO_ICE*PNICE(JL,JK)*ZRICE_CRIT**3/ZRHO(JL,JK)
+        PICRIT_AER(JL,JK) = MAX(PICRIT_AER(JL,JK), 0.1_JPRB*YDECLDP%RLCRITSNOW)
+        PICRIT_AER(JL,JK) = MIN(PICRIT_AER(JL,JK), 10.0_JPRB*YDECLDP%RLCRITSNOW)
+      ELSE
+        PICRIT_AER(JL,JK) = YDECLDP%RLCRITSNOW
+      ENDIF
+      ! CLOUDSC computes (RNICE/PNICE)**0.333 in the LAERICEAUTO branch: avoid PNICE=0
+      IF (PNICE(JL,JK) <= 0.0_JPRB) PNICE(JL,JK) = YDECLDP%RNICE
+    ENDDO
   ENDDO
-ENDDO
+ENDIF
 
 END ASSOCIATE
 END ASSOCIATE
