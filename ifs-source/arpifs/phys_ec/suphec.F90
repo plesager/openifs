@@ -357,7 +357,7 @@ CALL SU_CLOP550
 !*         9.     SETTING CONSTANTS FOR PROGNOSTIC CLOUD SCHEME
 !                 ----------------------------------------------
 
-CALL SUCLDP(YDSTA,YDDIMV,YDPHY2,YDMODEL%YRML_PHY_EC%YRECLDP)
+CALL SUCLDP(YDSTA,YDDIMV,YDPHY2,YDMODEL%YRML_PHY_EC%YRECLDP, YDMODEL%YRML_CHEM%YRCOMPO)
 
 !     ------------------------------------------------------------------
 

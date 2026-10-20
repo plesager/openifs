@@ -6,7 +6,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction
 
-SUBROUTINE SUCLDP(YDSTA,YDDIMV,YDPHY2,YDECLDP)
+SUBROUTINE SUCLDP(YDSTA,YDDIMV,YDPHY2,YDECLDP,YDCOMPO)
 
 !**** *SUCLDP*   - INITIALIZE COMMON YOECLD CONTROLLING *CLOUDSC*
 
@@ -79,6 +79,7 @@ SUBROUTINE SUCLDP(YDSTA,YDDIMV,YDPHY2,YDECLDP)
 USE YOMSTA    , ONLY : TSTA
 USE YOMDIMV   , ONLY : TDIMV
 USE YOMPHY2   , ONLY : TPHY2
+USE YOMCOMPO  , ONLY : TCOMPO
 USE PARKIND1  , ONLY : JPIM, JPRB
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST    , ONLY : RG, RTT, RPI
@@ -91,6 +92,7 @@ IMPLICIT NONE
 TYPE(TSTA)  ,INTENT(IN) :: YDSTA
 TYPE(TDIMV) ,INTENT(IN) :: YDDIMV
 TYPE(TPHY2) ,INTENT(IN) :: YDPHY2
+TYPE(TCOMPO),INTENT(IN) :: YDCOMPO
 TYPE(TECLDP),INTENT(INOUT), TARGET :: YDECLDP
 
 REAL(KIND=JPRB), EXTERNAL :: FCGENERALIZED_GAMMA
@@ -121,6 +123,7 @@ LOGICAL, POINTER :: LCLDBUD_VERTINT, LCLDBUD_TIMEINT
 
 IF (LHOOK) CALL DR_HOOK('SUCLDP',0,ZHOOK_HANDLE)
 ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, TSPHY=>YDPHY2%TSPHY, &
+ & AERO_SCHEME=>YDCOMPO%AERO_SCHEME, &
  & LAERICEAUTO=>YDECLDP%LAERICEAUTO, LAERICESED=>YDECLDP%LAERICESED, &
  & LAERLIQAUTOCP=>YDECLDP%LAERLIQAUTOCP, LAERLIQAUTOCPB=>YDECLDP%LAERLIQAUTOCPB, &
  & LAERLIQAUTOLSP=>YDECLDP%LAERLIQAUTOLSP, LAERLIQCOLL=>YDECLDP%LAERLIQCOLL, &
@@ -648,6 +651,33 @@ LCLDBUDGET =BTEST(NCLDDIAG,1)
 ! Calculated after namelist read as RKOOPTAU might change
 !----------------------------------------------------
 RSSICEFACTOR = MIN(TSPHY/RKOOPTAU,1.0_JPRB)
+
+!----------------------------------------------------
+! Trap unsupported NAERCLD configurations
+!----------------------------------------------------
+IF (TRIM(AERO_SCHEME) == "hamm7") THEN
+
+  ! TO UPDATE (including comment!) WHEN MORE NAERCLD CONFIGS SUPPORTED.
+  !
+  ! To support NAERCLD=0 with M7, the code in callpar and/or in
+  ! cloudsc would have to be modified. See comments about the test
+  ! on NCLOUDACT in cloudsc.F90 and in callpar.F90.
+  ! 
+  ! For other NAERCLD values, the main issue is that LIQCRIT and
+  ! ICECRIT are not computed in M7 case and are needed for some of
+  ! NAERCLD configs. (See AER_CLD.F90 for how it is done for AER
+  ! scheme).
+  !
+  ! Ideally there should be a routine HAMM7_CLD.F90, which should be
+  ! called from AER_CLOUD_LAYER or CALLPAR directly, and which should
+  ! mimic for M7 what is done for AER with AER_CLD.F90. Currently we
+  ! fill few AUXL elements in callpar.F90
+  !
+  IF (.NOT. ANY(NAERCLD == (/1, 8, 9/))) THEN
+    WRITE(NULOUT,'("SUCLDP: NAERCLD=",I2)')NAERCLD
+    CALL ABOR1('SUCLDP: UNSUPPORTED M7-NAERCLD CONFIGURATION')
+  ENDIF
+ENDIF
 
 !------------------------
 ! output the final values
