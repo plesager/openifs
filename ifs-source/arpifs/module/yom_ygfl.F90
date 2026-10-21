@@ -139,7 +139,7 @@ CHARACTER(LEN=16)  :: CNAME     ! ARPEGE field name
 INTEGER(KIND=JPIM) :: IGRBCODE  ! GRIB code
 INTEGER(KIND=JPIM) :: NREQIN    ! 1 if field required in input, 0 if not, -1 if initialised
                                 ! with a reference value REFVALI
-REAL(KIND=JPRB) :: REFVALI      ! Reference value for initialisation, used in case NREQIN==-1
+REAL(KIND=JPRB) :: REFVALI = 0.0_JPRB ! Reference value for initialisation, used in case NREQIN==-1
 LOGICAL :: LREQOUT   = .FALSE.  ! T if field requiered in output
 LOGICAL :: LGPINGP   = .FALSE.  ! GP field input as GP
 LOGICAL :: LMGRID    = .FALSE.  ! GP field to run on a different resolution grid
