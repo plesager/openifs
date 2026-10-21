@@ -307,13 +307,11 @@ ELSE
   YPHYCTY_NL%LGP=.FALSE.
 ENDIF
 
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
+! Microphysics fields are GP fields
 YCDNC_NL%LGP   =.TRUE.
 YICNC_NL%LGP   =.TRUE.
 YRE_LIQ_NL%LGP =.TRUE.
 YRE_ICE_NL%LGP =.TRUE.
-!END IF
 
 ! * Default for attribute LSP
 !   (some of them will be readjusted after some namelists reading).
@@ -447,13 +445,12 @@ ELSE
   YRSPEC_NL%LSP=.FALSE.
   YPHYCTY_NL%LSP=.FALSE.
 ENDIF
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
+
+! Not SP fields
 YCDNC_NL%LSP=.FALSE.
 YICNC_NL%LSP=.FALSE.
 YRE_LIQ_NL%LSP=.FALSE.
 YRE_ICE_NL%LSP=.FALSE.
-!END IF
 
 ! * Default for attribute NREQIN
 IF (ANY(SPREAD(ICONF,1,4) == (/1,302,601,801/))) THEN
@@ -636,13 +633,12 @@ ELSE
   YRSPEC_NL%NREQIN=0
   YPHYCTY_NL%NREQIN=0
 ENDIF
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
-YCDNC_NL%NREQIN=0
-YICNC_NL%NREQIN=0
+
+! Use REFVALI by default for the microphysics fields
+YCDNC_NL%NREQIN=-1
+YICNC_NL%NREQIN=-1
 YRE_LIQ_NL%NREQIN=-1
 YRE_ICE_NL%NREQIN=-1
-!END IF
 
 ! * Default for attribute REFVALI
 !   REFVALI is useful only when NREQIN=-1,
@@ -827,12 +823,12 @@ ELSE
   YPHYCTY_NL%REFVALI= ZREFVALI_USELESS
   YFSD_NL%REFVALI= ZREFVALI_USELESS
 ENDIF
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
-YCDNC_NL%REFVALI = ZREFVALI_USELESS
-YICNC_NL%REFVALI = ZREFVALI_USELESS
-YRE_LIQ_NL%REFVALI = 4.0_JPRB
-YRE_ICE_NL%REFVALI = 20.0_JPRB
+
+! Default values for the microphysics fields if NREQIN==-1 and not defined in namelist
+YCDNC_NL%REFVALI = 125.0_JPRB  ! CDNC in cm-3
+YICNC_NL%REFVALI = 0.027_JPRB  ! ICNC in cm-3 (RNICE from sucldp.F90)
+YRE_LIQ_NL%REFVALI = 4.0E-6_JPRB   ! 4.0 micron into meters
+YRE_ICE_NL%REFVALI = 52.0E-6_JPRB  ! 52.0 micron into meters
 
 ! * Default for attribute LREQOUT
 !   ky: I don't know exactly what to do for conf other than 1,601,801.
@@ -970,14 +966,11 @@ ELSE
   YPHYCTY_NL%LREQOUT= .FALSE.
 ENDIF
 
-
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
+! not requested in the output
 YCDNC_NL%LREQOUT = .FALSE.
 YICNC_NL%LREQOUT = .FALSE.
 YRE_LIQ_NL%LREQOUT = .FALSE.
 YRE_ICE_NL%LREQOUT = .FALSE.
-!END IF
 
 ! * Default for attribute LGPINGP
 IF (LECMWF) THEN
@@ -1113,13 +1106,12 @@ ELSE
   ENDIF
 ENDIF
 YRSPEC_NL%LGPINGP  = .TRUE.
-!eehol: added cloud properties
-!IF (LECEARTH .OR. LECEARTH_UNCOUP) THEN
-YCDNC_NL%LGPINGP   = .FALSE.
-YICNC_NL%LGPINGP   = .FALSE.
-YRE_LIQ_NL%LGPINGP = .FALSE.
-YRE_ICE_NL%LGPINGP = .FALSE.
-!END IF
+
+! Do not skip reading if NREQIN=1
+YCDNC_NL%LGPINGP   = .TRUE.
+YICNC_NL%LGPINGP   = .TRUE.
+YRE_LIQ_NL%LGPINGP = .TRUE.
+YRE_ICE_NL%LGPINGP = .TRUE.
 
 ! * Default for attribute LTRAJIO
 IF (LECMWF) THEN
