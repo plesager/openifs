@@ -1,1 +1,0 @@
-../../t21/ifsdata/socrates_droplet_scattering_rrtm.nc
