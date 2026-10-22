@@ -10,10 +10,92 @@ if( IFS_EXECUTABLE_NAME STREQUAL ifsMASTER.DP )
   set(DOUBLE_PRECISION ON)
 endif()
 
-set(APATH_255l_2 /hpcperm/nm6/oifs48r1-data/48r1/climate.v020/255l_2) 
+# --- Paths for T255 datasets ---
+
+# Determine inidata path (look in cache first, then source dir if extracted there)
+find_path( T255_INIDATA_PATH
+  NAMES ICMGGham7INIT
+  PATHS
+    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/t255/inidata
+    ${DATA_CACHE_DIR}/ifs-test/tests/t255/inidata
+    ${DATA_CACHE_DIR}/t255/inidata
+    ${CMAKE_CURRENT_SOURCE_DIR}/inidata
+  NO_DEFAULT_PATH
+)
+if( NOT T255_INIDATA_PATH )
+  set( T255_INIDATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/inidata" )
+endif()
+
+# Determine compo_data path
+find_path( T255_COMPO_DATA_PATH
+  NAMES aerosol_reduce.dat
+  PATHS
+    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/compo_data
+    ${DATA_CACHE_DIR}/ifs-test/tests/compo_data
+    ${COMPO_DATA_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data
+  NO_DEFAULT_PATH
+)
+if( NOT T255_COMPO_DATA_PATH )
+  set( T255_COMPO_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../compo_data" )
+endif()
+
+# Determine static ifsdata path
+find_path( T255_STATIC_DATA_PATH
+  NAMES rtable_2021
+  PATHS
+    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/t255/ifsdata
+    ${DATA_CACHE_DIR}/ifs-test/tests/t255/ifsdata
+    ${STATIC_DATA_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/ifsdata
+  NO_DEFAULT_PATH
+)
+if( NOT T255_STATIC_DATA_PATH )
+  set( T255_STATIC_DATA_PATH "${STATIC_DATA_PATH}" )
+endif()
+
+# Determine 255l_2 climate data directory
+if( NOT APATH_255l_2 )
+  if( DEFINED ENV{APATH_255l_2} )
+    set( APATH_255l_2 "$ENV{APATH_255l_2}" )
+  endif()
+endif()
+
+if( NOT APATH_255l_2 )
+  set( _255l_2_search_paths
+    "$ENV{OIFS_DATA_DIR}/$ENV{OIFS_CLIMATE}/255l_2"
+    "$ENV{OIFS_DATA_DIR}/climate.v020/255l_2"
+    "$ENV{OIFS_DATA_DIR}/48r1/climate.v020/255l_2"
+    "$ENV{OIFS_DATA_DIR}/255l_2"
+    "$ENV{OIFS_HOME}/openifs-data/climate.v020/255l_2"
+    "$ENV{OIFS_HOME}/openifs-data/255l_2"
+    "${PROJECT_SOURCE_DIR}/openifs-data/climate.v020/255l_2"
+    "${PROJECT_SOURCE_DIR}/openifs-data/255l_2"
+    "${DATA_CACHE_DIR}/climate.v020/255l_2"
+    "${DATA_CACHE_DIR}/255l_2"
+    "/hpcperm/nm6/oifs48r1-data/48r1/climate.v020/255l_2"
+    "/ec/res4/hpcperm/nld5163/openifs/oifs_data/48r1/climate.v020/255l_2"
+    "/projappl/project_465000527/models/ifs/ecpds/ifs-test-inidata/48r1/climate.v020/255l_2"
+    "/gpfs/projects/bsc32/models/openifs/ifs-test-inidata/48r1/climate.v020/255l_2"
+  )
+  foreach( _path IN LISTS _255l_2_search_paths )
+    if( EXISTS "${_path}" )
+      set( APATH_255l_2 "${_path}" )
+      break()
+    endif()
+  endforeach()
+endif()
+
+set( APATH_255l_2 "${APATH_255l_2}" CACHE PATH "Path to 255l_2 climate data directory" )
+
+if( NOT EXISTS "${APATH_255l_2}" )
+  ecbuild_warn("APATH_255l_2 was set to '${APATH_255l_2}', but the directory does not exist. Specify -DAPATH_255l_2=<path> or set OIFS_DATA_DIR in your environment.")
+else()
+  ecbuild_info("Using 255l_2 climate data from: ${APATH_255l_2}")
+endif()
 
 execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-  ${CMAKE_CURRENT_SOURCE_DIR}/ifsdata ${CMAKE_CURRENT_BINARY_DIR}/ifsdata )
+  ${T255_STATIC_DATA_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ifsdata )
 
 add_subdirectory( common )
 
@@ -49,69 +131,66 @@ function( add_ifs_test TARGET )
       ${SHARE_BINARY_DIR}/ifs_env ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ifs_env )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMGGham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMGGham7INIT )
+      ${T255_INIDATA_PATH}/ICMGGham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMGGham7INIT )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMGGham7INIUA ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMGGham7INIUA )
+      ${T255_INIDATA_PATH}/ICMGGham7INIUA ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMGGham7INIUA )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMSHham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMSHham7INIT )
+      ${T255_INIDATA_PATH}/ICMSHham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMSHham7INIT )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMCLham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT )
+      ${T255_INIDATA_PATH}/ICMCLham7INIT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/inidata/ICMCLham7INIT_COMPO ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT_COMPO )
+      ${T255_INIDATA_PATH}/ICMCLham7INIT_COMPO ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ICMCLham7INIT_COMPO )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lut_optical_properties_lw_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_lw_M7.nc)
+      ${T255_COMPO_DATA_PATH}/m7/lut_optical_properties_lw_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_lw_M7.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lut_optical_properties_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_M7.nc)
+      ${T255_COMPO_DATA_PATH}/m7/lut_optical_properties_M7.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_optical_properties_M7.nc)
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lookup_table.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lookup_table.nc)
+      ${T255_COMPO_DATA_PATH}/m7/lookup_table.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lookup_table.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/refractive_indices_hdfstyle.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/refractive_indices_hdfstyle.nc)
+      ${T255_COMPO_DATA_PATH}/m7/refractive_indices_hdfstyle.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/refractive_indices_hdfstyle.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/namelist.echam ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/namelist.echam)
+      ${T255_COMPO_DATA_PATH}/m7/namelist.echam ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/namelist.echam)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/parnuc.15H2SO4.A0.total.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/parnuc.15H2SO4.nc)
+      ${T255_COMPO_DATA_PATH}/m7/parnuc.15H2SO4.A0.total.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/parnuc.15H2SO4.nc)
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/m7/lut_kappa.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_kappa.nc)
+      ${T255_COMPO_DATA_PATH}/m7/lut_kappa.nc ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/lut_kappa.nc)
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/OMI.data.extraterrest ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/OMI.data.extraterrest )
+      ${T255_COMPO_DATA_PATH}/OMI.data.extraterrest ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/OMI.data.extraterrest )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/aerosol_reduce.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aerosol_reduce.dat )
+      ${T255_COMPO_DATA_PATH}/aerosol_reduce.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aerosol_reduce.dat )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/tropo_look_up_cbmhybrid.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/tropo_look_up_cbmhybrid.dat )
+      ${T255_COMPO_DATA_PATH}/tropo_look_up_cbmhybrid.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/tropo_look_up_cbmhybrid.dat )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/uars_ratio.txt ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/uars_ratio.txt )
+      ${T255_COMPO_DATA_PATH}/uars_ratio.txt ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/uars_ratio.txt )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/haloe_ch4clim.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/haloe_ch4clim.dat )
+      ${T255_COMPO_DATA_PATH}/haloe_ch4clim.dat ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/haloe_ch4clim.dat )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/255l_2/L91/aeroclim.grib ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aeroclim.grib )
+      ${T255_COMPO_DATA_PATH}/255l_2/L91/aeroclim.grib ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/aeroclim.grib )
     
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink ${APATH_255l_2} ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/255l_2 )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/composition ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/composition )
-
-    # execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-    #  ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data/255l_2 ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/255l_2 )
+      ${T255_COMPO_DATA_PATH}/composition ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/composition )
 
     execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/ifsdata ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ifsdata )
+      ${T255_STATIC_DATA_PATH} ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/ifsdata )
 
     if( EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${TARGET}/params" )
       execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink
