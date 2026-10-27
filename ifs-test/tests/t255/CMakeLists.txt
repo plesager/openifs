@@ -1,4 +1,5 @@
 # (C) Copyright 1996-2019 ECMWF.
+# (C) Copyright 2026 KNMI.
 
 get_filename_component(IFS_EXECUTABLE_NAME ${IFS_EXECUTABLE} NAME)
 
@@ -16,42 +17,36 @@ endif()
 find_path( T255_INIDATA_PATH
   NAMES ICMGGham7INIT
   PATHS
-    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/t255/inidata
-    ${DATA_CACHE_DIR}/ifs-test/tests/t255/inidata
-    ${DATA_CACHE_DIR}/t255/inidata
+    ${DATA_CACHE_DIR}/compo_t255/t255/inidata
     ${CMAKE_CURRENT_SOURCE_DIR}/inidata
   NO_DEFAULT_PATH
 )
 if( NOT T255_INIDATA_PATH )
-  set( T255_INIDATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/inidata" )
+  ecbuild_warn("Could not find t255/inidata. M7 test cannot be run!" )
 endif()
 
 # Determine compo_data path
 find_path( T255_COMPO_DATA_PATH
   NAMES aerosol_reduce.dat
   PATHS
-    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/compo_data
-    ${DATA_CACHE_DIR}/ifs-test/tests/compo_data
-    ${COMPO_DATA_PATH}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compo_data
+    ${DATA_CACHE_DIR}/compo_t255/compo_data
+    ${CMAKE_CURRENT_SOURCE_DIR}/compo_data
   NO_DEFAULT_PATH
 )
 if( NOT T255_COMPO_DATA_PATH )
-  set( T255_COMPO_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../compo_data" )
+  ecbuild_warn("Could not find T255 compo data. M7 test cannot be run!" )
 endif()
 
 # Determine static ifsdata path
 find_path( T255_STATIC_DATA_PATH
   NAMES rtable_2021
   PATHS
-    ${DATA_CACHE_DIR}/compo_t255/ifs-test/tests/t255/ifsdata
-    ${DATA_CACHE_DIR}/ifs-test/tests/t255/ifsdata
-    ${STATIC_DATA_PATH}
+    ${DATA_CACHE_DIR}/compo_t255/t255/ifsdata
     ${CMAKE_CURRENT_SOURCE_DIR}/ifsdata
   NO_DEFAULT_PATH
 )
 if( NOT T255_STATIC_DATA_PATH )
-  set( T255_STATIC_DATA_PATH "${STATIC_DATA_PATH}" )
+  ecbuild_warn("Could not find t255/ifsdata. M7 test cannot be run!" )
 endif()
 
 # Determine 255l_2 climate data directory
@@ -66,17 +61,6 @@ if( NOT APATH_255l_2 )
     "$ENV{OIFS_DATA_DIR}/$ENV{OIFS_CLIMATE}/255l_2"
     "$ENV{OIFS_DATA_DIR}/climate.v020/255l_2"
     "$ENV{OIFS_DATA_DIR}/48r1/climate.v020/255l_2"
-    "$ENV{OIFS_DATA_DIR}/255l_2"
-    "$ENV{OIFS_HOME}/openifs-data/climate.v020/255l_2"
-    "$ENV{OIFS_HOME}/openifs-data/255l_2"
-    "${PROJECT_SOURCE_DIR}/openifs-data/climate.v020/255l_2"
-    "${PROJECT_SOURCE_DIR}/openifs-data/255l_2"
-    "${DATA_CACHE_DIR}/climate.v020/255l_2"
-    "${DATA_CACHE_DIR}/255l_2"
-    "/hpcperm/nm6/oifs48r1-data/48r1/climate.v020/255l_2"
-    "/ec/res4/hpcperm/nld5163/openifs/oifs_data/48r1/climate.v020/255l_2"
-    "/projappl/project_465000527/models/ifs/ecpds/ifs-test-inidata/48r1/climate.v020/255l_2"
-    "/gpfs/projects/bsc32/models/openifs/ifs-test-inidata/48r1/climate.v020/255l_2"
   )
   foreach( _path IN LISTS _255l_2_search_paths )
     if( EXISTS "${_path}" )
@@ -89,7 +73,7 @@ endif()
 set( APATH_255l_2 "${APATH_255l_2}" CACHE PATH "Path to 255l_2 climate data directory" )
 
 if( NOT EXISTS "${APATH_255l_2}" )
-  ecbuild_warn("APATH_255l_2 was set to '${APATH_255l_2}', but the directory does not exist. Specify -DAPATH_255l_2=<path> or set OIFS_DATA_DIR in your environment.")
+  ecbuild_warn("APATH_255l_2 was set to '${APATH_255l_2}', but the directory does not exist. M7 test cannot be run. Download climate.v020/255l_2")
 else()
   ecbuild_info("Using 255l_2 climate data from: ${APATH_255l_2}")
 endif()

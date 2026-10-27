@@ -28,20 +28,15 @@ external_data:
     - type:     file
       root: /gpfs/projects/bsc32/models/openifs/ifs-test-inidata/
 
-    # Default path on ECMWF/hpc2020 for not-available-yet-in-ECPDS M7@TL255L91 testdata.
-    # Other groups (Lumi, MN5) can download:
+    # Default path on ECMWF/hpc2020 for not-available-yet-in-ECPDS M7@TL255L91 test data.
+    # Other groups (Lumi, MN5) can download from ECFS:
     # 
-    #    48r1/compo/auxiliary-data-4-ifs-tests-compo-2026-10-14.tar.gz
+    #    ec:/nm6/OIFS/auxiliary-data-4-ifs-tests-compo-2026-10-22.tar.gz
     #    
-    # into their root specified above from
+    # into their root specified above, as:
     # 
-    #    ec:/nm6/OIFS/auxiliary-data-4-ifs-tests-compo-2026-10-14.tar.gz
+    #    48r1/compo/auxiliary-data-4-ifs-tests-compo-2026-10-22.tar.gz
     #    
-    # or use the:
-    # 
-    #    -DIFS_TEST_CUSTOM_DATA_SOURCE=<root>
-    #    
-    # when building the model
     - type:     file
       root: /hpcperm/nldac/openifs/ifs-test-inidata/
 
@@ -75,6 +70,6 @@ external_data:
       target_path: compo_data.tar.gz
       extract_path: compo_data
 
-    - source_path: 48r1/compo/auxiliary-data-4-ifs-tests-compo-2026-10-14.tar.gz
-      target_path: auxiliary-data-4-ifs-tests-compo-2026-10-14.tar.gz
+    - source_path: 48r1/compo/auxiliary-data-4-ifs-tests-compo-2026-10-22.tar.gz
+      target_path: auxiliary-data-4-ifs-tests-compo-2026-10-22.tar.gz
       extract_path: compo_t255
