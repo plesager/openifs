@@ -65,8 +65,10 @@ The `bin/bootstrap` or `bin/storage.py cache` commands put the ECPDS data into
 the cache directory, keeping the original directory structure - the files won't
 be moved to `target_path/extract_path`. 
  
-Please note that the bootstrap script (and `bin/storage.py`) require at least
-Python 3.8.
+Please note that the bootstrap script requires at least Python 3.10, including
+when reusing its virtual environment. It installs pip 26.2.2 from a SHA-256-checked
+wheel and upgrades certifi to version 2026.10.19 or newer. `bin/storage.py` requires
+at least Python 3.8 when used directly.
 
 To use the cached data when building `ifs-test`, set the 
 `IFS_TEST_CUSTOM_DATA_SOURCE` CMake flag to the cache directory
