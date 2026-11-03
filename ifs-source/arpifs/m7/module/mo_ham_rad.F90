@@ -1189,7 +1189,6 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
-                ! PLS - TODO: SAFE DIVISION
                 IF (aer_piz_sw_vr(jl,jk,jwv) > THRESHOLD ) THEN 
                    aer_cg_sw_vr(jl,jk,jwv) =aer_cg_sw_vr(jl,jk,jwv)/aer_piz_sw_vr(jl,jk,jwv)
                 END IF
@@ -1515,7 +1514,6 @@ CONTAINS
 
           DO jk=1, klev
              DO jl=1, kproma
-               ! PLS - TODO: SAFE DIVISION
                IF (zaer_ssa_diag(jl,jk,jwv) > THRESHOLD) THEN 
                  zaer_asym_diag(jl,jk,jwv) = zaer_asym_diag(jl,jk,jwv)/zaer_ssa_diag(jl,jk,jwv)
                  zaer_ssa_diag(jl,jk,jwv)  = zaer_ssa_diag(jl,jk,jwv)/ zaer_tau_diag(jl,jk,jwv)
