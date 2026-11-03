@@ -123,7 +123,7 @@ DO JL=KIDIA,KFDIA
     ZDKH2O(JL) =1.01E-14_JPRB*EXP(-6706.0_JPRB *ZTR)   !h2o<=>hplus+so3--
     ZHKCO2(JL) =3.4E-2_JPRB*EXP(2420._JPRB*ZTR)        ! is already dimensionless
     !CMK BUG 092005 hkco2(JL) =3.4e-2*(2420.*ZTR)     ! is already dimensionless
-    ZDKCO2(JL) =4.5E-7_JPRB*EXP(-1000._JPRB*ZTR)       !co2aq<=>hco3- + hplus
+    ZDKCO2(JL) =4.3E-7_JPRB*EXP(-1000._JPRB*ZTR)       !co2aq<=>hco3- + hplus, prefactor from Seinfeld and Pandis (2016), Table 7.4
     ZHKSO2(JL) =HENRY(ISO2,ITEMP)*ZRT                   !dimensionless
     ZDKNH3(JL) =1.7E-5_JPRB*EXP(-450._JPRB*ZTR)        !nh3<=>nh4+ + OH-
     ZHKNH3(JL) =HENRY(INH3,ITEMP)*ZRT                   !dimensionless
