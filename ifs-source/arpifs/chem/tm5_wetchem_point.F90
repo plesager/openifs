@@ -181,8 +181,8 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_POINT',0,ZHOOK_HANDLE )
 
     ! the original rate equations could be partly in look-up table
 
-    ZRW(KSO2HP) =8E4_JPRB    *EXP(-3560._JPRB*ZTR)/(0.1_JPRB+PHPLUS)
-    ZXSO2O3A       =4.39E11_JPRB*EXP(-4131._JPRB/ZTEMP)+2.56E3_JPRB*EXP(-966._JPRB/ZTEMP)  !S(IV)
+    ZRW(KSO2HP) =8E4_JPRB    *EXP(-3650._JPRB*ZTR)/(0.1_JPRB+PHPLUS)  ! Martin and Damschen (1981), T-dep. Nair and Peters (1989)
+    ZXSO2O3A       =4.39E11_JPRB*EXP(-4131._JPRB/ZTEMP)  !S(IV), Maahs (1983)
     ZXSO2O3B       =2.56E3_JPRB *EXP(-966._JPRB /ZTEMP)/PHPLUS  
     !divide by [H+]!S(IV)
 
