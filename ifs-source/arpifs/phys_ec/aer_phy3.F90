@@ -502,6 +502,15 @@ IF (NTYPAER(5) /= 0) THEN
           &  ZSO2  , ZITSO2, PGFL(:,:,YAEROCLIM(1)%MP), &
           &  PGFL(:,:,YAEROCLIM(2)%MP), PGFL(:,:,YAEROCLIM(3)%MP) ,&
           &  ZTSO2 , ZTSO4, ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDP )
+          ! Add aqueous-phase production, which is returned separately
+          DO JK=1,KLEV
+            DO JL=KIDIA,KFDIA
+              ZTSO4(JL,JK)=ZTSO4(JL,JK)+ZTSO4_AQ(JL,JK)
+            ENDDO
+          ENDDO
+          DO JL=KIDIA,KFDIA
+            ZFSO4(JL)=ZFSO4(JL)+ZFSO4_AQ(JL)
+          ENDDO
 
         CASE DEFAULT
           CALL ABOR1('ABORT: IN AER_PHY3, NSO4SCHEME MUST BE 1 OR 2')
@@ -625,6 +634,12 @@ IF (LAERVOL) THEN
           &  ZSO2  , ZITSO2, PGFL(:,:,YAEROCLIM(1)%MP), &
           &  PGFL(:,:,YAEROCLIM(2)%MP), PGFL(:,:,YAEROCLIM(3)%MP) ,&
           &  ZTSO2 , ZTSO4, ZTSO4_AQ, ZFSO2, ZFSO4, ZFSO4_AQ, ZDP )
+        ! Add aqueous-phase production, which is returned separately
+        DO JK=1,KLEV
+          DO JL=KIDIA,KFDIA
+            ZTSO4(JL,JK)=ZTSO4(JL,JK)+ZTSO4_AQ(JL,JK)
+          ENDDO
+        ENDDO
       CASE DEFAULT
         CALL ABOR1('ABORT: IN AER_PHY3, NSO4SCHEME MUST BE 1 OR 2')
       END SELECT
