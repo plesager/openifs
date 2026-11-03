@@ -64,7 +64,7 @@ REAL(KIND=JPRB), INTENT(INOUT)     :: PY(YGFL%NCHEM)
 REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 
 INTEGER(KIND=JPIM)        :: ITEMP,ITER
-REAL(KIND=JPRB)           :: ZX1,ZX2,ZX3,ZB1,ZB2,ZSO2X,ZDSO2,ZDISC,ZDNH3,ZXSO2O3A,ZXSO2O3B
+REAL(KIND=JPRB)           :: ZX1,ZX2,ZX3,ZB1,ZB2,ZSO2X,ZDSO2,ZDISC,ZDNH3,ZXSO2O3
 REAL(KIND=JPRB),PARAMETER :: ZCO2=3.90E-4 ! approx global mean CO2 mixing ratio, 2000-2010 period
 REAL(KIND=JPRB),PARAMETER :: ZRG=0.08314
 REAL(KIND=JPRB)           :: ZAIRD
@@ -80,7 +80,7 @@ REAL(KIND=JPRB)           :: ZHKNH3  ! Henry's constant ammonia
 REAL(KIND=JPRB)           :: ZHKCO2  ! Henry's constant CO2
 REAL(KIND=JPRB)           :: ZDKCO2  ! Dissociation constant CO2
 REAL(KIND=JPRB)           :: ZPHS4     ! effective dissolvation of S(IV)
-REAL(KIND=JPRB)           :: ZPHSO2    ! effective dissolvation of SO2
+REAL(KIND=JPRB) :: ZFSO2, ZFHSO3, ZFSO3          ! fractions of aqueous S(IV) as SO2.H2O, HSO3- and SO3--
 REAL(KIND=JPRB)           :: ZPHH2O2   ! effective dissolvation of H2O2
 REAL(KIND=JPRB)           :: ZPHOZONE  ! effective dissolvation of O3
 REAL(KIND=JPRB)           :: ZPH       ! pH
@@ -175,25 +175,32 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_POINT',0,ZHOOK_HANDLE )
 
     ZPHS4   = ZHKSO2 *(1._JPRB+ZDKSO2/PHPLUS+&
             & ZDKSO2*ZDKHSO3/PHPLUS/PHPLUS)*ZXLIQR
-    ZPHSO2  =ZHKSO2  *ZXLIQR
     ZPHH2O2 =ZHKH2O2 *ZXLIQR
     ZPHOZONE=ZHKO3   *ZXLIQR
 
-    ! the original rate equations could be partly in look-up table
+    ! fractions of aqueous S(IV) present as SO2.H2O, HSO3- and SO3--
 
-    ZRW(KSO2HP) =8E4_JPRB    *EXP(-3650._JPRB*ZTR)/(0.1_JPRB+PHPLUS)  ! Martin and Damschen (1981), T-dep. Nair and Peters (1989)
-    ZXSO2O3A       =4.39E11_JPRB*EXP(-4131._JPRB/ZTEMP)  !S(IV), Maahs (1983)
-    ZXSO2O3B       =2.56E3_JPRB *EXP(-966._JPRB /ZTEMP)/PHPLUS  
-    !divide by [H+]!S(IV)
+    ZFSO2  = 1._JPRB/(1._JPRB+ZDKSO2/PHPLUS+ZDKSO2*ZDKHSO3/PHPLUS/PHPLUS)
+    ZFHSO3 = ZFSO2*ZDKSO2/PHPLUS
+    ZFSO3  = ZFHSO3*ZDKHSO3/PHPLUS
+
+    ! aqueous-phase rate constants per mole of S(IV)(aq) (M-1 s-1), following
+    ! Seinfeld and Pandis (2016), as in the simplified chemistry (AER_SO2SO4_V2)
+    ! S(IV) + H2O2: k[H+]/(1+K[H+]) with k=7.5E7*exp(-4430*ZTR) M-2 s-1 and K=13 M-1,
+    !               reaction with HSO3- (Hoffmann and Calvert, 1985; McArdle and Hoffmann, 1983)
+    ZRW(KSO2HP) = 7.5E7_JPRB*EXP(-4430._JPRB*ZTR)*PHPLUS/(1._JPRB+13._JPRB*PHPLUS)*ZFHSO3
+    ! S(IV) + O3: reactions with SO2.H2O, HSO3- and SO3-- (Hoffmann and Calvert, 1985;
+    !             Erickson et al., 1977)
+    ZXSO2O3 = 2.4E4_JPRB*ZFSO2 + 3.7E5_JPRB*EXP(-5530._JPRB*ZTR)*ZFHSO3 &
+          & + 1.5E9_JPRB*EXP(-5280._JPRB*ZTR)*ZFSO3
 
     !  make rate constants dimensionless by multiplying 
     !  by (1./ZXLIQR/avo=6e20)  
     !  multiply with the fractions of concentrations residing 
     !  in the aqueous phase
 
-    ZRW(KSO2HP)=ZRW(KSO2HP)/ZXL*ZPHSO2/(1._JPRB+ZPHS4)*ZPHH2O2/(1._JPRB+ZPHH2O2)
-    ZRW(KSO2O3)=(ZXSO2O3A+ZXSO2O3B)/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHOZONE/&
-                & (1._JPRB+ZPHOZONE)
+    ZRW(KSO2HP)=ZRW(KSO2HP)/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHH2O2/(1._JPRB+ZPHH2O2)
+    ZRW(KSO2O3)=ZXSO2O3/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHOZONE/(1._JPRB+ZPHOZONE)
 
    !
    ! only cloud chemistry if substantial amount of clouds are present 
