@@ -176,16 +176,15 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   
   INTEGER :: it,jl,jk,jc,jn,jt,jspec,jclass,ilevp1
   
-  REAL(dp):: ztmst, zqtmst, zqs !NOT-USED-AND-BROKEN-IN-SP-[PLS]: zq_amb
+  REAL(dp):: ztmst, zqtmst, zqs
   
   REAL(dp):: zfac,     zqfac,            &
              zfacm,    zqfacm,           &
              zfacc,    zqfacc,           &
-             zfacn,    zqfacn     !,           &
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]             zeps,     zaclc
+             zfacn,    zqfacn
 
-  !eehol: RH change to cloud free
-  REAL(dp):: zq_amb, zeps, zaclc
+  ! RH change to cloud free
+  REAL(dp):: zq_amb, zeps, zaclc, denom
 
   REAL(dp) :: zfac_vmr                     ! Conversion of vmr to molecules cm-3   
 #ifdef HAMMOZ
@@ -241,7 +240,6 @@ INTEGER:: KIDIA
   ztmst      = time_step_len
   zqtmst     = 1._dp/time_step_len
   
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]  zeps       = 1.E-10_dp
   zeps = THRESHOLD
   
   ilevp1     = klev+1
@@ -302,17 +300,14 @@ INTEGER:: KIDIA
       !<--eehol
       zqs = pqs(jl,jk) !eehol: read zqs from input sat. spec. hum
       
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zaclc = MIN(paclc(jl,jk),1.0_dp-zeps)
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zq_amb = MAX( 0.0_dp , (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
+      !PREVIOUSLY::  zrh(jl,jk) = pq(jl,jk)/zqs ! to mimic OIFS (ie gridbox mean)
+      !NOW:: clear-sky
+      zaclc = MIN( MAX(paclc(jl,jk), 0.0_dp), 1.0_dp ) ! robustness/physical bounds
+      denom = MAX( 1.0_dp - zaclc, zeps )              ! safety against zero division
+      zq_amb = max( 0.0_dp, (pq(jl,jk) - zqs*zaclc) / denom )
 
-      zaclc = MIN( paclc(jl,jk), 1.0_dp-zeps )
-      zq_amb = MAX( 0.0_dp, (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
-
-      zrh(jl,jk) = zq_amb/zqs
-      !zrh(jl,jk) = pq(jl,jk)/zqs !changed to same as OIFS
-
-      zrh(jl,jk) = MAX(0.0_dp,MIN(zrh(jl,jk),1.0_dp))
+      zrh(jl,jk) = zq_amb / zqs
+      zrh(jl,jk) = MAX(0.0_dp, MIN(zrh(jl,jk),1.0_dp))
       
       !--- Air mass auxiliary variable:
       
