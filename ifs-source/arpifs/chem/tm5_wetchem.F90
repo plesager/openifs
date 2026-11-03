@@ -131,7 +131,7 @@ DO JL=KIDIA,KFDIA
     ZHKH2O2(JL)=HENRY(IH2O2,ITEMP)*ZRT                  !dimensionless
     ZHKO3(JL)  =HENRY(IO3,ITEMP)*ZRT                    !dimensionless
     ZDKSO2(JL) =1.3E-2_JPRB*EXP(1960._JPRB*ZTR)        !so2<=>hso3m+hplus, Seinfeld and Pandis (2016), Table 7.A.1
-    ZDKHSO3(JL)=6.6E-8_JPRB*EXP(1510._JPRB*ZTR)        !hso3m<=>so3-- + hplus
+    ZDKHSO3(JL)=6.6E-8_JPRB*EXP(1500._JPRB*ZTR)        !hso3m<=>so3-- + hplus, Seinfeld and Pandis (2016), Table 7.A.1
     !
     ! calculate H+ from initial sulfate, ammonium, hno3, and nh3
     ! if solution is strongly acidic no further calculations are performed
