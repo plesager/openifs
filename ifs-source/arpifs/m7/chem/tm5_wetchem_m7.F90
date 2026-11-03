@@ -159,14 +159,15 @@ DO ITER=1,10
        IF ( LLCLOUDY(JL)  ) THEN
           IF (  (PHPLUS(JL) < 3E-5_JPRB) ) THEN
             ZXL=ZXLIQ(JL)*RNAVO*1E-3_JPRB/PAP(JL)
+            ZXLIQR=ZXLIQ(JL)/PAP(JL)  ! in-cloud liquid water volume fraction
             ZX1=(2._JPRB*ZSULPH(JL)+PY0(JL,IMSA)+PY0(JL,IHNO3)+PY0(JL,INO3_A))/ZXL    
             !ZX2 is initial total NHx
             ZX2=(PY0(JL,INH3)+PY0(JL,INH4))/ZXL
             !ZX3 is combined dissolution and solubility const for CO2
             ZX3=ZDKCO2(JL)*ZHKCO2(JL)*ZCO2 
-            ZA1=ZDKH2O(JL)/ZDKNH3(JL)*(1._JPRB+1._JPRB/ZHKNH3(JL)) ! integration constant
+            ZA1=ZDKH2O(JL)/ZDKNH3(JL)*(1._JPRB+1._JPRB/(ZHKNH3(JL)*ZXLIQR)) ! integration constant
             ZA2=PY0(JL,ISO2)/ZXL      !initial SO2
-            ZZ =ZA2/(PHPLUS(JL)/ZDKSO2(JL)*(1._JPRB+1._JPRB/ZHKSO2(JL))+ &
+            ZZ =ZA2/(PHPLUS(JL)/ZDKSO2(JL)*(1._JPRB+1._JPRB/(ZHKSO2(JL)*ZXLIQR))+ &
               &  ZDKHSO3(JL)/PHPLUS(JL)+1._JPRB)
             ZA=1._JPRB+ZX2/(ZA1+PHPLUS(JL))
             ZB=-ZX1-ZZ

@@ -147,17 +147,18 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_POINT',0,ZHOOK_HANDLE )
     ZDKHSO3=6.6E-8_JPRB*EXP(1500._JPRB*ZTR)        !hso3m<=>so3-- + hplus, Seinfeld and Pandis (2016), Table 7.A.1
 
     ZXL=ZXLIQ*RNAVO*1E-3_JPRB/PAP
+    ZXLIQR=ZXLIQ/PAP  ! in-cloud liquid water volume fraction
     ZX1=(2._JPRB*PY(ISO4)+PY(IMSA)+PY(IHNO3)+PY(INO3_A))/ZXL    
     !ZX2 is initial total NHx
     ZX2=(PY(INH3)+PY(INH4))/ZXL
     !ZX3 is combined dissolution and solubility const for CO2
     ZX3=ZDKCO2*ZHKCO2*ZCO2 
-    ZA1=ZDKH2O/ZDKNH3*(1._JPRB+1._JPRB/ZHKNH3) ! integration constant
+    ZA1=ZDKH2O/ZDKNH3*(1._JPRB+1._JPRB/(ZHKNH3*ZXLIQR)) ! integration constant
     ZA2=PY(ISO2)/ZXL      !initial SO2
 
     DO ITER=1,10
       IF (  (PHPLUS < 3E-5_JPRB) ) THEN
-        ZZ =ZA2/(PHPLUS/ZDKSO2*(1._JPRB+1._JPRB/ZHKSO2)+&
+        ZZ =ZA2/(PHPLUS/ZDKSO2*(1._JPRB+1._JPRB/(ZHKSO2*ZXLIQR))+&
           &  ZDKHSO3/PHPLUS+1._JPRB)
         ZA=1._JPRB+ZX2/(ZA1+PHPLUS)
         ZB=-ZX1-ZZ
