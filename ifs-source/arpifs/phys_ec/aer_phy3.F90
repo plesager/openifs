@@ -485,7 +485,7 @@ IF (NTYPAER(5) /= 0) THEN
 !          ZSO2(JL,JK)=ZAEROK(JL,JK,ISSO2)
           ZSO2(JL,JK)=PAEROP(JL,JK,ISSO2)
           ZITSO2(JL,JK)=ZTAEROK(JL,JK,ISSO2)
-          ZQLI(JL,JK)=PLP(JL,JK)+PIP(JL,JK)
+          ZQLI(JL,JK)=PLP(JL,JK) ! liquid water only, used for aqueous-phase chemistry
         ENDDO
       ENDDO
 
