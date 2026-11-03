@@ -324,6 +324,7 @@ REAL(KIND=JPRB) :: ZTMPA
 
 LOGICAL         :: LLIQCLD(KLON,KLEV) ! logical for liquid cloud
 LOGICAL         :: LICECLD(KLON,KLEV) ! logical for ice cloud
+LOGICAL         :: LLOPTSTEP          ! compute aerosol optics for the radiation call at the next step
 
 REAL(KIND=JPRB), PARAMETER :: ZEPSEC=1e-14_JPRB
 REAL(KIND=JPRB), PARAMETER :: ZMIN_CDNC=10.0_JPRB               !eehol: minimum CDNC (can be changed but for now 10 cm-3)
@@ -1615,9 +1616,11 @@ DO JK=1,KLEV
 ENDDO
 
 
-!*         6.1      Calculate optical properties only when radiation is called
-!                   ----------------------------------------------------------
-IF(MOD(NSTEP,NRADFR) == 0) THEN
+!*         6.1      Calculate optical properties the step before radiation call
+!                   -----------------------------------------------------------
+LLOPTSTEP = (MOD(NSTEP+1,NRADFR) == 0)
+
+IF (LLOPTSTEP) THEN
   
   CALL GSTATS(2506,0)
   ZAER_TAU(KIDIA:KFDIA,:,:,:)  = 0.0_JPRB
@@ -1789,8 +1792,7 @@ END DO
 
 !*         6.3     Fill selective aerosol OD fields in structure as available in IFS-AER
 !                  ---------------------------------------------------------------------
-
-IF(MOD(NSTEP,NRADFR) == 0) THEN ! Use computed values
+IF (LLOPTSTEP) THEN ! Use computed values
   DO JWAVL=1,NAERO_WVL_DIAG
     DO JL=KIDIA,KFDIA
       IF (YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_AOD) THEN
@@ -1910,7 +1912,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
 
   !** YAEROUT(6:10) : Store all requested AOP at selected (diagnostic) wavelengths
   
-  IF(MOD(NSTEP,NRADFR) == 0) THEN
+  IF (LLOPTSTEP) THEN
     IF (YGFL%NAERO_WVL_DIAG_TYPES >= JPAERO_WVL_AOD) THEN
       PGFL(KIDIA:KFDIA, 1:NAERO_WVL_DIAG, YAEROUT(6)%MP) = PAERO_WVL_DIAG(KIDIA:KFDIA, 1:NAERO_WVL_DIAG, JPAERO_WVL_AOD)
     ENDIF
@@ -2064,7 +2066,7 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   END DO
 
   !** YAEROUT(29-30) : LIDAR RATIO (sr) AND LAYER OPTICAL DEPTH AT DIAGNOSTIC WAVELENGTH 2
-  IF(MOD(NSTEP,NRADFR) == 0 .AND. NAEROOPT == 2) THEN
+  IF (LLOPTSTEP .AND. NAEROOPT == 2) THEN
     IF(NAERO_WVL_DIAG > 1 .AND. YGFL%NAERO_WVL_DIAG_TYPES > 0) THEN
       PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(29)%MP) = ZAER_LidarR_DIAG(KIDIA:KFDIA,1:KLEV,2)
       PGFL(KIDIA:KFDIA,1:KLEV,YAEROUT(30)%MP) = ZAER_TAU_DIAG(KIDIA:KFDIA,1:KLEV,2)
