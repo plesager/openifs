@@ -1,4 +1,4 @@
-# Source common environment variables
+s# Source common environment variables
 . ../common/env_vars
 
 # Pre-empt some common namelist settings.
@@ -15,8 +15,8 @@ YQ_NL%LGP=true,
 YQ_NL%LSP=false,
 YO3_NL%LGP=false,
 YQ_NL%LGPINGP=true,
-YR_NL%NREQIN=-1,
-YS_NL%NREQIN=-1,
+YR_NL%NREQIN=0,
+YS_NL%NREQIN=0,
 /
  &NAERAD
  NRPROMA=-8,
