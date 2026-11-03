@@ -143,7 +143,7 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_POINT',0,ZHOOK_HANDLE )
     ZHKNH3 =HENRY(INH3,ITEMP)*ZRT                   !dimensionless
     ZHKH2O2=HENRY(IH2O2,ITEMP)*ZRT                  !dimensionless
     ZHKO3  =HENRY(IO3,ITEMP)*ZRT                    !dimensionless
-    ZDKSO2 =1.3E-2_JPRB*EXP(2090._JPRB*ZTR)        !so2<=>hso3m+hplus
+    ZDKSO2 =1.3E-2_JPRB*EXP(1960._JPRB*ZTR)        !so2<=>hso3m+hplus, Seinfeld and Pandis (2016), Table 7.A.1
     ZDKHSO3=6.6E-8_JPRB*EXP(1510._JPRB*ZTR)        !hso3m<=>so3-- + hplus
 
     ZXL=ZXLIQ*RNAVO*1E-3_JPRB/PAP
