@@ -68,7 +68,7 @@ INTEGER(KIND=JPIM)        :: ITEMP,ITER,JL
 REAL(KIND=JPRB)           :: ZX1,ZX2,ZX3,ZDSO2,ZDNH3,ZXSO2O3
 REAL(KIND=JPRD)           :: ZX1_DP,ZX2_DP,ZX3_DP,ZSO2X_DP,ZDISC_DP,ZB1_DP,ZB2_DP
 REAL(KIND=JPRB),PARAMETER :: ZCO2=3.90E-4 ! approx Global mean CO2 mixing ratio, 2000-2010 period
-REAL(KIND=JPRB),PARAMETER :: ZRG=0.08314
+REAL(KIND=JPRB),PARAMETER :: ZRG=0.08206 ! gas constant (L atm K-1 mol-1), as HENRY is in M/atm
 REAL(KIND=JPRB)                 :: ZAIRD
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZXLIQ   ! liquid water content 
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZHKSO2  ! Henry's constant for sulfur dioxide
