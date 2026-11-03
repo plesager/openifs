@@ -3,7 +3,7 @@
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 SUBROUTINE TM5_WETCHEM_M7(KIDIA, KFDIA, KLON,KAERO,PDT,PTEMP,PAP,PRS,PLP,PY0,PHPLUS,PY, &
-    & PAEROP, PSO4_LPROD )
+    & PAEROP, PH2SO4, PSO4_LPROD )
 !**********************************************************************
 !     
 !TM5_WETCHEM_M7 - aqueous phase chemistry of sulfur  (and other)
@@ -21,6 +21,7 @@ SUBROUTINE TM5_WETCHEM_M7(KIDIA, KFDIA, KLON,KAERO,PDT,PTEMP,PAP,PRS,PLP,PY0,PHP
 !       to wet chemistry will be 'forgotten' in TM5_DO_EBI. 
 !PDT    chemistry timestep
 !PY     concentrations at time is t
+!PH2SO4 gas-phase H2SO4 concentration (molec/cm3)
 !   
 !method
 !------
@@ -57,6 +58,7 @@ REAL(KIND=JPRB), INTENT(IN)        :: PAP(KLON) ! cloud cover
 REAL(KIND=JPRB), INTENT(OUT)       :: PHPLUS(KLON) ! concentration H+
 REAL(KIND=JPRB), INTENT(INOUT)     :: PY(KLON,YGFL%NCHEM+3) 
 REAL(KIND=JPRB), INTENT(INOUT)     :: PAEROP(KLON,KAERO)
+REAL(KIND=JPRB), INTENT(IN)        :: PH2SO4(KLON) ! gas-phase H2SO4
 REAL(KIND=JPRB), INTENT(INOUT)     :: PSO4_LPROD(KLON)
 
 ! * LOCAL 
@@ -141,7 +143,9 @@ DO JL=KIDIA,KFDIA
     !  
     ! Stelios: small contributions from nucleation and Aitken mode
     !  as well as gas-phase should be added for pH calculation
-    ZSULPH(JL)=PY0(JL,ISO4)+PAEROP(JL,ISO4COS)+PAEROP(JL,ISO4ACS)+PAEROP(JL,ISO4NUS)+PAEROP(JL,ISO4AIS)
+    ! Note that PY0(JL,ISO4) already holds the sum of the M7 sulphate modes,
+    !  so the gas-phase H2SO4 is passed separately
+    ZSULPH(JL)=PH2SO4(JL)+PAEROP(JL,ISO4COS)+PAEROP(JL,ISO4ACS)+PAEROP(JL,ISO4NUS)+PAEROP(JL,ISO4AIS)
 
     PHPLUS(JL)=(2._JPRB*ZSULPH(JL)+PY0(JL,IMSA)-PY0(JL,INH4)+ &
        &               PY0(JL,IHNO3)+PY0(JL,INO3_A))/ZXL
