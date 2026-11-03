@@ -302,15 +302,18 @@ INTEGER:: KIDIA
       !<--eehol
       zqs = pqs(jl,jk) !eehol: read zqs from input sat. spec. hum
       
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zaclc = MIN(paclc(jl,jk),1.0_dp-zeps)
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      
-!NOT-USED-AND-BROKEN-IN-SP-[PLS]      zq_amb = MAX( 0.0_dp , (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
-
+      !PREVIOUSLY::  zrh(jl,jk) = pq(jl,jk)/zqs ! to mimic OIFS (gridbox mean)
+      !NOW:: clear-sky
       zaclc = MIN( paclc(jl,jk), 1.0_dp-zeps )
       zq_amb = MAX( 0.0_dp, (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
 
-      zrh(jl,jk) = zq_amb/zqs
-      !zrh(jl,jk) = pq(jl,jk)/zqs !changed to same as OIFS
+      ! Avoid division by zero when zqs is zero
+      IF (zqs > zeps) THEN
+        zrh(jl,jk) = zq_amb / zqs
+      ELSE
+        ! When saturation specific humidity is zero, set RH to 0
+        zrh(jl,jk) = 0.0_dp
+      END IF
 
       zrh(jl,jk) = MAX(0.0_dp,MIN(zrh(jl,jk),1.0_dp))
       
