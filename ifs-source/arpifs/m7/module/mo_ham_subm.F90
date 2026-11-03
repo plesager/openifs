@@ -94,7 +94,7 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
   ! reconverted to mixing ratios, the tendencies of the mixing ratios are 
   ! calculated and returned to ECHAM.
   
-  USE mo_kind,               ONLY: dp
+  USE mo_kind,               ONLY: dp, THRESHOLD
   USE mo_physical_constants, ONLY: rd, vtmpc1, grav, avo, argas
   USE mo_time_control,       ONLY: time_step_len
   !USE mo_echam_convect_tables, ONLY: tlucuaw, jptlucu1, jptlucu2 !eehol: removed ECHAM dependency
@@ -184,6 +184,9 @@ SUBROUTINE ham_subm_interface(kproma, kbdim, klev, krow, ktrac, &
              zfacn,    zqfacn     !,           &
 !NOT-USED-AND-BROKEN-IN-SP-[PLS]             zeps,     zaclc
 
+  !eehol: RH change to cloud free
+  REAL(dp):: zq_amb, zeps, zaclc
+
   REAL(dp) :: zfac_vmr                     ! Conversion of vmr to molecules cm-3   
 #ifdef HAMMOZ
   !>>dod changed index to naerospec
@@ -239,6 +242,7 @@ INTEGER:: KIDIA
   zqtmst     = 1._dp/time_step_len
   
 !NOT-USED-AND-BROKEN-IN-SP-[PLS]  zeps       = 1.E-10_dp
+  zeps = THRESHOLD
   
   ilevp1     = klev+1
   
@@ -302,8 +306,11 @@ INTEGER:: KIDIA
 !NOT-USED-AND-BROKEN-IN-SP-[PLS]      
 !NOT-USED-AND-BROKEN-IN-SP-[PLS]      zq_amb = MAX( 0.0_dp , (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
 
-      !zrh(jl,jk) = zq_amb/zqs
-      zrh(jl,jk) = pq(jl,jk)/zqs !changed to same as OIFS
+      zaclc = MIN( paclc(jl,jk), 1.0_dp-zeps )
+      zq_amb = MAX( 0.0_dp, (pq(jl,jk)-zqs*zaclc)/(1._dp-zaclc) )
+
+      zrh(jl,jk) = zq_amb/zqs
+      !zrh(jl,jk) = pq(jl,jk)/zqs !changed to same as OIFS
 
       zrh(jl,jk) = MAX(0.0_dp,MIN(zrh(jl,jk),1.0_dp))
       
