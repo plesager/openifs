@@ -1,4 +1,4 @@
-s# Source common environment variables
+# Source common environment variables
 . ../common/env_vars
 
 # Pre-empt some common namelist settings.
