@@ -135,8 +135,8 @@ IF (LHOOK) CALL DR_HOOK('TM5_WETCHEM_POINT',0,ZHOOK_HANDLE )
     ! Henry and dissociation equilibria
     !
     ZDKH2O =1.01E-14_JPRB*EXP(-6706.0_JPRB *ZTR)   !h2o<=>hplus+so3--
-    ZHKCO2 =3.4E-2_JPRB*EXP(2420._JPRB*ZTR)        ! is already dimensionless
-    !CMK BUG 092005 hkco2 =3.4e-2*(2420.*ZTR)     ! is already dimensionless
+    ZHKCO2 =3.4E-4_JPRB*101.325_JPRB*EXP(2300._JPRB*(1._JPRB/ZTEMP-1._JPRB/298.15_JPRB)) ! in M/atm,
+                                                      ! Burkholder et al. (2019), Sander (2023)
     ZDKCO2 =4.3E-7_JPRB*EXP(-1000._JPRB*ZTR)       !co2aq<=>hco3- + hplus, prefactor from Seinfeld and Pandis (2016), Table 7.4
     ZHKSO2 =HENRY(ISO2,ITEMP)*ZRT                   !dimensionless
     ZDKNH3 =1.7E-5_JPRB*EXP(-450._JPRB*ZTR)        !nh3<=>nh4+ + OH-

@@ -861,7 +861,7 @@ DO IK=1,NTEMP
    !      dissociation into account
    !
    HENRY(:,IK)=0._JPRB
-   ! H2O2, SO2 and O3: Hcp (mol m-3 Pa-1) at 298.15 K and its temperature dependence from
+   ! H2O2, SO2, O3 and NH3: Hcp (mol m-3 Pa-1) at 298.15 K and its temperature dependence from
    ! Burkholder et al. (2019), as listed in Sander (2023), converted to M/atm
    HENRY(IH2O2,IK)=8.6E2_JPRB*101.325_JPRB*EXP(7300._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
    HENRY(IHNO3,IK)=1E7_JPRB 
@@ -876,7 +876,7 @@ DO IK=1,NTEMP
    HENRY(INH4,IK)=1.E7_JPRB
    HENRY(IMSA,IK)=1.E7_JPRB
    HENRY(ISO2,IK) =1.3E-2_JPRB*101.325_JPRB*EXP(2900._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
-   HENRY(INH3,IK) =75.0_JPRB*EXP(3400._JPRB*ZTREC)*1.10E-5_JPRB
+   HENRY(INH3,IK) =5.9E-1_JPRB*101.325_JPRB*EXP(4200._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
    HENRY(IO3,IK)=1.0E-4_JPRB*101.325_JPRB*EXP(2800._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
 
   ! JEW add two new scavenging rates for CH3COCHO and ALD2
