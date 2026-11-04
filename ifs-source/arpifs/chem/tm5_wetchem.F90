@@ -65,10 +65,10 @@ REAL(KIND=JPRB), INTENT(INOUT)     :: PY(KLON,YGFL%NCHEM+3)
 REAL(KIND=JPHOOK)    :: ZHOOK_HANDLE
 
 INTEGER(KIND=JPIM)        :: ITEMP,ITER,JL
-REAL(KIND=JPRB)           :: ZX1,ZX2,ZX3,ZDSO2,ZDNH3,ZXSO2O3A,ZXSO2O3B
+REAL(KIND=JPRB)           :: ZX1,ZX2,ZX3,ZDSO2,ZDNH3,ZXSO2O3
 REAL(KIND=JPRD)           :: ZX1_DP,ZX2_DP,ZX3_DP,ZSO2X_DP,ZDISC_DP,ZB1_DP,ZB2_DP
 REAL(KIND=JPRB),PARAMETER :: ZCO2=3.90E-4 ! approx Global mean CO2 mixing ratio, 2000-2010 period
-REAL(KIND=JPRB),PARAMETER :: ZRG=0.08314
+REAL(KIND=JPRB),PARAMETER :: ZRG=0.08206 ! gas constant (L atm K-1 mol-1), as HENRY is in M/atm
 REAL(KIND=JPRB)                 :: ZAIRD
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZXLIQ   ! liquid water content 
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZHKSO2  ! Henry's constant for sulfur dioxide
@@ -82,7 +82,7 @@ REAL(KIND=JPRB),DIMENSION(KLON) :: ZHKNH3      ! Henry's constant ammonia
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZHKCO2      ! Henry's constant CO2
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZDKCO2      ! Dissociation constant CO2
 REAL(KIND=JPRB) :: ZPHS4                       ! effective dissolvation of S(IV)
-REAL(KIND=JPRB) :: ZPHSO2                      ! effective dissolvation of SO2
+REAL(KIND=JPRB) :: ZFSO2, ZFHSO3, ZFSO3          ! fractions of aqueous S(IV) as SO2.H2O, HSO3- and SO3--
 REAL(KIND=JPRB) :: ZPHH2O2                     ! effective dissolvation of H2O2
 REAL(KIND=JPRB) :: ZPHOZONE                    ! effective dissolvation of O3
 REAL(KIND=JPRB),DIMENSION(KLON) :: ZPH         ! pH
@@ -115,23 +115,23 @@ DO JL=KIDIA,KFDIA
   ! lwc is dimensionless 
   IF ((ZXLIQ(JL) > 1E-10_JPRB).AND.(PAP(JL) > 0.01_JPRB)) THEN 
     LLCLOUDY(JL)=.TRUE. 
-    ZTR=(1._JPRB/ZTEMP-1._JPRB/298_JPRB)
+    ZTR=(1._JPRB/ZTEMP-1._JPRB/298.15_JPRB)
     ZRT=ZTEMP*ZRG
     ITEMP=MIN(NTEMP,MAX(1_JPIM, NINT(ZTEMP-FLOAT(NTLOW))))
     !
     ! Henry and dissociation equilibria
     !
     ZDKH2O(JL) =1.01E-14_JPRB*EXP(-6706.0_JPRB *ZTR)   !h2o<=>hplus+so3--
-    ZHKCO2(JL) =3.4E-2_JPRB*EXP(2420._JPRB*ZTR)        ! is already dimensionless
-    !CMK BUG 092005 hkco2(JL) =3.4e-2*(2420.*ZTR)     ! is already dimensionless
-    ZDKCO2(JL) =4.5E-7_JPRB*EXP(-1000._JPRB*ZTR)       !co2aq<=>hco3- + hplus
+    ZHKCO2(JL) =3.4E-4_JPRB*101.325_JPRB*EXP(2300._JPRB*(1._JPRB/ZTEMP-1._JPRB/298.15_JPRB)) ! in M/atm,
+                                                      ! Burkholder et al. (2019), Sander (2023)
+    ZDKCO2(JL) =4.3E-7_JPRB*EXP(-1000._JPRB*ZTR)       !co2aq<=>hco3- + hplus, prefactor from Seinfeld and Pandis (2016), Table 7.4
     ZHKSO2(JL) =HENRY(ISO2,ITEMP)*ZRT                   !dimensionless
     ZDKNH3(JL) =1.7E-5_JPRB*EXP(-450._JPRB*ZTR)        !nh3<=>nh4+ + OH-
     ZHKNH3(JL) =HENRY(INH3,ITEMP)*ZRT                   !dimensionless
     ZHKH2O2(JL)=HENRY(IH2O2,ITEMP)*ZRT                  !dimensionless
     ZHKO3(JL)  =HENRY(IO3,ITEMP)*ZRT                    !dimensionless
-    ZDKSO2(JL) =1.3E-2_JPRB*EXP(2090._JPRB*ZTR)        !so2<=>hso3m+hplus
-    ZDKHSO3(JL)=6.6E-8_JPRB*EXP(1510._JPRB*ZTR)        !hso3m<=>so3-- + hplus
+    ZDKSO2(JL) =1.3E-2_JPRB*EXP(1960._JPRB*ZTR)        !so2<=>hso3m+hplus, Seinfeld and Pandis (2016), Table 7A.1, from Maahs (1982)
+    ZDKHSO3(JL)=6.6E-8_JPRB*EXP(1500._JPRB*ZTR)        !hso3m<=>so3-- + hplus, Seinfeld and Pandis (2016), Table 7A.1
     !
     ! calculate H+ from initial sulfate, ammonium, hno3, and nh3
     ! if solution is strongly acidic no further calculations are performed
@@ -154,14 +154,15 @@ DO ITER=1,10
        IF ( LLCLOUDY(JL)  ) THEN
           IF (  (PHPLUS(JL) < 3E-5_JPRB) ) THEN
             ZXL=ZXLIQ(JL)*RNAVO*1E-3_JPRB/PAP(JL)
+            ZXLIQR=ZXLIQ(JL)/PAP(JL)  ! in-cloud liquid water volume fraction
             ZX1=(2._JPRB*PY0(JL,ISO4)+PY0(JL,IMSA)+PY0(JL,IHNO3)+PY0(JL,INO3_A))/ZXL    
             !ZX2 is initial total NHx
             ZX2=(PY0(JL,INH3)+PY0(JL,INH4))/ZXL
             !ZX3 is combined dissolution and solubility const for CO2
             ZX3=ZDKCO2(JL)*ZHKCO2(JL)*ZCO2 
-            ZA1=ZDKH2O(JL)/ZDKNH3(JL)*(1._JPRB+1._JPRB/ZHKNH3(JL)) ! integration constant
+            ZA1=ZDKH2O(JL)/ZDKNH3(JL)*(1._JPRB+1._JPRB/(ZHKNH3(JL)*ZXLIQR)) ! integration constant
             ZA2=PY0(JL,ISO2)/ZXL      !initial SO2
-            ZZ =ZA2/(PHPLUS(JL)/ZDKSO2(JL)*(1._JPRB+1._JPRB/ZHKSO2(JL))+&
+            ZZ =ZA2/(PHPLUS(JL)/ZDKSO2(JL)*(1._JPRB+1._JPRB/(ZHKSO2(JL)*ZXLIQR))+&
               &  ZDKHSO3(JL)/PHPLUS(JL)+1._JPRB)
             ZA=1._JPRB+ZX2/(ZA1+PHPLUS(JL))
             ZB=-ZX1-ZZ
@@ -175,7 +176,7 @@ ENDDO  !iter
 DO JL=KIDIA,KFDIA
   IF (LLCLOUDY(JL)) THEN
     ZTEMP=PTEMP(JL)
-    ZTR=(1._JPRB/ZTEMP-1._JPRB/298_JPRB)
+    ZTR=(1._JPRB/ZTEMP-1._JPRB/298.15_JPRB)
     ZXLIQR=ZXLIQ(JL)/PAP(JL)
     ZXL=ZXLIQ(JL)*RNAVO*1E-3_JPRB/PAP(JL)
     ZPH(JL)=-LOG10(PHPLUS(JL))     ! pH for diagnostics 
@@ -184,25 +185,32 @@ DO JL=KIDIA,KFDIA
 
     ZPHS4   = ZHKSO2(JL) *(1._JPRB+ZDKSO2(JL)/PHPLUS(JL)+&
             & ZDKSO2(JL)*ZDKHSO3(JL)/PHPLUS(JL)/PHPLUS(JL))*ZXLIQR
-    ZPHSO2  =ZHKSO2(JL)  *ZXLIQR
     ZPHH2O2 =ZHKH2O2(JL) *ZXLIQR
     ZPHOZONE=ZHKO3(JL)   *ZXLIQR
 
-    ! the original rate equations could be partly in look-up table
+    ! fractions of aqueous S(IV) present as SO2.H2O, HSO3- and SO3--
 
-    ZRW(JL,KSO2HP) =8E4_JPRB    *EXP(-3560._JPRB*ZTR)/(0.1_JPRB+PHPLUS(JL))
-    ZXSO2O3A       =4.39E11_JPRB*EXP(-4131._JPRB/ZTEMP)+2.56E3_JPRB*EXP(-966._JPRB/ZTEMP)  !S(IV)
-    ZXSO2O3B       =2.56E3_JPRB *EXP(-966._JPRB /ZTEMP)/PHPLUS(JL)  
-    !divide by [H+]!S(IV)
+    ZFSO2  = 1._JPRB/(1._JPRB+ZDKSO2(JL)/PHPLUS(JL)+ZDKSO2(JL)*ZDKHSO3(JL)/PHPLUS(JL)/PHPLUS(JL))
+    ZFHSO3 = ZFSO2*ZDKSO2(JL)/PHPLUS(JL)
+    ZFSO3  = ZFHSO3*ZDKHSO3(JL)/PHPLUS(JL)
+
+    ! aqueous-phase rate constants per mole of S(IV)(aq) (M-1 s-1), following
+    ! Seinfeld and Pandis (2016), as in the simplified chemistry (AER_SO2SO4_V2)
+    ! S(IV) + H2O2: k[H+]/(1+K[H+]) with k=7.5E7*exp(-4430*ZTR) M-2 s-1 and K=13 M-1,
+    !               reaction with HSO3- (Hoffmann and Calvert, 1985; McArdle and Hoffmann, 1983)
+    ZRW(JL,KSO2HP) = 7.5E7_JPRB*EXP(-4430._JPRB*ZTR)*PHPLUS(JL)/(1._JPRB+13._JPRB*PHPLUS(JL))*ZFHSO3
+    ! S(IV) + O3: reactions with SO2.H2O, HSO3- and SO3-- (Hoffmann and Calvert, 1985;
+    !             Erickson et al., 1977)
+    ZXSO2O3 = 2.4E4_JPRB*ZFSO2 + 3.7E5_JPRB*EXP(-5530._JPRB*ZTR)*ZFHSO3 &
+          & + 1.5E9_JPRB*EXP(-5280._JPRB*ZTR)*ZFSO3
 
     !  make rate constants dimensionless by multiplying 
     !  by (1./ZXLIQR/avo=6e20)  
     !  multiply with the fractions of concentrations residing 
     !  in the aqueous phase
 
-    ZRW(JL,KSO2HP)=ZRW(JL,KSO2HP)/ZXL*ZPHSO2/(1._JPRB+ZPHS4)*ZPHH2O2/(1._JPRB+ZPHH2O2)
-    ZRW(JL,KSO2O3)=(ZXSO2O3A+ZXSO2O3B)/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHOZONE/&
-                & (1._JPRB+ZPHOZONE)
+    ZRW(JL,KSO2HP)=ZRW(JL,KSO2HP)/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHH2O2/(1._JPRB+ZPHH2O2)
+    ZRW(JL,KSO2O3)=ZXSO2O3/ZXL*ZPHS4/(1._JPRB+ZPHS4)*ZPHOZONE/(1._JPRB+ZPHOZONE)
   ENDIF !cloudy
 ENDDO ! JL LOOP
 

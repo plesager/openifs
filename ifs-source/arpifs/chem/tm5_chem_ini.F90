@@ -871,7 +871,9 @@ DO IK=1,NTEMP
    !
 
    HENRY(:,IK)=0._JPRB
-   HENRY(IH2O2,IK)=1.0E5_JPRB*EXP(6300_JPRB*ZTREC)*6.656E-10_JPRB
+   ! H2O2, SO2, O3 and NH3: Hcp (mol m-3 Pa-1) at 298.15 K and its temperature dependence from
+   ! Burkholder et al. (2019), as listed in Sander (2023), converted to M/atm
+   HENRY(IH2O2,IK)=8.6E2_JPRB*101.325_JPRB*EXP(7300._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
    HENRY(IHNO3,IK)=1E7_JPRB 
    HENRY(ICH3O2H,IK)=310._JPRB*EXP(5200_JPRB*ZTREC)*2.664E-8_JPRB
    ! HENRY(ich2o,IK)=3000.*exp(7200*ztrec)*exp(-7200.*(1./298.15))
@@ -883,11 +885,9 @@ DO IK=1,NTEMP
    HENRY(ISO4,IK)=1.E7_JPRB
    HENRY(INH4,IK)=1.E7_JPRB
    HENRY(IMSA,IK)=1.E7_JPRB
-   !!JW/VH       HENRY(iso2,IK) =1.2*exp(3120.*ZTREC)*3.41e-5 !correction for the 1/298. part
-   !!JW : " The second term (exp (-3120* (1/298.15)) should equal 2.85e-5 "
-   HENRY(ISO2,IK) =1.2_JPRB*EXP(3120._JPRB*ZTREC)*2.85E-5_JPRB 
-   HENRY(INH3,IK) =75.0_JPRB*EXP(3400._JPRB*ZTREC)*1.10E-5_JPRB
-   HENRY(IO3,IK)=1.1E-2_JPRB*EXP(2300._JPRB*ZTREC)*4.45E-4_JPRB
+   HENRY(ISO2,IK) =1.3E-2_JPRB*101.325_JPRB*EXP(2900._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
+   HENRY(INH3,IK) =5.9E-1_JPRB*101.325_JPRB*EXP(4200._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
+   HENRY(IO3,IK)=1.0E-4_JPRB*101.325_JPRB*EXP(2800._JPRB*(ZTREC-1._JPRB/298.15_JPRB))
 
   ! JEW add two new scavenging rates for CH3COCHO and ALD2
   ! need KH(eff) due to hydration steps for both species
