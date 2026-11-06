@@ -500,12 +500,6 @@ TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
 TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
 TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
 
-! water and ice cloud variables when using online aerosols
-TYPE(TYPE_GFL_NAML)  :: YCDNC_NL         ! Cloud droplet number concentration
-TYPE(TYPE_GFL_NAML)  :: YICNC_NL         ! Ice crystal number concentration
-TYPE(TYPE_GFL_NAML)  :: YRE_LIQ_NL       ! Effective radius of liquid water droplets
-TYPE(TYPE_GFL_NAML)  :: YRE_ICE_NL       ! Effective radius of ice crystals
-
 END TYPE TYPE_GFLD
 
 ! GFL general descriptor
