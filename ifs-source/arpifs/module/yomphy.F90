@@ -572,6 +572,19 @@ LOGICAL :: LCDDPRO
 LOGICAL :: LCVCSD
 LOGICAL :: LUSL
 LOGICAL :: LNSDO
+LOGICAL :: LBL_SCALE  !multiply LBL89 with a constnat: TKE_LSC
+LOGICAL :: LBL_ASP    !height- and regime dependent profile for LBL89 given by: TKE_LAS_STCU,TKE_LAS_CU,TKE_LAS_ST, TKE_EIS_STCUL,TKE_EIS_STCUH, TKE_DEIS
+LOGICAL :: LBL_R17    !apply Roddier 2017 wind shear modification to LBL89
+LOGICAL :: LBL_SL     !surface layer modification for LBL89
+LOGICAL :: LBL_S2PEAK !two profile peak for LBL89 in StCu regime given by TKE_LUPW and TKE_LUPW2S
+LOGICAL :: LBL_NLOC   !non-local extension for LBL89
+LOGICAL :: LBL_SQ1    !sqrt for interpolation in first part of Lup/Ldw in LBL89
+LOGICAL :: LTKE_EQ    !parital computation of TKE source term from equilibrium first order closure ratio given by TKE_EQR
+LOGICAL :: LTKE_EQ_CON!consisten computation of equilibrium terms
+LOGICAL :: LTKE_SFRIF !stability functions in TKE scheme dependent on Rif based on BastakDuran  et al. 2014, given by three parameters:
+LOGICAL :: LTKE_NOCU_STCU  ! No shallow convection in StCu region
+LOGICAL :: LTKE_THS1  ! BVF (in TKE source term) and Rif computed from entropy potential temperature formulation based on Marquet et al. 2013
+LOGICAL :: LTKE_DYN  ! TKE endencies from dynamics (and potentially other TKE tendencies outside of turbulence scheme) are considered directly in the TKE solver
 LOGICAL :: LECT
 LOGICAL :: LEFB
 LOGICAL :: LFLUSO

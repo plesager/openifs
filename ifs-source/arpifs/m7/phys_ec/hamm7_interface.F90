@@ -20,7 +20,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
  & PBLH,      PSNOWACL,  KCTOP,     KCBOT,                                    &
- & PAEPM1,    PAEPM25,   PAEPM10)
+ & PAEPM1,    PAEPM25,   PAEPM10,   PTKE) !eehol: added PTKE
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 30-APR-2024) │
@@ -266,6 +266,7 @@ REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM1(KLON)
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM25(KLON)
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM10(KLON)
+REAL(KIND=JPRB),INTENT(IN)      :: PTKE(KLON,KLEV) !eehol: turbulent kinetic energy (M2/S2)
 
 !*   0.5    LOCAL VARIABLES
 !           ---------------
@@ -332,6 +333,7 @@ REAL(KIND=JPRB), PARAMETER :: ZDEF_CDNC=125.0_JPRB              !eehol: default 
 REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_LIQ=4.0_JPRB              !eehol: default liq eff radius (can be changed but for now 4 mu m comes from liquid effective radius routine (PP_MIN_RE_UM))
 REAL(KIND=JPRB), PARAMETER :: ZDEF_RE_ICE=80._JPRB*0.64952_JPRB !eehol: default ice eff radius (comes from ice effective radius routine (ZDEFAULT_RE_UM))
 REAL(KIND=JPRB), PARAMETER :: ZTUNPAR=0.8164965_JPRB            !eehol: tuning parameter for sigma_w derived from TKE (square root of 2/3 (isotropy assumption))
+REAL(KIND=JPRB), PARAMETER :: ZMINSIGMAW = 0.1_JPRB            !eehol: minimum value of w standard deviation [m s-1]
 
 REAL(KIND=JPRB),PARAMETER :: INFINITY=HUGE(1._JPRB)
 
@@ -527,6 +529,7 @@ ASSOCIATE( &
          & LAERLISI       => YREAERATM%LAERLISI,                   &
          & LAERNGAT       => YREAERATM%LAERNGAT,                   &
          & LAERSCAV       => YREAERATM%LAERSCAV,                   &
+         & NSIGW          => YREAERATM%NSIGW,                      & !eehol: switch between prescribed (1) or TKE derived (3) sigma_w (or Wnet (2) in the future)
          & LAERSCAV_CHEM  => YREAERATM%LAERSCAV_CHEM,              &
          & LAERVOL        => YREAERATM%LAERVOL,                    &
          & NXT3DAER       => YREAERATM%NXT3DAER,                   & 
@@ -927,7 +930,8 @@ ENDDO
 
     CALL GSTATS(2502,0)
 
-    ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero for now as it is not used (YET!)
+    ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero first
+    ZTKEM1(KIDIA:KFDIA,1:KLEV) = PTKE(KIDIA:KFDIA,1:KLEV) ! eehol: turbulent kinetic energy from turbulence scheme
 
     ! LWP
     DO JK=1,KLEV
@@ -959,6 +963,13 @@ ENDDO
        ENDIF
     END DO
 
+    !eehol: sigma_w selection (NSIGW)
+    ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0._JPRB !nullify sigma_w at start
+    IF ( NSIGW == 1 .OR. NSIGW == 2) THEN !eehol: use only prescribed for now (Wnet with nsigw=2 added later!)
+      ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB !eehol: use prescribed sigma_w value of 0.8 m/s
+    ELSE IF ( NSIGW == 3 ) THEN
+      ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = MAX(ZMINSIGMAW, (ZTUNPAR*(ZTKEM1(KIDIA:KFDIA,1:KLEV))**0.5_JPRB)) !eehol: use TKE to derive sigma_w [m/s]
+    END IF
     ! Default values for effective radii
     REFFL(KIDIA:KFDIA,1:KLEV,ZKROW) = ZDEF_RE_LIQ ! comes from liquid effective radius routine (PP_MIN_RE_UM)
     REFFI(KIDIA:KFDIA,1:KLEV,ZKROW) = ZDEF_RE_ICE ! comes from ice effective radius routine (ZDEFAULT_RE_UM)
@@ -966,11 +977,7 @@ ENDDO
     ! Cloud activation scheme
     CLDACT: IF ( NCLOUDACT == 1 ) THEN ! Morales and Nenes
        
-       !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!)
-       ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB
-       !ELSE
-       !   ZSIGMA_W(KIDIA:KFDIA,1:KLEV)= MAX(0.1_JPRB, (ZTUNPAR*((ZTKEM1(KIDIA:KFDIA,1:KLEV))**0.5_JPRB))) ! m/s
-       !END IF
+       !eehol: ZSIGMA_W is set above according to NSIGW
 
        ! Update mixing ratios with tendencies
        DO JT =1,NTRAC 
@@ -993,11 +1000,11 @@ ENDDO
        
     ELSE IF (NCLOUDACT == 2) THEN ! AR&G scheme
 
-       !IF ( LCONSIGW ) THEN !eehol: if using the constant sigma_w it is set to 0.8 otherwise use the TKE to calculate (NOT USED YET!!)
-       ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((0.8_JPRB)**2) !eehol: this is converted back to sigma_w in mo_activ.F90
-       !ELSE
-       !   ZTKEM1(KIDIA:KFDIA,1:KLEV) = ZTKEM1(KIDIA:KFDIA,1:KLEV)
-       !END IF
+       !eehol: 1 if using the constant sigma_w it is set to 0.8, 2 to use Wnet derived sigma_w, 3 to use the TKE to calculate (the calculation here is inverted back to sigma_w in mo_activ.F90)
+       IF ( NSIGW == 1 .OR. NSIGW == 2) THEN !eehol: use prescribed sigma_w or wnet derived to calculate TKE (inverse calculation in mo_activ)
+           ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((ZSIGMA_W(KIDIA:KFDIA,1:KLEV))**2)
+       END IF
+       ! NSIGW == 3: ZTKEM1 already holds the TKE from the turbulence scheme
 
        !---calculate updraft velocity
        ZWCAPE(KIDIA:KFDIA) = 0._JPRB !  CAPE as zero as it is not used
