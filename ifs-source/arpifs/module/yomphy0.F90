@@ -1137,7 +1137,29 @@ REAL(KIND=JPRB) :: TEQH
 REAL(KIND=JPRB) :: REFLKUO
 REAL(KIND=JPRB) :: REFLCAPE
 REAL(KIND=JPRB) :: TEQK
+REAL(KIND=JPRB) :: TKE_LSC      !scale coefficient for LBL89 under LBL_SCALE=.T.
+REAL(KIND=JPRB) :: TKE_LSC_MST  !multiplicator of scale coefficient for LBL89 under LBL_SCALE=.T.  for StCu
+REAL(KIND=JPRB) :: TKE_LAS_STCU !as. value for StCu regime above the PBL under LBL_ASP
+REAL(KIND=JPRB) :: TKE_LAS_CU   !as. value for shallow and deep Cu regime above the PBL under LBL_ASP
+REAL(KIND=JPRB) :: TKE_LAS_ST   !as. value for stable regime above the PBL under LBL_ASP
+REAL(KIND=JPRB) :: TKE_LAS_M    !as. value for momentum
+REAL(KIND=JPRB) :: TKE_EIS_STCUL!minimal value of EIS over which regime is identified as StCu under LBL_ASP
+REAL(KIND=JPRB) :: TKE_EIS_STCUH!maximal value of EIS under which regime is identified as StCu under LBL_ASP
+REAL(KIND=JPRB) :: TKE_DEIS     !interval of EIS for transition from StCu regime under LBL_ASP
+REAL(KIND=JPRB) :: TKE_LCR17    !coefficient for Roddier et al. 2017 modification for LBL89 under LBL_R17=.T.
+REAL(KIND=JPRB) :: TKE_LSL_MH   !minimal height for surface layer in LBL89 under LBL_SL
+REAL(KIND=JPRB) :: TKE_LSL_RPBL !ratio of surface layer height to PBL height in LBL89 under LBL_SL
+REAL(KIND=JPRB) :: TKE_ST_R     !R (0<R<1; for momentum) parameter in st. functions under LTKE_SFRIF=.T.
+REAL(KIND=JPRB) :: TKE_ST_P     !P (0<P<R; for scalars) parameter in st. functions under LTKE_SFRIF=.T.
+REAL(KIND=JPRB) :: TKE_ST_C3    !C3 (1<C3<2; inverse Prandtl number ant neutrality) parameter in st. functions under LTKE_SFRIF=.T.
+REAL(KIND=JPRB) :: TKE_ST_RIFM  !minimal value of Rif in st. functions under LTKE_SFRIF=.T.
+REAL(KIND=JPRB) :: TKE_EQR      !ratio for equilibrium computation of TKE source term
+REAL(KIND=JPRB) :: TKE_LUPW     !weigth for Lup in LBL89 computation
+REAL(KIND=JPRB) :: TKE_LUPWS    !weigth for Lup in StCu in LBL89 computation
+REAL(KIND=JPRB) :: TKE_LUPW2S   !weigth for Lup in 2nd LBL89 computation under LBL_S2PEAK
 REAL(KIND=JPRB) :: TEQC
+
+REAL(KIND=JPRB), ALLOCATABLE :: RN1D (:), RRC1D (:), RSRC1D (:) !eehol: added for TKE calculations
 
 END TYPE TPHY0
 

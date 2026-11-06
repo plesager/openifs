@@ -17,13 +17,13 @@ SUBROUTINE VDFMAIN    ( YDMODEL,CDCONF, &
  & KDHVCO2S,KDHFCO2S,KDHVVEGS,KDHFVEGS,&
  & PTSPHY , KTVL   , KCO2TYP, KTVH   , PCVL   , PCVH   , PCUR, PFWET  ,&
  & PLAIL  , PLAIH  , PSNM   , PRSN   , PMU0   , PSIGFLT, &
- & PUM1   , PVM1   , PTM1   , PQM1   , PLM1   , PIM1   , PAM1   , PCM1   , PTKE1,&
+ & PUM1   , PVM1   , PTM1   , PQM1   , PLM1   , PIM1   , PAM1   , PCM1   , PTKE1, PTKED, & !eehol: added PTKED for tke calculations
  & PAPHM1 , PAPM1  , PGEOM1 , PGEOH  , PGELAT , PTSKM1M, PTSAM1M, PWSAM1M, &
  & PSSRFL , PSLRFL , PEMIS  , PHRLW  , PHRSW  , &
  & PTSN , PTICE  , &
  & PHLICE , PTLICE , PTLWML , &
  & PSST   , KSOTY  , PFRTI  , PALBTI , PWLMX  , &
- & PCHAR  , PCHARHQ, PUCURR , PVCURR ,PUSTOKES,PVSTOKES, &
+ & PCHAR  , PCHARHQ, PUCURR , PVCURR ,PUSTOKES,PVSTOKES, PLSM, & !eehol: added LSM for tke calculations
  & PTSKRAD, PCFLX  , PDDVLC , PSOTEU , PSOTEV , PSOBETA, &
  & PTHKICE, PSNTICE, PGP2DSPP, &
  & LSICOUP, &
@@ -32,7 +32,7 @@ SUBROUTINE VDFMAIN    ( YDMODEL,CDCONF, &
  & PVDIS  , PVDISG , PDISGW3D, PAHFLEV, PAHFLSB, PFWSB  , &
  & PU10M  , PV10M  , PT2M   , PD2M   , PQ2M   , PZINV  , PBLH   , PEIS, &
  & P10NU  , P10NV  , PUST   , &
- & PSSRFLTI,PEVAPSNW,PEVAPMU,PEXDIAG,PGUST  , PI10FGCV, KPBLTYPE,&
+ & PSSRFLTI,PEVAPSNW,PEVAPMU,PEXDIAG,PGUST  , PI10FGCV, KPBLTYPE, PTKE_turb,& !eehol: PTKE_turb for diagnostics
  ! OUTPUT TENDENCIES
  & PTE    , PQE    , PLE    , PIE    , PAE    , PVOM   , PVOL   , PTKEE,&
  & PTENC  , PTSKE1 , &
@@ -147,6 +147,7 @@ SUBROUTINE VDFMAIN    ( YDMODEL,CDCONF, &
 !    *PAM1*         CLOUD FRACTION                                1
 !    *PCM1*         TRACER CONCENTRATION                          KG/KG
 !    *PTKE1*        TURBULENT KINETIC ENERGY                      (M/S)**2
+!    *PTKED*        TURBULENT KINETIC ENERGY TENDENCY FROM DYN    M2/S3 !eehol: added for tke calculations
 !    *PAPM1*        PRESSURE ON FULL LEVELS                       PA
 !    *PAPHM1*       PRESSURE ON HALF LEVELS                       PA
 !    *PGEOM1*       GEOPOTENTIAL                                  M2/S2
@@ -179,6 +180,7 @@ SUBROUTINE VDFMAIN    ( YDMODEL,CDCONF, &
 !    *PVCURR*       OCEAN CURRENT Y_COMPONENT
 !    *PUSTOKES*     SURFACE STOKES VELOCITY X_COMPONENT
 !    *PVSTOKES*     SURFACE STOKES VELOCITY Y_COMPONENT
+!    *PLSM*         SURFACE LAND SEA MASK !eehol: added for tke calculations
 !    *PTSKRAD*      SKIN TEMPERATURE OF LATEST FULL RADIATION
 !                      TIMESTEP                                   K
 !    *PCFLX*        TRACER SURFACE FLUX                           kg/(m2 s)
@@ -459,6 +461,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PVM1(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PTM1(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PQM1(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PTKE1(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTKED(KLON,KLEV) !eehol: added for tke calculations
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PLM1(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PIM1(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAM1(KLON,KLEV)
@@ -491,6 +494,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PUCURR(KLON)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PVCURR(KLON)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PUSTOKES(KLON)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PVSTOKES(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PLSM(KLON) !eehol: added for tke calculations
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PTSKRAD(KLON)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PCFLX(KLON,KTRAC)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PDDVLC(KLON,KTRAC)
@@ -527,6 +531,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PEXDIAG(KLON,KDIAG)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PGUST(KLON)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PI10FGCV(KLON)
 INTEGER(KIND=JPIM),INTENT(OUT)   :: KPBLTYPE(KLON)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PTKE_turb(KLON,KLEV) !eehol: diagnostics
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PTE(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PQE(KLON,KLEV)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PLE(KLON,KLEV)
@@ -663,6 +668,7 @@ REAL(KIND=JPRB), DIMENSION(KLON,KTRAC) ::   ZDEPVEL
 #include "vdfdpbl.intfb.h"
 #include "vdfexcu.intfb.h"
 #include "vdfhghtn.intfb.h"
+#include "vdftke.intfb.h"
 
 
 
@@ -1027,8 +1033,19 @@ CALL VDFEXCU(YDMODEL%YRML_PHY_EC%YREGWD,YDEPHY, YDSPP_CONFIG, &
            & ZKMFL  , ZKHFL  , ZKQFL  , ZKHVFL , PGP2DSPP,ZCFM   , ZCFH   , &
            & PZINV  , PKH    , PKM    , PRI    , ZCLDBASE, KPBLTYPE )
 
-
+!<--eehol: add TKE calculations
+IF ( LECT ) THEN
+    CALL VDFTKE( YGFL, YDEPHY_MF, YDECUMF,& !eehol: first (YDCST) taken out and added YGFL
+            & KIDIA  , KFDIA  , KLON   , KLEV, KSTEP, PTSPHY  , PZ0M  , & !eehol: add KSTEP
+            & PTSKM1M, PEIS, & !eehol: add PEIS
+            & PUM1 , PVM1 , PTM1, PAM1, PQM1 , PLM1, PIM1, PTKE1, PTKED, PRI, & !eehol: add PAM1, PTKED, PRI
+            & PAPM1, PAPHM1 , PGEOM1 , PGEOH  , PLSM, ZKHFL, ZKQFL, & !eehol: add PLSM, ZKHFL, ZKQFL
+            & ZCFM , ZCFH   , &
+            & PKH  ,PKM, PTKEE, ZEDR, PZINV)  !PBLH instead PZINV
+ELSE
     PTKEE(:,:)=0.0_JPRB
+ENDIF
+!--> eehol
 !*         5.8  MASS FLUX MODIFICATIONS
 
 !          Selective mflux=0 for single mflux layers
@@ -1388,6 +1405,9 @@ DO JK=KLEV-1,1,-1
     PDIFTS(JL,JK) = ZDIFTSLG(JL,JK) + RLVTT * PDIFTL(JL,JK) + RLSTT * PDIFTI(JL,JK)
   ENDDO
 ENDDO
+
+
+PTKE_turb(:,:) = PTKE1(:,:) !eehol: diagnostics TKE
 
 !     ------------------------------------------------------------------
 

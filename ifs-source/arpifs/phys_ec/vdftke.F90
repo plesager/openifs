@@ -1,0 +1,333 @@
+#ifdef RS6K
+@PROCESS NOSTRICT
+#endif
+SUBROUTINE VDFTKE(  YGFL, YDML_PHY_MF, YDECUMF,& !eehol: first (YDCST) taken away (not needed), added YGFL
+                  & KIDIA  , KFDIA  , KLON   , KLEV   , KSTEP, PTSPHY  , PZ0MM  , & !eehol: added KSTEP
+                  & PTSKM1M, PEIS, & !eehol: added PEIS
+                  & PUM1 , PVM1 , PTM1 , PAM1, PQM1 , PLM1, PIM1, PTKE, PTKED, PRI, & !eehol: added PAM1, PTKED, PRI
+                  & PAPM1, PAPHM1 , PGEOM1 , PGEOH  , PLSM, PKHFL, PKQFL,& !eehol: added PLSM, PKHFL, PKQFL
+                  & PCFM   , PCFH   , &
+                  & PKH    ,PKM, PTENDTKE, PEDR, PBLH)
+!     ------------------------------------------------------------------
+
+!**   *VDFTKE* - DETERMINES THE EXCHANGE COEFFICIENTS USING A TKE SCHEME 
+
+!     PURPOSE
+!     -------
+
+!     DETERMINE EXCHANGE COEFFICIENTS BETWEEN THE UPPER MODEL LEVELS
+
+!     INTERFACE
+!     ---------
+
+!     *VDFTKE* IS CALLED BY *VDFMAIN*
+
+!     INPUT PARAMETERS (INTEGER):
+
+!     *KIDIA*        START POINT
+!     *KFDIA*        END POINT
+!     *KLEV*         NUMBER OF LEVELS
+!     *KLON*         NUMBER OF GRID POINTS PER PACKET
+
+!     INPUT PARAMETERS (REAL):
+
+!     *PTSPHY*       TIME STEP
+!     *PZ0MM*        ROUGHNESS LENGTH
+!     *PTSKM1M*      SKIN TEMPERATURE
+!     *PUM1*         X-VELOCITY COMPONENT AT T-1
+!     *PVM1*         Y-VELOCITY COMPONENT AT T-1
+!     *PTM1*         TEMPERATURE AT T-1
+!     *PQM1*         SPECIFIC HUMUDITY AT T-1
+!     *PLM1*         CLOUD LIQUID WATER AT T-1 
+!     *PIM1*         CLOUD LIQUID WATER AT T-1 
+!     *PTKE*         TURBULENT KINETIC ENERGY AT T-1
+!     *PTKED*        TURBULENT KINETIC ENERGY FROM DYNAMICS !eehol: added 
+!     *PAPM1*        PRESSURE AT FULL LEVELS AT T-1
+!     *PAPHM1*       PRESSURE AT HALF LEVELS AT T-1
+!     *PGEOM1*       GEOPOTENTIAL AT T-1
+!     *PGEOH*        GEOPOTENTIAL AT HALF LEVELS T-1
+
+!     OUTPUT PARAMETERS (REAL):
+
+!     *PCFM*         PROP. TO EXCH. COEFF. FOR MOMENTUM (C-STAR IN DOC.)
+!     *PCFH*         PROP. TO EXCH. COEFF. FOR HEAT     (C-STAR IN DOC.)
+!                    (ONLY PCFM(*,1:KLEV-1) AND
+!                          PCFH(*,1:KLEV-1) ARE COMPUTED)
+!     *PTENDTKE      TKE TENDENCY
+!     *PBLH*         BOUNDARY-LAYER HEIGHT
+
+!     METHOD
+!     ------
+
+!     SEE DOCUMENTATION
+
+!     AUTHOR.
+!     -------
+!      E. BAZILE and I. SANDU 04/06/2013 
+
+!     MODIFICATIONS.
+!     --------------
+!      P. Bechtold  20.02.2018 updates and phasing
+!      P. Bechtold  26.03.2021 correction in scaling of coefficients
+!     R. El Khatib 22-Jun-2022 A contribution to simplify phasing after the refactoring of YOMCLI/YOMCST/YOETHF.
+
+!     ------------------------------------------------------------------
+
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
+
+!USE YOMCST   , ONLY : RG, RD, RCPD, RETV, RTT !TCST !eehol: modified to use params from YOMCST straight
+USE YOMCST   , ONLY : RCPD, RD, RDT, RKAPPA, RPI, RATM, RV, RCPV, RETV, RCW, RCS, RLVTT, RLSTT, RTT,&
+ & RALPW, RBETW, RGAMW, RALPS, RBETS, RGAMS, RALPD, RBETD, RGAMD, RG
+
+USE YOMPHY0              , ONLY : YRPHY0
+USE MODEL_PHYSICS_MF_MOD , ONLY : MODEL_PHYSICS_MF_TYPE
+USE YOM_YGFL             , ONLY : TYPE_GFLD !eehol: added for tke
+!USE YOMMDDH              , ONLY : TMDDH
+!USE YOMLDDH              , ONLY : TLDDH
+USE YOECUMF              , ONLY : TECUMF
+!USE DDH_MIX              , ONLY : TYP_DDH
+
+IMPLICIT NONE
+
+!TYPE (TCST), INTENT (IN) :: YDCST !eehol: not needed
+!TYPE(TLDDH)       ,INTENT(INOUT) :: YDLDDH
+!TYPE(TMDDH)       ,INTENT(INOUT) :: YDMDDH
+TYPE(TECUMF)      ,INTENT(IN) :: YDECUMF
+TYPE(MODEL_PHYSICS_MF_TYPE),INTENT(IN):: YDML_PHY_MF
+TYPE(TYPE_GFLD)   ,INTENT(IN) :: YGFL
+!TYPE(TYP_DDH), TARGET         :: YDDDH ! dummy 
+
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
+INTEGER(KIND=JPIM),INTENT(IN)    :: KSTEP !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTSPHY 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PZ0MM(KLON) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTSKM1M(KLON)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PEIS(KLON) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PUM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PVM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTM1(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAM1(KLON,KLEV) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PQM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PIM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PLM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPHM1(KLON,0:KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PGEOM1(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PGEOH(KLON,0:KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PLSM(KLON) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PKHFL(KLON) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PKQFL(KLON) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTKE(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTKED(KLON,KLEV) !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PRI(KLON,KLEV)  !eehol: added for tke
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PCFM(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PCFH(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PKH(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PKM(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTENDTKE(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PEDR(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PBLH(KLON) 
+
+REAL(KIND=JPRB) :: ZR(KLON,KLEV),ZDELP(KLON,KLEV),ZLSCPE(KLON,KLEV)
+REAL(KIND=JPRB) :: ZNLAB(KLON,KLEV),ZNLABCVP(KLON,KLEV), ZRTV(KLON,KLEV), &
+                    & ZGDZF(KLON,KLEV), ZTPRDY(KLON,KLEV), &
+                    & ZLM1(KLON,KLEV), ZIM1(KLON,KLEV), ZTKE(KLON,KLEV)
+REAL(KIND=JPRB) :: ZTKE1(KLON,KLEV), ZPRODTH(KLON,0:KLEV),& 
+                    & ZXTROV(KLON,0:KLEV), ZXUROV(KLON,0:KLEV),&
+                    & ZKTROV(KLON,0:KLEV), ZKUROV(KLON,0:KLEV),&
+                    & ZNBVNO(KLON,0:KLEV),ZNEBS(KLON,KLEV),ZQCS(KLON,KLEV),&
+                    & ZNEBS0(KLON,KLEV), ZQCS0(KLON,KLEV), ZCOEFN(KLON,KLEV),&
+                    & ZFTKE(KLON,0:KLEV), ZFTKEI(KLON,0:KLEV)
+REAL(KIND=JPRB) ::    ZTMP(KLON), ZGZ0(KLON),ZMGEOM(KLON)
+
+REAL(KIND=JPRB) ::   ZZRT,ZROSDPHI, ZDPHI,ZDELTA,ZCFNC1, ZRG, ZORCPD, ZTSPHY
+REAL(KIND=JPRB) ::   ZTKEBLH, ZHBOT, ZHTOP
+
+INTEGER(KIND=JPIM) :: JK, JL, JKM
+INTEGER(KIND=JPIM) :: ICM(KLON,KLEV), ICLPH(KLON), ILEVBI(KLON)
+
+REAL(KIND=JPHOOK) ::    ZHOOK_HANDLE
+
+#include "actkeifs.intfb.h"
+!#include "arocldia.intfb.h"
+#include "fcttrm.func.h"
+
+
+!     ------------------------------------------------------------------
+
+!*         1.     INITIALIZE CONSTANTS
+!                 --------------------
+
+
+
+IF (LHOOK) CALL DR_HOOK('VDFTKE',0,ZHOOK_HANDLE)
+
+
+ASSOCIATE (ECTMIN=>YRPHY0%ECTMIN, NJKT5=>YDECUMF%NJKT5, ECTMAX=>YRPHY0%ECTMAX, &
+     & LTKE_DYN=>YDML_PHY_MF%YRPHY%LTKE_DYN)
+! & RCPD=>YDCST%RCPD, RD=>YDCST%RD, RETV=>YDCST%RETV, RG=>YDCST%RG, RTT=>YDCST%RTT) !eehol: not needed... added straight from YDCST
+
+ZRG=1.0_JPRB/RG
+ZORCPD=1.0_JPRB/RCPD
+ZTSPHY=1.0_JPRB/PTSPHY
+
+DO JK = KLEV, 1, -1
+  DO JL=KIDIA,KFDIA
+    ZTKE(JL,JK)=MAX(ECTMIN,PTKE(JL,JK))
+    ZTKE1(JL,JK)=ECTMIN
+    PTENDTKE(JL,JK) =0.0_JPRB
+    PEDR(JL,JK) =0.0_JPRB
+    ZLM1(JL,JK)=PLM1(JL,JK)
+    ZIM1(JL,JK)=PIM1(JL,JK)
+    ZTPRDY(JL,JK) =0.0_JPRB
+  ENDDO
+ENDDO
+
+DO JL=KIDIA,KFDIA
+  ZTMP(JL)=1.E-6_JPRB
+  ZGZ0(JL)=PZ0MM(JL)*RG
+  ZPRODTH(JL,0)=0.0_JPRB
+ENDDO
+
+DO JK=1,KLEV
+  DO JL=KIDIA,KFDIA
+    ZR(JL,JK)=RD
+    ZNLAB(JL,JK)=0.0_JPRB
+    ZNLABCVP(JL,JK)=0.0_JPRB
+    ZPRODTH(JL,JK)=0.0_JPRB
+    ZDELP(JL,JK)=PAPHM1(JL,JK)-PAPHM1(JL,JK-1)
+    ZRTV (JL,JK) = ZR(JL,JK)*PTM1(JL,JK)
+    ZDELTA=MAX(0.0_JPRB,SIGN(1.0_JPRB,RTT-PTM1(JL,JK)))
+    ZLSCPE(JL,JK)=FOLH (PTM1(JL,JK),ZDELTA)*ZORCPD
+  ENDDO
+ENDDO
+
+!eehol: initialise arrays passed to ACTKEIFS that are not fully set below
+!       (levels 0 and KLEV of ZKTROV/ZKUROV, and the TKE fluxes)
+ZKTROV(:,:)=0.0_JPRB
+ZKUROV(:,:)=0.0_JPRB
+ZFTKE(:,:)=0.0_JPRB
+ZFTKEI(:,:)=0.0_JPRB
+
+! ZKTROV, ZKUROV (Kg/m2/s) = rho/dz*K
+DO JK=2,KLEV
+  DO JL=KIDIA,KFDIA
+    ZGDZF(JL,JK) = PGEOM1(JL,JK-1)-PGEOM1(JL,JK)
+  ENDDO ! JL
+ENDDO   ! JK
+DO JK=1,KLEV-1
+  DO JL=KIDIA,KFDIA
+    ZDPHI    =ZGDZF(JL,JK+1)
+    ZZRT     =0.5_JPRB*(ZRTV(JL,JK)+ZRTV(JL,JK+1))
+    ZROSDPHI =(ZDPHI*ZZRT)/PAPM1(JL,JK)
+
+    ZKTROV(JL,JK)=PKH(JL,JK)/ZROSDPHI/ZRG
+    ZKUROV(JL,JK)=PKM(JL,JK)/ZROSDPHI/ZRG
+  ENDDO
+ENDDO
+
+CALL ACTKEIFS ( YGFL, YDML_PHY_MF, KIDIA, KFDIA, KLON, 1, 1, KLEV, KSTEP, &
+            & PGEOH, PGEOM1, PAPHM1, PAPM1, ZDELP, ZR, PTM1, PAM1, &
+            & PUM1, PVM1, PQM1, PRI, ZLSCPE, &
+            & ZTMP, ZTMP, ZGZ0, PEIS, PLSM, PKHFL, PKQFL, PTSKM1M, ZTMP, &
+            & ZIM1, ZLM1, ZTKE, PTKED, ZPRODTH, ZNLAB, ZNLABCVP ,&
+            & ZKTROV, ZKUROV, ZXTROV, ZXUROV, ZNBVNO,&
+            & ZNEBS, ZQCS, ZNEBS0, ZQCS0, ZCOEFN , &
+            & ZFTKE , ZFTKEI, ZTKE1 , ZTPRDY, PEDR )
+
+DO JK=1,KLEV
+   DO JL=KIDIA,KFDIA
+      PTENDTKE(JL,JK)=(ZTKE1(JL,JK)-ZTKE(JL,JK))*ZTSPHY
+      IF(LTKE_DYN) THEN
+         !dyn tendency directly in TKE solver
+         PTENDTKE(JL,JK)=PTENDTKE(JL,JK)-PTKED(JL,JK)
+         !limitation againts negative TKE 
+         PTENDTKE(JL,JK)=PTENDTKE(JL,JK)+&
+              &MAX(0._JPRB,ECTMIN-PTKE(JL,JK)-(PTENDTKE(JL,JK))*PTSPHY)/PTSPHY
+         !limitation againts huge TKE 
+         PTENDTKE(JL,JK)=PTENDTKE(JL,JK)-&
+              &MAX(0._JPRB,PTKE(JL,JK)+(PTENDTKE(JL,JK))*PTSPHY-ECTMAX)/PTSPHY
+      ELSE
+         !limitation againts negative TKE when accounting for advection
+         PTENDTKE(JL,JK)=PTENDTKE(JL,JK)+&
+              &MAX(0._JPRB,ECTMIN-PTKE(JL,JK)-(PTENDTKE(JL,JK)+PTKED(JL,JK))*PTSPHY)/PTSPHY
+         !limitation againts huge TKE when accounting for advection
+         PTENDTKE(JL,JK)=PTENDTKE(JL,JK)-&
+              &MAX(0._JPRB,PTKE(JL,JK)+(PTENDTKE(JL,JK)+PTKED(JL,JK))*PTSPHY-ECTMAX)/PTSPHY
+      ENDIF
+   ENDDO
+ENDDO 
+
+! 2. Computation of PBL Height
+!    extract and simplified from MF routine arocldia.F90
+
+DO JL=KIDIA,KFDIA
+   ILEVBI(JL)=0
+ENDDO
+ICM(:,:)=0
+ZTKEBLH=0.01_JPRB
+DO JK=NJKT5,KLEV
+   DO JL=KIDIA,KFDIA
+     ICM(JL,JK) = INT(MAX(0.0_JPRB,SIGN(1.0_JPRB, PTKE(JL,JK)-ZTKEBLH)))
+   ENDDO
+ENDDO
+DO JK=KLEV,NJKT5,-1
+   DO JL=KIDIA,KFDIA
+     JKM=MAX(NJKT5, JK-1)
+     IF ( (ICM(JL, JK ) == 1).AND.(ICM(JL,JKM) == 0) ) THEN
+        ILEVBI(JL) = MAX(JK, ILEVBI(JL))
+     ENDIF
+   ENDDO
+ENDDO
+DO JL=KIDIA,KFDIA
+   ILEVBI(JL)=ILEVBI(JL)*MAX(ICM(JL,KLEV),ICM(JL,KLEV-1))
+   IF ((ICM(JL,KLEV) == 0).AND.(ILEVBI(JL) == 0) ) ILEVBI(JL)=KLEV
+ENDDO
+DO JL=KIDIA,KFDIA
+   ICLPH(JL)=MAX(1,ILEVBI(JL))
+ENDDO
+DO JL=KIDIA,KFDIA
+   IF ((ILEVBI(JL) > 1).AND.(ILEVBI(JL) < KLEV)) THEN
+      ZHBOT=PGEOM1(JL,ILEVBI(JL))*ZRG
+      ZHTOP=PGEOM1(JL,ILEVBI(JL)-1)*ZRG
+      PBLH(JL)=ZHBOT+(ZHTOP-ZHBOT)/&
+     & (PTKE(JL,ILEVBI(JL)-1) - PTKE(JL,ILEVBI(JL)))*&
+     & (ZTKEBLH - PTKE(JL,ILEVBI(JL)))
+   ELSEIF (ILEVBI(JL) == KLEV) THEN
+      PBLH(JL)=PGEOM1(JL,KLEV)*ZRG
+   ELSEIF (ILEVBI(JL) == 0) THEN
+      PBLH(JL)=PGEOM1(JL,NJKT5)*ZRG
+   ELSE
+      PBLH(JL)=PGEOM1(JL,ILEVBI(JL))*ZRG
+   ENDIF
+ENDDO
+
+! 3. Diffusion coefficients and scaling
+
+! ZKTROV, ZKUROV (Kg/m2/s) = rho/dz*K
+DO JK=2,KLEV
+  DO JL=KIDIA,KFDIA
+    ZGDZF(JL,JK) = PGEOM1(JL,JK-1)-PGEOM1(JL,JK)
+  ENDDO ! JL
+ENDDO   ! JK
+DO JK=1,KLEV-1
+  DO JL=KIDIA,KFDIA
+    ZDPHI    =ZGDZF(JL,JK+1)
+    ZZRT     =0.5_JPRB*(ZRTV(JL,JK)+ZRTV(JL,JK+1))
+    ZROSDPHI =(ZDPHI*ZZRT)/PAPM1(JL,JK)
+
+    PKH(JL,JK)=ZKTROV(JL,JK)*ZROSDPHI*ZRG
+    PKM(JL,JK)=ZKUROV(JL,JK)*ZROSDPHI*ZRG
+ ! no scaling necessary for PCFH,PCFM as units [kg m-2 s-1] already as in VDFDIFH/M
+    PCFH(JL,JK)=MAX(0.0_JPRB,ZKTROV(JL,JK))
+    PCFM(JL,JK)=MAX(0.0_JPRB,ZKUROV(JL,JK))
+  ENDDO
+ENDDO
+
+END ASSOCIATE
+IF (LHOOK) CALL DR_HOOK('VDFTKE',1,ZHOOK_HANDLE)
+END SUBROUTINE VDFTKE
