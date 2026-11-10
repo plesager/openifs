@@ -931,7 +931,10 @@ ENDDO
     CALL GSTATS(2502,0)
 
     ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero first
-    ZTKEM1(KIDIA:KFDIA,1:KLEV) = PTKE(KIDIA:KFDIA,1:KLEV) ! eehol: turbulent kinetic energy from turbulence scheme
+    ! eehol: turbulent kinetic energy from turbulence scheme, clipped at zero since the
+    ! advected/updated TKE can become slightly negative (esp. in single precision),
+    ! which would give an FPE in the SQRT used to derive sigma_w (NSIGW=3)
+    ZTKEM1(KIDIA:KFDIA,1:KLEV) = MAX(0._JPRB, PTKE(KIDIA:KFDIA,1:KLEV))
 
     ! LWP
     DO JK=1,KLEV
