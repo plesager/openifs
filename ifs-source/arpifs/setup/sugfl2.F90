@@ -114,6 +114,7 @@ ASSOCIATE(LADER=>YDDIMF%LADER, &
  & YMXL_NL=>YGFL%YMXL_NL, NUVP=>YGFL%NUVP, YUVP_NL=>YGFL%YUVP_NL, &
  & YRKTQC_NL=>YGFL%YRKTQC_NL, LTRCMFMG=>YGFL%LTRCMFMG, YO3_NL=>YGFL%YO3_NL, &
  & YL_NL=>YGFL%YL_NL, YLRCH4_NL=>YGFL%YLRCH4_NL, YCOMP=>YGFL%YCOMP, &
+ & YCDNC_NL=>YGFL%YCDNC_NL, YICNC_NL=>YGFL%YICNC_NL, YRE_LIQ_NL=>YGFL%YRE_LIQ_NL, YRE_ICE_NL=>YGFL%YRE_ICE_NL, & !eehol: added cloud prop
  & YQVA_NL=>YGFL%YQVA_NL, YS_NL=>YGFL%YS_NL, YA_NL=>YGFL%YA_NL, NNOGW=>YGFL%NNOGW, &
  & YDOM_NL=>YGFL%YDOM_NL, YSLDIA_NL=>YGFL%YSLDIA_NL, YAERO_NL=>YGFL%YAERO_NL, &
  & YFQTUR_NL=>YGFL%YFQTUR_NL, YSDSAT_NL=>YGFL%YSDSAT_NL, YLRAD_NL=>YGFL%YLRAD_NL, &
@@ -776,42 +777,57 @@ ASSOCIATE(LADER=>YDDIMF%LADER, &
   ENDIF
 
   IF(TRIM(AERO_SCHEME)=="hamm7") THEN
-    ! Aerosol-cloud interaction fields. These are not set through NAMGFL, so their
-    ! attributes are given explicitly here. They are initialised with a reference
-    ! value (KREQIN=-1) and never read from or written to GRIB, so no GRIB code is
-    ! assigned (-999, as in FALSIFY_GFL_COMP).
-    ! Cloud droplet number concentration [cm-3]
-    IGFLPTR=NUMFLDS+1
-    YGFL%YCDNC=>YGFL%YCOMP(IGFLPTR)
-    CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YCDNC, CDNAME='CLOUD DROPLET NC',       &
-     &                   KGRIB=-999, LDGP=.TRUE., KREQIN=-1,                       &
-     &                   PREFVALI=125.0_JPRB, LDREQOUT=.FALSE.,                    &
-     &                   LDERS=.FALSE., LD5=.FALSE., LDT1=.FALSE., LDDIFF=.FALSE., &
-     &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
-    ! Ice crystal number concentration [cm-3] (RNICE from sucldp.F90)
-    IGFLPTR=NUMFLDS+1
-    YGFL%YICNC=>YGFL%YCOMP(IGFLPTR)
-    CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YICNC, CDNAME='ICE CRYSTAL NC  ',       &
-     &                   KGRIB=-999, LDGP=.TRUE., KREQIN=-1,                       &
-     &                   PREFVALI=0.027_JPRB, LDREQOUT=.FALSE.,                    &
-     &                   LDERS=.FALSE., LD5=.FALSE., LDT1=.FALSE., LDDIFF=.FALSE., &
-     &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
-    ! Effective radius of liquid water droplets [m]
-    IGFLPTR=NUMFLDS+1
-    YGFL%YRE_LIQ=>YGFL%YCOMP(IGFLPTR)
-    CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YRE_LIQ, CDNAME='REFF LIQ        ',     &
-     &                   KGRIB=-999, LDGP=.TRUE., KREQIN=-1,                       &
-     &                   PREFVALI=4.0E-6_JPRB, LDREQOUT=.FALSE.,                   &
-     &                   LDERS=.FALSE., LD5=.FALSE., LDT1=.FALSE., LDDIFF=.FALSE., &
-     &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
-    ! Effective radius of ice crystals [m]
-    IGFLPTR=NUMFLDS+1
-    YGFL%YRE_ICE=>YGFL%YCOMP(IGFLPTR)
-    CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YRE_ICE, CDNAME='REFF ICE        ',     &
-     &                   KGRIB=-999, LDGP=.TRUE., KREQIN=-1,                       &
-     &                   PREFVALI=52.0E-6_JPRB, LDREQOUT=.FALSE.,                  &
-     &                   LDERS=.FALSE., LD5=.FALSE., LDT1=.FALSE., LDDIFF=.FALSE., &
-     &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
+    ! Aerosol-cloud interaction fields. Their attributes can be set in NAMGFL
+    ! (YCDNC_NL, YICNC_NL, YRE_LIQ_NL, YRE_ICE_NL); defaults in SUDEFO_GFLATTR.
+    IF (.NOT.(YCDNC_NL%LGP .AND. YICNC_NL%LGP .AND. YRE_LIQ_NL%LGP .AND. YRE_ICE_NL%LGP)) &
+     & CALL ABOR1('SUGFL2: CDNC, ICNC, RE_LIQ and RE_ICE must be grid-point GFL fields (LGP) with hamm7')
+    IF ((YCDNC_NL%NREQIN == 1 .AND. YCDNC_NL%IGRBCODE <= 0) .OR. &
+     & (YICNC_NL%NREQIN == 1 .AND. YICNC_NL%IGRBCODE <= 0) .OR. &
+     & (YRE_LIQ_NL%NREQIN == 1 .AND. YRE_LIQ_NL%IGRBCODE <= 0) .OR. &
+     & (YRE_ICE_NL%NREQIN == 1 .AND. YRE_ICE_NL%IGRBCODE <= 0)) &
+     & CALL ABOR1('SUGFL2: NREQIN=1 for CDNC, ICNC, RE_LIQ or RE_ICE requires a valid IGRBCODE in NAMGFL')
+    IF (YCDNC_NL%LGP) THEN
+      IGFLPTR=NUMFLDS+1
+      YGFL%YCDNC=>YGFL%YCOMP(IGFLPTR)
+      CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YCDNC, CDNAME=YCDNC_NL%CNAME,       &
+       &                   KGRIB=YCDNC_NL%IGRBCODE, LDGP=.TRUE.,                 &
+       &                   KREQIN=YCDNC_NL%NREQIN,                               &
+       &                   PREFVALI=YCDNC_NL%REFVALI,LDREQOUT=YCDNC_NL%LREQOUT,  &
+       &                   LDERS=.FALSE.,LD5=.FALSE.,LDT1=.FALSE.,LDDIFF=.FALSE.,&
+       &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
+    END IF
+    IF (YICNC_NL%LGP) THEN
+      IGFLPTR=NUMFLDS+1
+      YGFL%YICNC=>YGFL%YCOMP(IGFLPTR)
+      CALL DEFINE_GFL_COMP(YGFL, YDCOMP=YGFL%YICNC, CDNAME=YICNC_NL%CNAME,       &
+       &                   KGRIB=YICNC_NL%IGRBCODE, LDGP=.TRUE.,                 &
+       &                   KREQIN=YICNC_NL%NREQIN,                               &
+       &                   PREFVALI=YICNC_NL%REFVALI, LDREQOUT=YICNC_NL%LREQOUT, &
+       &                   LDERS=.FALSE.,LD5=.FALSE.,LDT1=.FALSE.,LDDIFF=.FALSE.,&
+       &                   LDCONV=.FALSE., LDMASSFIX=.FALSE.)
+    END IF
+    IF (YRE_LIQ_NL%LGP) THEN
+      IGFLPTR=NUMFLDS+1
+      YGFL%YRE_LIQ=>YGFL%YCOMP(IGFLPTR)
+      CALL DEFINE_GFL_COMP(YGFL,YDCOMP=YGFL%YRE_LIQ,CDNAME=YRE_LIQ_NL%CNAME,&
+       & KGRIB=YRE_LIQ_NL%IGRBCODE,LDGP=.TRUE., &
+       & KREQIN=YRE_LIQ_NL%NREQIN,&
+       & PREFVALI=YRE_LIQ_NL%REFVALI,LDREQOUT=YRE_LIQ_NL%LREQOUT,&
+  !       & LDERS=.FALSE.,LD5=.FALSE.,LDT1=LLT1,LDDIFF=.FALSE.,LDCONV=.FALSE., &
+       & LDERS=.FALSE.,LD5=.FALSE.,LDT1=.FALSE.,LDDIFF=.FALSE.,LDCONV=.FALSE., &
+       & LDMASSFIX=.FALSE.)
+    END IF
+    IF (YRE_ICE_NL%LGP) THEN
+      IGFLPTR=NUMFLDS+1
+      YGFL%YRE_ICE=>YGFL%YCOMP(IGFLPTR)
+      CALL DEFINE_GFL_COMP(YGFL,YDCOMP=YGFL%YRE_ICE,CDNAME=YRE_ICE_NL%CNAME,&
+       & KGRIB=YRE_ICE_NL%IGRBCODE,LDGP=.TRUE., &
+       & KREQIN=YRE_ICE_NL%NREQIN,&
+       & PREFVALI=YRE_ICE_NL%REFVALI,LDREQOUT=YRE_ICE_NL%LREQOUT,&
+  !       & LDERS=.FALSE.,LD5=.FALSE.,LDT1=LLT1,LDDIFF=.FALSE.,LDCONV=.FALSE., &
+       & LDERS=.FALSE.,LD5=.FALSE.,LDT1=.FALSE.,LDDIFF=.FALSE.,LDCONV=.FALSE., &
+       & LDMASSFIX=.FALSE.)
+    END IF
   END IF
 
   ! Extra GFL variables
