@@ -85,6 +85,7 @@ USE YOMCST    , ONLY : RG, RTT, RPI
 USE YOECLDP   , ONLY : TECLDP
 USE YOMLUN    , ONLY : NULNAM, NULOUT  
 USE YOMDYNCORE, ONLY : RPLRG, RPLDARE
+USE YOMPHY    , ONLY : YRPHY
 
 IMPLICIT NONE
 
@@ -181,7 +182,7 @@ ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, TSPHY=>YDPHY2%TSPHY, &
  & RSNOWLIN1=>YDECLDP%RSNOWLIN1, RSNOWLIN2=>YDECLDP%RSNOWLIN2, &
  & RTHOMO=>YDECLDP%RTHOMO, RSSICEFACTOR=>YDECLDP%RSSICEFACTOR, &
  & RVRAIN=>YDECLDP%RVRAIN, RVRFACTOR=>YDECLDP%RVRFACTOR, RVSNOW=>YDECLDP%RVSNOW, &
- & STPRE=>YDSTA%STPRE)
+ & STPRE=>YDSTA%STPRE,LECT=>YRPHY%LECT)
 ! Autoconversion/accretion (KK 2000)
 ! & RCL_KKAac, RCL_KKBac, RCL_KKAau, RCL_KKBauq, RCL_KKBaun, &
 ! & RCL_KK_cloud_num_sea, RCL_KK_cloud_num_land, &
@@ -252,7 +253,13 @@ RLMIN=1.E-8_JPRB
 ! Coefficients for cloud edge turbulent erosion
 !---------------------------------------------------------
 RCLDIFF       = 6.0E-6_JPRB*RPLRG*RPLDARE
-RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+!RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+IF(LECT) THEN
+   RCLDIFF_CONVI = 2.5_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+   !RCLDIFF_CONVI = 1.25_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+ELSE
+   RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+ENDIF
 
 !--------------------------------
 ! Rain auto conversion constants

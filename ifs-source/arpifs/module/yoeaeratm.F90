@@ -56,6 +56,7 @@ INTEGER(KIND=JPIM) :: NTAER
 INTEGER(KIND=JPIM) :: NTYPAER(NMAXTAER)
 INTEGER(KIND=JPIM) :: NAER_BLNUCL
 INTEGER(KIND=JPIM) :: NAERSCAV
+INTEGER(KIND=JPIM) :: NSIGW
 
 REAL(KIND=JPRB) :: RGRATE
 
@@ -114,6 +115,7 @@ TYPE(TEAERATM), POINTER :: YREAERATM => NULL()
 ! LAERHYDRO  : .T. hygroscopic effects on BC and OM aerosols
 ! LAERNGAT   : .T. prevents negative aerosol concentrations
 ! NAERSCAV   : aerosol scanvenging scheme: 1=historical, 2=from CB05, 3=Luo et al. 2019
+! NSIGW      : Sigma_w calc selection: 1=using prescribed sigma_w and 3=using TKE derived
 ! LAERSEDIM  : .T. sedimentation is active
 ! LAERSEDIMSS  : .T. special sedimentation for sea-salt is active
 ! LAERSURF   : .T. if surface emissions
@@ -186,6 +188,7 @@ WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERHYGRO = ', SELF%LAERHYGRO
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERLISI = ', SELF%LAERLISI
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERNGAT = ', SELF%LAERNGAT
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NAERSCAV = ', SELF%NAERSCAV
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NSIGW = ', SELF%NSIGW
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERSEDIM = ', SELF%LAERSEDIM
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERSEDIMSS = ', SELF%LAERSEDIMSS
 WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LAERSURF = ', SELF%LAERSURF
