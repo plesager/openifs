@@ -223,7 +223,7 @@ MODULE mo_ham
   !<<gf
 #endif
   LOGICAL :: lscond     = .TRUE.    ! Condensation of H2SO4
-  LOGICAL :: lscond_org = .TRUE.    ! Organic condensation
+  LOGICAL :: lscond_org = .FALSE.   ! Organic condensation
   LOGICAL :: lscoag     = .TRUE.    ! Coagulation
   
 

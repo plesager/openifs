@@ -1,3 +1,28 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>
+!! \filename 
+!! mo_ham_m7_dgas_org.F90
+!!
+!! \brief
+!! mo_ham_m7_dgas_org provides routines for calculating aerosol organic condensation.
+!!
+!! \responsible_coder
+!! Hermanni Halonen, hermanni.halonen@uef.fi
+!!
+!! \limitations
+!! None
+!!
+!! \details
+!! This module provides routines for calculating organic nucleation for SVOC and ELVOC
+!!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 MODULE mo_ham_m7_dgas_org
   USE mo_kind, ONLY: dp
   USE mo_time_control,  ONLY: time_step_len

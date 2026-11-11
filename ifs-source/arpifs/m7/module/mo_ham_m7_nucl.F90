@@ -833,6 +833,7 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
                ppbl(kbdim),         & ! Planetary boundary layer top level
                pelvoc(kbdim,klev),  & ! ELVOC concentration
                pns(kbdim,klev)        ! Number of H2SO4 molecules in the newly formed aerosol particles
+               
     
     !
     ! Output variables:
@@ -844,7 +845,9 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
     ! Local variables:
     !
     
-    INTEGER :: jk,jl
+    INTEGER  :: jk,jl
+    REAL(dp), PARAMETER :: zna = 6.022E23_dp    ! Avogadros constant
+    REAL(dp), PARAMETER :: zmelvoc = 248.0_dp   ! ELVOC molar mass. Bergman et al. (2022)
    
    ! Above the boundary layer:
    DO jl = 1, kproma
@@ -856,7 +859,8 @@ SUBROUTINE nucl_vehkamaeki(kproma, kbdim,   klev,        & ! ECHAM5 dimensions
    ! In the boundary layer:
    DO jl = 1, kproma
      DO jk = int(ppbl(jl)), klev
-       ppfr(jl,jk) = 3.27E-21_dp*ph2so4(jl,jk)*ph2so4(jl,jk)*pelvoc(jl,jk)
+       ! pelvoc [ug m-3] -> [cm-3]: *1e-12 g/cm3 * N_A / M
+       ppfr(jl,jk) = 3.27E-21_dp*ph2so4(jl,jk)*ph2so4(jl,jk)*(pelvoc(jl,jk)*1.0E-12_dp*zna/zmelvoc)
        pns(jl,jk) = 2.0_dp
      END DO
    END DO

@@ -1,3 +1,28 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!>
+!! \filename 
+!! mo_ham_m7_cond_sink.F90
+!!
+!! \brief
+!! mo_ham_m7_cond_sink provides routines for calculating division factors for organic condensation.
+!!
+!! \responsible_coder
+!! Hermanni Halonen, hermanni.halonen@uef.fi
+!!
+!! \limitations
+!! None
+!!
+!! \details
+!! Called by m7_dgas_org to get division factors for organic condensation
+!!
+!! \belongs_to
+!!  HAMMOZ
+!!
+!!  SPDX-License-Identifier: BSD-3-Clause
+!! Copyright (c) 2021 hammoz
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 MODULE mo_ham_m7_cond_sink
   USE mo_kind, ONLY: dp
   IMPLICIT NONE

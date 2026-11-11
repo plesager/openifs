@@ -982,30 +982,25 @@ DO JL=KIDIA,KFDIA
 
    ! SOG-SOA partitioning
    IF (lscond_org) THEN
-       ! apply gas-aerosol partitioning for Sec Org Aerosol, and gas-phase version
        DO JL=KIDIA,KFDIA
          IF (JK > ILEVMIN_GAS(JL)) THEN
              ZRHO=PRSF1(JL,JK)/(RD*PTP(JL,JK))
-        
+             
              DO JT = 1,INSOG
                ! SOG: conversion from molec/cm3 -> mol/cm3-> gr/cm3-> ug/m3
                ZSOG(JT)=ZCVM(JL,JSOG_TRACER(JT)) /6.02E23_JPRB * 1E12_JPRB * YCHEM(JSOG_TRACER(JT))%RMOLMASS   ! ug/m3
              ENDDO
-             DO JT = 1,INSOA
-               ! SOA: conversion from kg/kg to ug/m3
-               ZSOA(JT)=PAEROP(JL,JK,JSOA_TRACER(JT))*ZRHO* 1E9_JPRB
-             ENDDO
-             !Input SOG for SOA/SOG equilibrium: Only first (biogenic) and third (anthro, low volatility) arrays
-             ZSOGH(1)=ZSOG(1)
-             ZSOGH(2)=ZSOG(3)
              
              DO JT=1,INSOG
-               ! Conversion ug/m3 -> kg/kg (Hermanni Halonen)
+               ! Conversion ug/m3 -> kg/kg
                ZSOG(JT) = ZSOG(JT)/(ZRHO*1E9_JPRB)
+               ! Pass SOG1 and SOG2B to SOA
                IF (JT == 1) THEN
                  PSOGTOSOA(JL,JK,1) = ZSOG(JT)/PTSTEP
+                 ZCVM(JL,JSOG_TRACER(JT)) = 0.0_JPRB
                ELSE IF (JT == 3) THEN
                  PSOGTOSOA(JL,JK,2) = ZSOG(JT)/PTSTEP
+                 ZCVM(JL,JSOG_TRACER(JT)) = 0.0_JPRB
                END IF
              ENDDO
           ENDIF ! JK > ILEVMIN_GAS(JL)
