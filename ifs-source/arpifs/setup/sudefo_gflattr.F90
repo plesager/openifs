@@ -1762,6 +1762,13 @@ YCPF_NL%IGRBCODE=0
 !provisory
 YPHYCTY_NL%IGRBCODE=999
 
+! Aerosol-cloud interaction fields for AERO_SCHEME=hamm7: no GRIB code assigned.
+! A valid code must be set in NAMGFL to read them from the initial file (NREQIN=1).
+YCDNC_NL%IGRBCODE=-999
+YICNC_NL%IGRBCODE=-999
+YRE_LIQ_NL%IGRBCODE=-999
+YRE_ICE_NL%IGRBCODE=-999
+
 ! * Default for attribute NCOUPLING
 IF ((.NOT.LECMWF).AND. LMPA) THEN
   IF(LELAM) THEN
