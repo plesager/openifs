@@ -416,7 +416,7 @@ REAL(KIND=JPRB) :: ZAZ0I(KLON), ZCDNI(KLON)
 ! variables needed for HAM aerosol dry deposition
 LOGICAL         :: ZLOLAND(KLON) !logical land mask
 REAL(KIND=JPRB) :: ZXTEMS(KLON,ntrac) !surface emissions modified by dry deposition
-REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON) !rough. len. wat., wat. frac., snow cov. frac., wet skin frac., veg. ratio
+REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZFRI(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON) !rough. len. wat., wat. frac., snow cov. frac., wet skin frac., veg. ratio
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,NTRAC) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
@@ -1388,6 +1388,8 @@ ENDDO
         ZTVI(:) = 0._JPRB
         ZAZ0(:) = 0._JPRB
         ZFRL(:) = 0._JPRB
+        ZFRW(:) = 0._JPRB
+        ZFRI(:) = 0._JPRB
         ZSRFL(:) = 0._JPRB
         ZFOREST(:) = 0._JPRB
         ZTSI(:) = 0._JPRB
@@ -1405,7 +1407,10 @@ ENDDO
             ZAZ0W(JL) = 0._JPRB
           END IF
           ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! threshold roughness length to min value
-          ZFRW(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL)-PCI(JL)) ! water fraction = 1 - land mask - sea ice fraction
+          ! PCI is the sea-ice concentration (fraction of the water surface covered by ice),
+          ! so the grid-box fractions of open water and ice are (1-LSM)*(1-CI) and (1-LSM)*CI
+          ZFRW(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL))*(1._JPRB-PCI(JL)) ! open water fraction of grid box
+          ZFRI(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL))*PCI(JL)           ! sea-ice fraction of grid box
           ZCVS(JL)   = PFRTI(JL,5)+PFRTI(JL,7)     ! snow cover fraction = Snow on low-veg + snow on bare-soil + snow under high-veg
           ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
           ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
@@ -1431,7 +1436,7 @@ ENDDO
             & ZTVIR1, ZTVL, ZTVW, ZTVI, ZAZ0,                               &
             & PTP(:,KLEV), ZLOLAND,                                         &
             & ZM6RP, ZRHOP,                                                 & ! M7
-            & ZFRL,   ZFRW,  PCI,     ZCVS,   ZCVW,     ZVGRAT,             &
+            & ZFRL,   ZFRW,  ZFRI,    ZCVS,   ZCVW,     ZVGRAT,             &
             & ZSRFL,  PUP(:,KLEV),     PVP(:,KLEV),                         & !eehol: FIXME 10m u and v wind from lowest level.. needs to be revised in future!!
             & ZXTEMS, ZXTMD1, ZRHO(:,KLEV), PRS1, ZFOREST, ZTSI,            & !air dens lowest, air press at int.
             & ZAZ0L, ZAZ0W, ZAZ0I, ZCDNL, ZCDNW, ZCDNI, ZDDEPFLUX, ZVDEP)     !ZCDNL and ZCDNW used for ustar and aerodyn. resist.

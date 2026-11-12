@@ -260,12 +260,9 @@ MODULE mo_ham_m7_emi_seasalt
         fi = 0._dp
       
        ! calculate fraction of the gridcell of non ice-covered water
-#ifdef HAMMOZ      
+       ! (in OpenIFS, seaice is the sea-ice concentration, i.e. the fraction
+       !  of the water surface covered by ice, as in ECHAM)
         zseafrac(1:kproma) = (1._dp-slf(1:kproma)-alake(1:kproma))*(1._dp-seaice(1:kproma))
-#else
-        !alaak: seaice fraction of gridbox in oifs:
-        zseafrac(1:kproma) = 1._dp-slf(1:kproma)-alake(1:kproma)-seaice(1:kproma)
-#endif
         zseafrac(1:kproma) = MAX(0._dp,MIN(zseafrac(1:kproma),1._dp))
       
         !>>SF #458 (replacing where statements)

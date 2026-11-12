@@ -161,8 +161,10 @@ IF (NSEASALT==0) THEN
       xsea=1._JPRB - PLSM(JL)-PCLAKE(JL)
 
       ! sea salt is emitted only over sea without ice cover
-      ! PCI interpreted as gridbox fraction. See aer_ssalt.F90 for a different treatment.
-      area_frac = MAX(0._JPRB, xsea - PCI(JL))
+      ! PCI is the sea-ice concentration, i.e. the fraction of the water
+      ! surface covered by ice, not a fraction of the grid box
+      ! (consistent with aer_ssalt.F90 and the IFS surface tiling).
+      area_frac = MAX(0._JPRB, xsea) * (1._JPRB - PCI(JL))
       
       if (area_frac .LT. 1.e-10_JPRB ) CYCLE
 

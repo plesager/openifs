@@ -271,7 +271,8 @@ end do
             endif
     
 	    
-           freesea = MAX(0.,1.-PLSM(JL)-PCI(JL))
+           ! PCI is the sea-ice concentration (fraction of the water surface)
+           freesea = MAX(0._JPRB,1._JPRB-PLSM(JL))*(1._JPRB-PCI(JL))
            if (freesea>0.01) then   !
 
               ! bubble bursting effect,see Hummelshoj, equation 10
