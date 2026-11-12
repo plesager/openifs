@@ -106,10 +106,10 @@ REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_TD = 2900._JPRD    ! temperature dependen
 !=================================!
 ! Acid-base equilibrium constants !
 !=================================!
-! Keq_1(SO2(aq)<=>HSO3-)   Seinfeld & Pandis, 1998, table 6.A.1 p.394
+! Keq_1(SO2(aq)<=>HSO3-)   Seinfeld & Pandis, 2016, table 7A.1 p.301, from Maahs (1982)
 REAL(KIND=JPRD), PARAMETER :: ZKEQ1_SO2_REF = 1.3E-2_JPRD ! Keq_1(SO2(aq)<=>HSO3-) at T=Tref      [mol / L]
 REAL(KIND=JPRD), PARAMETER :: ZKEQ1_SO2_TD = 1960._JPRD   ! temperature dependency for Keq_1      [K]
-! Keq_2(HSO3-<=>SO3=)      Seinfeld & Pandis, 1998, table 6.A.1 p.394
+! Keq_2(HSO3-<=>SO3=)      Seinfeld & Pandis, 2016, table 7A.1 p.301
 REAL(KIND=JPRD), PARAMETER :: ZKEQ2_SO2_REF = 6.6E-8_JPRD ! Keq_2(HSO3-<=>SO3=) at T=Tref         [mol / L]
 REAL(KIND=JPRD), PARAMETER :: ZKEQ2_SO2_TD = 1500._JPRD   ! temperature dependency for Keq_2      [K]
 
