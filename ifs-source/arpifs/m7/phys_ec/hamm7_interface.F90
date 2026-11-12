@@ -420,6 +420,7 @@ REAL(KIND=JPRB) :: ZAZ0I(KLON), ZCDNI(KLON)
 LOGICAL         :: ZLOLAND(KLON) !logical land mask
 REAL(KIND=JPRB) :: ZXTEMS(KLON,ntrac) !surface emissions modified by dry deposition
 REAL(KIND=JPRB) :: ZAZ0W(KLON), ZFRW(KLON), ZFRI(KLON), ZCVS(KLON), ZCVW(KLON), ZVGRAT(KLON) !rough. len. wat., wat. frac., snow cov. frac., wet skin frac., veg. ratio
+REAL(KIND=JPRB) :: ZSNFREE, ZDRYLAND ! snow-free land and dry snow-free land fractions of grid box
 REAL(KIND=JPRB) :: ZCDNL(KLON), ZCDNW(KLON) !ustar (in not used variable), aerodynamic resis. on surface (in not used variable)
 REAL(KIND=JPRB) :: ZXTMD1(KLON,KLEV,NTRAC) !tracer mixing ratios for HAM drydep (updated with tend)
 ! output diagnostics
@@ -1420,21 +1421,39 @@ ENDDO
 
         !--> variables calculated for dry deposition
         DO JL = KIDIA,KFDIA
-          IF ( PLSM(JL) < 0.99_JPRB ) THEN
-            ZLOLAND(JL) = .FALSE.
-            ZAZ0W(JL) = PZ0M(JL)
-          ELSE
-            ZLOLAND(JL) = .TRUE.
+          ! Surface-type fractions are taken from the IFS tiles, which sum to 1 at
+          ! every point, so that the dry deposition sees the same (binary land/water)
+          ! surface as IFS: open water (tile 1), sea ice (tile 2), lake (tile 9),
+          ! land (tiles 3-8, and urban tile 10 if present).
+          ZFRI(JL) = PFRTI(JL,2)                   ! sea-ice fraction of grid box
+          ZFRW(JL) = PFRTI(JL,1)                   ! open water fraction of grid box (incl. lakes)
+          IF (KTILES >= 9) ZFRW(JL) = ZFRW(JL) + PFRTI(JL,9)
+          ZFRL(JL) = MAX(0._JPRB, 1._JPRB-ZFRW(JL)-ZFRI(JL)) ! land fraction of grid box
+          ZLOLAND(JL) = ZFRL(JL) > 0.5_JPRB        ! land point as in IFS
+          IF (ZLOLAND(JL)) THEN
             ZAZ0W(JL) = 0._JPRB
+          ELSE
+            ZAZ0W(JL) = PZ0M(JL)
           END IF
           ZAZ0W(JL)  = MAX(1.0E-5_JPRB,ZAZ0W(JL))  ! threshold roughness length to min value
-          ! PCI is the sea-ice concentration (fraction of the water surface covered by ice),
-          ! so the grid-box fractions of open water and ice are (1-LSM)*(1-CI) and (1-LSM)*CI
-          ZFRW(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL))*(1._JPRB-PCI(JL)) ! open water fraction of grid box
-          ZFRI(JL)   = MAX(0._JPRB, 1._JPRB-PLSM(JL))*PCI(JL)           ! sea-ice fraction of grid box
-          ZCVS(JL)   = PFRTI(JL,5)+PFRTI(JL,7)     ! snow cover fraction = Snow on low-veg + snow on bare-soil + snow under high-veg
-          ZCVW(JL)   = PFRTI(JL,3)                 ! wet skin fraction
-          ZVGRAT(JL) = PCVL(JL)+PCVH(JL)           ! vegetation ratio = low veg. cover + high veg. cover
+          ! Snow, wet-skin and vegetation fractions relative to the land part, as
+          ! expected by ham_vdaer, which weights the land terms with ZFRL.
+          ! With these definitions, the land weights reproduce the IFS tile fractions:
+          ! snow = tiles 5+7, wet skin = tile 3, vegetation = tiles 4+6,
+          ! bare soil = tile 8 (+ urban tile 10).
+          ZCVS(JL)   = 0._JPRB
+          ZCVW(JL)   = 0._JPRB
+          ZVGRAT(JL) = 0._JPRB
+          IF (ZFRL(JL) > 1.E-10_JPRB) THEN
+            ZCVS(JL) = MIN(1._JPRB, (PFRTI(JL,5)+PFRTI(JL,7))/ZFRL(JL))   ! snow cover fraction of land
+            ZSNFREE  = ZFRL(JL)-PFRTI(JL,5)-PFRTI(JL,7)
+            IF (ZSNFREE > 1.E-10_JPRB) THEN
+              ZCVW(JL) = MIN(1._JPRB, PFRTI(JL,3)/ZSNFREE)               ! wet skin fraction of snow-free land
+              ZDRYLAND = ZSNFREE-PFRTI(JL,3)
+              IF (ZDRYLAND > 1.E-10_JPRB) &
+                & ZVGRAT(JL) = MIN(1._JPRB, (PFRTI(JL,4)+PFRTI(JL,6))/ZDRYLAND) ! vegetation ratio of dry snow-free land
+            END IF
+          END IF
           ZCDNL(JL)  = PAERUST(JL)                 ! adding ustar to not used variable
           ZCDNW(JL)  = LOG(ZDZ(JL,KLEV)/PZ0M(JL))/(VKARMAN*MAX(PAERUST(JL), ustarmin)) ! calculate aerodyn. resistance on surface to not used variable
         END DO
