@@ -813,7 +813,7 @@ DO JL=KIDIA,KFDIA
           CALL TM5_KPP_RATES(ZRR(JL,1:NREAC),ZRJ_IN(JL,1:NPHOTO),ZRCONST)
                
           ! Initialize concentrations to KPP (merge with prepare_kpp_conc)
-          CALL TM5_V0_KPP_INITIALIZE(YGFL,ZCVM(JL,1:NCHEM),ZVAR(1:NVAR),LAERSOA_COUPLED)
+          CALL TM5_V0_KPP_INITIALIZE(YGFL,ZCVM(JL,1:NCHEM),ZVAR(1:NVAR),LAERSOA_COUPLED .OR. lscond_org)
 
           ! Call kpp integrator...
           CALL TM5_KPP_INTEGRATOR(0._JPRD, PTSTEP, ICNTRL,ZCNTRL_P, ISTATUS,ZSTATE,IERR,ZVAR,ZRCONST,ZCVM(JL,iair) )
@@ -825,7 +825,7 @@ DO JL=KIDIA,KFDIA
          IF (IERR>0) THEN
 
            !No errors: update concentrations...
-           CALL TM5_V0_KPP_UPDATE_CIFS_CONC(YGFL,ZVAR(1:NVAR),ZCVM(JL,1:NCHEM),LAERSOA_COUPLED)
+           CALL TM5_V0_KPP_UPDATE_CIFS_CONC(YGFL,ZVAR(1:NVAR),ZCVM(JL,1:NCHEM),LAERSOA_COUPLED .OR. lscond_org)
      
           ELSEIF( IERR==-9) THEN
             write(NULERR,'(a)') '     ZVAR below are out of range:'
