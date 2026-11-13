@@ -20,7 +20,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
  & PBLH,      PSNOWACL,  KCTOP,     KCBOT,                                    &
- & PAEPM1,    PAEPM25,   PAEPM10)
+ & PAEPM1,    PAEPM25,   PAEPM10,   KTROPAOD)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 30-APR-2024) │
@@ -266,6 +266,8 @@ REAL(KIND=JPRB),INTENT(IN)    :: PBLH(KLON)  ! Boundary layer height
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM1(KLON)
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM25(KLON)
 REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM10(KLON)
+INTEGER(KIND=JPIM),INTENT(IN)   :: KTROPAOD(KLON) ! highest level included in the column optical properties
+                                                  ! (1, or the tropopause level if stratospheric aerosols are prescribed)
 
 !*   0.5    LOCAL VARIABLES
 !           ---------------
@@ -1677,6 +1679,7 @@ CASE (1)
    ! Vertically integrated optical properties at diagnostic wavelenghts
    DO JK = 1, KLEV
      DO JL = KIDIA,KFDIA
+       IF (JK < KTROPAOD(JL)) CYCLE ! levels with prescribed stratospheric aerosols
        DO IW=1,NAERO_WVL_DIAG
          ZAOD_DIAG(JL,IW)= ZAER_TAU_DIAG(JL,JK,IW)+ZAOD_DIAG(JL,IW)
          ZSSA_DIAG(JL,IW)= ZAER_SSA_DIAG(JL,JK,IW)*ZAER_TAU_DIAG(JL,JK,IW)+ZSSA_DIAG(JL,IW)
@@ -1731,6 +1734,7 @@ PAOD_LW(KIDIA:KFDIA,:)=0._JPRB
 
 DO JK = 1, KLEV
   DO JL = KIDIA,KFDIA
+    IF (JK < KTROPAOD(JL)) CYCLE ! levels with prescribed stratospheric aerosols
     DO IW=1,NASWBAND
       PAOD(JL,IW)=PAER_TAU(JL,JK,IW)+PAOD(JL,IW)
       PSSA(JL,IW)=PAER_SSA(JL,JK,IW)*PAER_TAU(JL,JK,IW)+PSSA(JL,IW)

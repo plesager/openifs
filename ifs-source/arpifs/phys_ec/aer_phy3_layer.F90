@@ -101,6 +101,7 @@ REAL(KIND=JPRB)                , INTENT (IN)   :: PSNOWACL(KDIM%KLON,KDIM%KLEV) 
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JAER, JVAR, JWVL, JGFL, JK, JL
 INTEGER(KIND=JPIM) :: IBLK
+INTEGER(KIND=JPIM) :: ITROPAOD(KDIM%KLON) ! highest level included in the column optical properties
 REAL(KIND=JPRB) :: ZTH(KDIM%KLON,KDIM%KLEV+1),ZSNM(KDIM%KLON)
 REAL(KIND=JPRB) :: ZAERO_WVL_DIAG(KDIM%KLON,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG,YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG_TYPES)
 REAL(KIND=JPRB),ALLOCATABLE :: ZAREA(:)
@@ -131,6 +132,7 @@ REAL(KIND=JPRB) :: ZPMAER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 #include "hamm7_interface.intfb.h"
 #include "aer_diagglomap.intfb.h"
 #include "abor1.intfb.h"
+#include "cmip_strato_tropopause.intfb.h"
 
 
 !     ------------------------------------------------------------------
@@ -172,6 +174,26 @@ ENDDO
 
 ZSNM = SUM(PSURF%PSP_SG(:,:,YSP_SG%YF%MP9),DIM=2) ! pre-compute total snow mass
 
+!*         0.1    Tropopause level for the column optical properties
+!
+! When stratospheric aerosols are prescribed, the radiation scheme applies
+! them at the levels JK < KTROPPAUSE and ignores the M7/AER aerosols there
+! (see RADIATION_SCHEME and CMIP_STRATO_AERO_PROCESS). The column optical
+! properties (od550aer etc.) then only include the levels JK >= tropopause
+! level, as requested by CMIP. The level is computed with the same routine
+! and the same type of inputs as in the radiation scheme, but from the
+! current state on the model grid, so it can occasionally differ by a level
+! from the one used in the radiation. Without prescribed stratospheric
+! aerosols, the full column is included.
+
+IBLK=(KDIM%KSTGLO-1)/KDIM%KLON + 1
+ITROPAOD(:) = 1
+IF (YDMODEL%YRML_PHY_RAD%YRERAD%LCMIP_STRATAER_CMIP6 .OR. &
+  & YDMODEL%YRML_PHY_RAD%YRERAD%LCMIP_STRATAER_CMIP7) THEN
+  CALL CMIP_STRATO_TROPOPAUSE(KDIM%KIDIA, KDIM%KFDIA, KDIM%KLON, KDIM%KLEV, &
+    &                         PAUX%PAPRSF, PAUX%PAPRS, STATE%T, ZTH, ITROPAOD)
+ENDIF
+
 ! Select ozone to use in aerosol diagnostics
 IF (NCHEM > 0 .AND. LCHEM_O3RAD) THEN
   IO3_CHEM=-999
@@ -196,8 +218,6 @@ SELECT CASE (TRIM(AERO_SCHEME))
     ! Optical properties calculated on the step before radiation call.
     ! Using previous optical properties if not calculated
     ! introduce simple routine to ensure values are non-zero:
-
-    IBLK=(KDIM%KSTGLO-1)/KDIM%KLON + 1
 
     DO JAER=1,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW
       DO JK=1,KDIM%KLEV
@@ -267,7 +287,8 @@ SELECT CASE (TRIM(AERO_SCHEME))
       &  PSURF%PSD_XA, PAUX%PVERVEL, AUXL%ZCCNL, AUXL%ZCCNO, PSURF%PAHFSTI, PSURF%PSD_VF(:,YSD_VF%YCI%MP), GEMSL%ZAZ0M, FLUX%PFTLHEV, &
       &  STATE%U, STATE%V, PSURF%PCVL, PSURF%PCVH,PSURF%PSD_VF(:,YSD_VF%YSO2DD%MP), PAUX%PGEMU,PSURF%PSD_VD(:,YDSURF%YSD_VD%YBLH%MP), &
       &  PSNOWACL, PDIAG%ICTOP, PDIAG%ICBOT, &
-      &  PSURF%PSD_VD(:,YSD_VD%YAEPM1%MP), PSURF%PSD_VD(:,YSD_VD%YAEPM25%MP), PSURF%PSD_VD(:,YSD_VD%YAEPM10%MP) )
+      &  PSURF%PSD_VD(:,YSD_VD%YAEPM1%MP), PSURF%PSD_VD(:,YSD_VD%YAEPM25%MP), PSURF%PSD_VD(:,YSD_VD%YAEPM10%MP), &
+      &  ITROPAOD )
 
     DO JAER=1,YDMODEL%YRML_PHY_RAD%YRERAD%NTSW
        DO JK=1,KDIM%KLEV
@@ -314,7 +335,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
         &  PSURF%PSD_VD(:,YSD_VD%YODVFA%MP),PSURF%PSD_VD(:,YSD_VD%YODVSU%MP), PSURF%PSD_VD(:,YSD_VD%YODTOACC%MP),&
         &  PSURF%PSD_VD(:,YSD_VD%YAEPM1%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM25%MP),PSURF%PSD_VD(:,YSD_VD%YAEPM10%MP),  &
         &  GEMSL%ZAERAOT, GEMSL%ZAERLISI, PSURF%PSD_XA,                         &
-        &  ZAERO_WVL_DIAG )
+        &  ZAERO_WVL_DIAG, ITROPAOD )
 
    CASE DEFAULT
 
