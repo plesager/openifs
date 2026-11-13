@@ -259,18 +259,17 @@ MODULE mo_ham_m7_emi_seasalt
       
         fi = 0._dp
       
-       ! calculate fraction of the gridcell of non ice-covered water
-       ! (in OpenIFS, seaice is the sea-ice concentration, i.e. the fraction
-       !  of the water surface covered by ice, as in ECHAM)
-        zseafrac(1:kproma) = (1._dp-slf(1:kproma)-alake(1:kproma))*(1._dp-seaice(1:kproma))
-        zseafrac(1:kproma) = MAX(0._dp,MIN(zseafrac(1:kproma),1._dp))
-      
-        !>>SF #458 (replacing where statements)
+       ! calculate fraction of the gridcell of non ice-covered water.
+       ! Binary land/sea view, consistent with the IFS surface scheme
+       ! (see surfbc_ctl_mod) and the AER sea salt routines: a grid point is
+       ! treated as entirely sea if it is neither a land point (LSM > 0.5)
+       ! nor a resolved lake point (CL > 0.5).
+       ! seaice is the sea-ice concentration, i.e. the fraction of the water
+       ! surface covered by ice.
         zseafrac(1:kproma) = MERGE( &
+                                   MAX(0._dp,MIN(1._dp-seaice(1:kproma),1._dp)), &
                                    0._dp, &
-                                   zseafrac(1:kproma), &
-                                   (slf(1:kproma) > 0.5_dp))
-        !<<SF #458 (replacing where statements)
+                                   (slf(1:kproma) <= 0.5_dp .AND. alake(1:kproma) <= 0.5_dp))
       
         ! initialization 
       
