@@ -1,1 +1,0 @@
-../../t21/ifsdata/total_solar_irradiance_CMIP6_47r1.nc

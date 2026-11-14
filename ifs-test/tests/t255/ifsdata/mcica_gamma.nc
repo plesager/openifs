@@ -1,1 +1,0 @@
-../../t21/ifsdata/mcica_gamma.nc
