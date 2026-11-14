@@ -273,7 +273,7 @@ REAL(KIND=JPRB),INTENT(OUT)     :: PAEPM10(KLON)
 INTEGER(KIND=JPIM) :: JAER, JK, JL, JWAVL, JT, JB, JN
 INTEGER(KIND=JPIM) :: JEXT, ITRC, IKLEVTROP(KLON), IW
 INTEGER(KIND=JPIM) :: JO, JH, JY                         ! inside loop index for OIFS contex, HAM context and YAEROUT 
-INTEGER(KIND=JPIM) :: JCLASS, JTILE, JMASS, JGAS, JCLOUD ! local loop indice for activation and dry deposition and tracer indexing
+INTEGER(KIND=JPIM) :: JCLASS, JTILE, JMASS, JGAS ! local loop indice for activation and dry deposition and tracer indexing
 INTEGER(KIND=JPIM) :: ISSO2, ISSO4, ISSO4_ACS
 INTEGER(KIND=JPIM) :: IMODE 
 INTEGER(KIND=JPIM) :: IFLAG
@@ -344,7 +344,6 @@ REAL(KIND=JPRB) :: ZTMP(KLON) !temporary array to accumulate diagnostics
 REAL(KIND=JPRB) :: ZXTM0(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTM1(KLON,KLEV,ntrac) !tracer mixing ratios for HAM
 REAL(KIND=JPRB) :: ZXTTE(KLON,KLEV,ntrac) !tracer tendency for HAM
-REAL(KIND=JPRB) :: ZXTTE_CLD(KLON,KLEV,ntrac) !tracer tendency for cloud vars for HAM
 REAL(KIND=JPRB) :: ZXTTEM1(KLON,KLEV,ntrac) !tracer tendency for HAM
 ! added here variables for HAM-M7 activation
 REAL(KIND=JPRB), ALLOCATABLE :: ZW(:,:,:) !mean or bins of updraft velocity [m s-1]
@@ -363,8 +362,6 @@ REAL(KIND=JPRB) :: ZSC(KLON,KLEV,nclass) !critical supersaturation [% 0-1]
 REAL(KIND=JPRB) :: ZNACT(KLON,KLEV,nclass) !number of activated particles per mode [m-3]
 REAL(KIND=JPRB) :: ZFRACN(KLON,KLEV,nclass) !fraction of activated particles per mode
 REAL(KIND=JPRB) :: ZCDNCACT(KLON,KLEV)     !number of activated particles [m-3]
-REAL(KIND=JPRB) :: ZCDNC_temp(KLON,KLEV)   !eehol: temporary for tendency of CDNC
-REAL(KIND=JPRB) :: ZICNC_temp(KLON,KLEV)   !eehol: temporary for tendency of ICNC
 REAL(KIND=JPRB) :: ZRE_LIQ(KLON,KLEV)! liquid effective radius
 REAL(KIND=JPRB) :: ZNACT_AS(KLON,KLEV),ZNACT_CS(KLON,KLEV),ZNACT_KS(KLON,KLEV) ! variables for modewise activated fraction calculations
 REAL(KIND=JPRB) :: ZFRAC_KS,ZFRAC_AS,ZFRAC_CS  ! variables for modewise activated fraction calculation
@@ -767,7 +764,6 @@ ZICNC(KIDIA:KFDIA,1:KLEV) = RNICE
 ZXTM0(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTE(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
-ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 ZXTTEM1(KIDIA:KFDIA,1:KLEV,:) = 0._JPRB
 
 !number
@@ -839,26 +835,12 @@ DO JGAS=1,subm_ngasspec
   END DO
 END DO
 
-! RCHG -> This will produce segmentation fault if CDNC are not in the namelist 
-!         we need to test these things and do a CALL ABORT1() 
-!         for these cases. For this we need to find the best flags or combinations 
-!         of flags. FIXME
-
-! IF (LAERRRTM) THEN
-!cloud
-DO JCLOUD=1,2 !CDNC and ICNC
-  DO JK=1,KLEV
-    DO JL=KIDIA,KFDIA
-      ZXTM1(JL,JK,ind_oifs_ham%ind_cloud_HAM(JCLOUD)) = ZCEN(JL,JK,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD)))
-      ZXTTE(JL,JK,ind_oifs_ham%ind_cloud_HAM(JCLOUD)) = PTENC(JL,JK,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD)))
-    END DO
-  END DO
-END DO
-!ENDIF
-
-!eehol: init CDNC and ICNC with non updated to temporary HAMM7 variables (unit in #/kg)
-ZCDNC_temp(KIDIA:KFDIA,1:KLEV) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
-ZICNC_temp(KIDIA:KFDIA,1:KLEV) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
+! CDNC and ICNC are internal HAM tracers that are not transported by OpenIFS.
+! Initialise them from the values stored in the YCDNC and YICNC GFL fields
+! at the previous call (converted from #/cm3 to #/kg). Their tendencies
+! remain zero.
+ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
+ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (1.0E6_JPRB*PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH))/ZRHO(KIDIA:KFDIA,1:KLEV)
 
 ! implementation of HAM-M7
 ZWND(KIDIA:KFDIA) = 0._JPRB
@@ -1108,9 +1090,6 @@ ENDDO
     PGFL(KIDIA:KFDIA,1:KLEV,YCDNC%MP9_PH) = MAX((1.0E-6_JPRB)*ZCDNCACT(KIDIA:KFDIA,1:KLEV),ZMIN_CDNC)  ! convert from #/m3 to #/cm3 and threshold minimum value to 1 cm-3
     PGFL(KIDIA:KFDIA,1:KLEV,YICNC%MP9_PH) = MAX( ZICNC(KIDIA:KFDIA,1:KLEV), RNICE) ! no conversion needed: already in #/cm3, just impose minimum value
 
-    !eehol: update tendency of CDNC and ICNC (calculate only the newly formed droplets)
-    ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,IDT_CDNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_CDNC) - ZCDNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
-    ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,IDT_ICNC) = (ZXTM1(KIDIA:KFDIA,1:KLEV,IDT_ICNC) - ZICNC_temp(KIDIA:KFDIA,1:KLEV))/time_step_len
     
     !-----------------------------------------------------------------
     !--> Calculation of liquid effective radii (Note: already done if NCLOUDACT=1)
@@ -1524,20 +1503,6 @@ ENDDO
     !!  END DO
     !!END IF
 
-    ! RCHG -> not sure best way to solve here. I commented to avoid segmentation fault 
-    !         but it may be avoided with other more specific flag. Anyway something was 
-    !         needed to avoid core-dump. 
-    !         The problem with these arrays in loop below is that the indices:
-    !          ind_oifs_ham%ind_cloud_HAM(JCLOUD)) 
-    !          KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD)))
-    !         are not propoperly set up by hamm7_init.F90
-    !         -- this need to be solved probably in hamm7_init.F90 which detect the 
-    !         problems with these tracers about CCN. 
-    !cloud variables
-    DO JCLOUD=1,2 !CDNC and ICNC
-       !PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = ZXTTE(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
-       PTENC(KIDIA:KFDIA,1:KLEV,KAERO(ind_oifs_ham%ind_cloud_OIFS(JCLOUD))) = (1.0E-6_JPRB) * ZRHO(KIDIA:KFDIA,1:KLEV) * ZXTTE_CLD(KIDIA:KFDIA,1:KLEV,ind_oifs_ham%ind_cloud_HAM(JCLOUD))
-    END DO
     !<-- End adding HAM modified tendency back to PTENC
     !-----------------------------------------------------------------
     
