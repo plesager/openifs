@@ -43,8 +43,6 @@ USE PARKIND1 , ONLY : JPIM, JPIB, JPRB, JPRD !JBRD needed for fcttim.func
 USE YOMHOOK,    ONLY: LHOOK, DR_HOOK, JPHOOK
 USE TYPE_MODEL, ONLY: MODEL
 
-! For the tropopause criteria:
-USE YOMCST   , ONLY : RD, RG
 
 IMPLICIT NONE
 
@@ -85,19 +83,15 @@ INTEGER(KIND=JPIM) :: IMV1, IMV2, IYR1, IYR2, INYR, INDY, INMN, IT1, IT2, IMP1, 
 INTEGER(KIND=JPIM) :: ILMO(12)
 INTEGER(KIND=JPIM) :: IDY0,IMN0,IYR0
 INTEGER(KIND=JPIM) :: JK,JL
-REAL(KIND=JPRB)    :: ZW1, ZW2, ZSIG
-REAL(KIND=JPRB)    :: ZTRPAUS(KLON), ZPAPHD(KLON)
+REAL(KIND=JPRB)    :: ZW1, ZW2
 REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 
-! For the Reichler criteria (tropopause):
-REAL(KIND=JPRB)    :: LAPSE_RATE, LAPSE_RATE_MEAN, DZ
-INTEGER(KIND=JPIM) :: JLEV
-LOGICAL            :: LTEST(KLON)
 INTEGER(KIND=JPIM) :: RVOLCDEC
 
 !---included functions
 #include "fcttim.func.h" 
 #include "updcal.intfb.h"
+#include "cmip_strato_tropopause.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('CMIP_STRATO_AERO_PROCESS',0,ZHOOK_HANDLE)
 
@@ -187,62 +181,17 @@ STRATAAOD   (KIDIA:KFDIA,:,:) = RVOLCDEC*(ZW1*STRATAAOD_M   (KIDIA:KFDIA,:,:,IMP
 STRATREFAOD (KIDIA:KFDIA,:,:) = RVOLCDEC*(ZW1*STRATREFAOD_M (KIDIA:KFDIA,:,:,IMP1) + ZW2*STRATREFAOD_M (KIDIA:KFDIA,:,:,IMP2))
 STRATAAOD_LW(KIDIA:KFDIA,:,:) = RVOLCDEC*(ZW1*STRATAAOD_LW_M(KIDIA:KFDIA,:,:,IMP1) + ZW2*STRATAAOD_LW_M(KIDIA:KFDIA,:,:,IMP2))
 
-! Computing the tropopause height
+! Tropopause level (the same routine is used for the aerosol optical
+! depth diagnostics in AER_PHY3_LAYER)
+CALL CMIP_STRATO_TROPOPAUSE(KIDIA, KFDIA, KLON, KLEV, PAPF, PAPRS, ZPT, ZPTH, TROPOPAUSE)
+
+! Removing the stratospheric forcing that is located below the tropopause
 DO JL=KIDIA,KFDIA
-  ZTRPAUS(JL)=0.1_JPRB
-  ZPAPHD(JL)=1.0_JPRB/PAPRS(JL,KLEV+1)
-ENDDO
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! According to the WMO (1975), the tropopause is defined as the lowest
-! level at which the lapse-rate decreases to 2°C/km or less, provided
-! that the average lapse-rate between this level and all higher levels
-! within 2 km does not exceed 2°C/km.(see Reichler et al.,2003)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-LTEST(:)=.FALSE.
-
-DO JK=KLEV,1,-1
-  DO JL=KIDIA,KFDIA
-    ! As in cloudsc.F90, the pressure level is normalized by the
-    ! surface pressure before checking that the level is located on
-    ! the tropopause altitude.
-    ZSIG=PAPF(JL,JK)*ZPAPHD(JL)
-    IF (PAPF(JL,JK)>7500._JPRB.AND.PAPF(JL,JK)<55000._JPRB) THEN
-      ! The lapse rate is computed for each layer (here we use the gas
-      ! equation and the hydrostatic approximation):
-      LAPSE_RATE=(ZPTH(JL,JK+1)-ZPTH(JL,JK))/(PAPRS(JL,JK+1)-PAPRS(JL,JK))*PAPF(JL,JK)/ZPT(JL,JK)*RG/RD
-      IF (LAPSE_RATE <= 0.002_JPRB) THEN
-        DZ=0
-        JLEV=JK
-        DO WHILE (DZ <= 2000_JPRB) ! Compute the delta(P) corresponding to 2km
-          DZ=DZ+(PAPF(JL,JLEV)-PAPF(JL,JLEV-1))/PAPRS(JL,JLEV)*ZPTH(JL,JLEV)*RD/RG
-          JLEV=JLEV-1
-        END DO
-        LAPSE_RATE_MEAN=(ZPT(JL,JK)-ZPT(JL,JLEV))/DZ ! Lapse rate over 2 km
-        IF (LAPSE_RATE_MEAN <= 0.002_JPRB) THEN
-          ZTRPAUS(JL)=MAX(ZSIG,ZTRPAUS(JL)) ! We kep the lowest value that fit the two conditions
-          LTEST(JL)=.TRUE.
-        ENDIF
-      ENDIF
-    ENDIF
-  ENDDO
-ENDDO
-
-! Removing the stratospheric forcing that is located below the tropopause 
-! Use default tropopause at 100 hPa in case the above tropopause criteria fails
-TROPOPAUSE(KIDIA:KFDIA)=KLEV
-DO JK=1,KLEV
-  DO JL=KIDIA,KFDIA
-    ZSIG=PAPF(JL,JK)*ZPAPHD(JL)
-    IF ((LTEST(JL) .AND. ZSIG>ZTRPAUS(JL)) .OR. &
-    &   (.NOT.LTEST(JL) .AND. PAPF(JL,JK)>10000._JPRB)) THEN
-      STRATAOD(JL,JK,:)=0.0_JPRB
-      STRATAAOD(JL,JK,:)=0.0_JPRB  
-      STRATREFAOD(JL,JK,:)=0.0_JPRB
-      STRATAAOD_LW(JL,JK,:)=0.0_JPRB
-      TROPOPAUSE(JL)=MIN(TROPOPAUSE(JL),JK)
-    ENDIF
+  DO JK=TROPOPAUSE(JL),KLEV
+    STRATAOD(JL,JK,:)=0.0_JPRB
+    STRATAAOD(JL,JK,:)=0.0_JPRB
+    STRATREFAOD(JL,JK,:)=0.0_JPRB
+    STRATAAOD_LW(JL,JK,:)=0.0_JPRB
   ENDDO
 ENDDO
 
