@@ -8,7 +8,7 @@
 
 SUBROUTINE AER_CLOUD_LAYER(&
  ! Input quantities
- &  YDMODEL,KDIM, PAUX, STATE, PDIAG, GEMSL,&
+ &  YDMODEL,KDIM, PAUX, STATE, PDIAG, GEMSL,PGFL,&
  ! Input/Output quantities
  &  AUXL)
 
@@ -73,22 +73,25 @@ TYPE (STATE_TYPE)              , INTENT (IN)   :: STATE
 TYPE (AUX_DIAG_TYPE)           , INTENT (IN)   :: PDIAG
 TYPE (GEMS_LOCAL_TYPE)         , INTENT (IN)   :: GEMSL
 TYPE (AUX_DIAG_LOCAL_TYPE)     , INTENT(INOUT) :: AUXL
+REAL (KIND=JPRB)               , INTENT(IN)    :: PGFL(KDIM%KLON,KDIM%KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM)
 
 !-----------------------------------------------------------------------
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
 
 #include "aer_clcld.intfb.h"
 #include "aer_cld.intfb.h"
+#include "hamm7_cld.intfb.h"
 
 !     ------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('AER_CLOUD_LAYER',0,ZHOOK_HANDLE)
 ASSOCIATE(YGFL=>YDMODEL%YRML_GCONF%YGFL,YDPHY2=>YDMODEL%YRML_PHY_MF%YRPHY2)
 ASSOCIATE(TSPHY=>YDPHY2%TSPHY, &
- & NACTAERO=>YGFL%NACTAERO)
+ & NACTAERO=>YGFL%NACTAERO,YDCOMPO=>YDMODEL%YRML_CHEM%YRCOMPO)
+ASSOCIATE(AERO_SCHEME=>YDCOMPO%AERO_SCHEME)
 !     ------------------------------------------------------------------
 
 !*         1.     UNROLL THE DERIVED STRUCTURES AND CALL APPROPRIATE SCHEME
@@ -113,21 +116,34 @@ IF (NACTAERO == 0) THEN
 
 ELSE  ! NACTAERO /= 0
 
-  CALL AER_CLD( &
-    !      input
-    & YDMODEL%YRML_PHY_EC%YRECLDP,   KDIM%KIDIA,    KDIM%KFDIA,    KDIM%KLON,    KDIM%KLEV,&
-    & NACTAERO, &
-    & GEMSL%ZAEROP(:,:,1:NACTAERO),   state%T,&
-    & PAUX%PAPRSF,&
-    & state%cld(:,:,NCLDQL), state%cld(:,:,NCLDQI),  state%a, &
-    !      output
-    & AUXL%ZLCRIT_AER,AUXL%ZICRIT_AER,&
-    & AUXL%ZRE_LIQ,  AUXL%ZRE_ICE,&
-    & AUXL%ZCCN,     AUXL%ZNICE &
-    & )
+  IF (TRIM(AERO_SCHEME) == "hamm7") THEN
+    CALL HAMM7_CLD(&
+      & YDMODEL,   KDIM%KIDIA,    KDIM%KFDIA,    KDIM%KLON,    KDIM%KLEV,&
+      & PAUX%PAPRSF, state%T, PGFL, &
+      & state%cld(:,:,NCLDQL), state%cld(:,:,NCLDQI),  state%a, &
+     !  output
+      & AUXL%ZLCRIT_AER,AUXL%ZICRIT_AER,&
+      & AUXL%ZRE_LIQ,  AUXL%ZRE_ICE,&
+      & AUXL%ZCCN,     AUXL%ZNICE &
+      & )
+  ELSE
+    CALL AER_CLD( &
+      !      input
+      & YDMODEL%YRML_PHY_EC%YRECLDP,   KDIM%KIDIA,    KDIM%KFDIA,    KDIM%KLON,    KDIM%KLEV,&
+      & NACTAERO, &
+      & GEMSL%ZAEROP(:,:,1:NACTAERO),   state%T,&
+      & PAUX%PAPRSF,&
+      & state%cld(:,:,NCLDQL), state%cld(:,:,NCLDQI),  state%a, &
+      !      output
+      & AUXL%ZLCRIT_AER,AUXL%ZICRIT_AER,&
+      & AUXL%ZRE_LIQ,  AUXL%ZRE_ICE,&
+      & AUXL%ZCCN,     AUXL%ZNICE &
+      & )
+  ENDIF
 ENDIF
 
 !     ------------------------------------------------------------------
+END ASSOCIATE
 END ASSOCIATE
 END ASSOCIATE
 IF (LHOOK) CALL DR_HOOK('AER_CLOUD_LAYER',1,ZHOOK_HANDLE)
