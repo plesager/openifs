@@ -188,7 +188,7 @@ USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface, ustarmin ! dry deposition interface call
 USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache, ham_rad_diag 
-USE MO_HAM_RAD_DATA,         ONLY: Nwv_tot, Nwv_sw_tot, idx_550nm
+USE MO_HAM_RAD_DATA,         ONLY: Nwv_tot, Nwv_sw_tot, NWV_LW, idx_550nm
 USE MO_SPECIES,              ONLY: speclist, naerospec
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
 
@@ -1599,8 +1599,7 @@ ENDDO
 !                  -------------------------------------------------- 
 IBLK=(KSTGLO-1)/KLON + 1
 
-!These values are used for diagnostic when radiation/optical properties
-!is not calculated
+! Restore saved values in case opt. prop. are not computed
 DO JK=1,KLEV
   DO JL=KIDIA,KFDIA
     DO JAER=1,NTSW
@@ -1620,8 +1619,6 @@ DO JL=KIDIA,KFDIA
     ZTAU_COMP(JL,JAER,IDX_550NM) = YDAERM7%AODCOMP(JL,JAER,IDX_550NM,IBLK)
   ENDDO
 ENDDO
-
-
 
 ZABS_COMP(KIDIA:KFDIA,:,:)=0._JPRB
 ZTAU_MODE(KIDIA:KFDIA,:,:,:)=0._JPRB
@@ -1708,7 +1705,6 @@ CASE (1)
    CALL HAM_RAD_DIAG(KFDIA, KLON, KLEV, ZKROW, ZXTM0,&
    ZTAU_MODE,ZABS_MODE,ZOMEGA, ZTAU_COMP, ZABS_COMP,PAOD_ALL_W)
 
-
    !CALL ham_rad_cache_cleanup
 
    DO JK = 1, KLEV
@@ -1771,8 +1767,7 @@ CASE (1)
  CALL GSTATS(2506,1)
 ENDIF  ! It's a time step when radiation is called
 
-
-
+!                   ----------------------------------------
 !*         6.2      Vertically integrated optical properties
 !                   ----------------------------------------
 PAOD (KIDIA:KFDIA,:)=0._JPRB
@@ -1807,10 +1802,11 @@ DO JL = KIDIA,KFDIA
     ENDIF
   END DO
   DO JAER=1,NAEROSPEC !SU,OC,BC,SS,DU 
-    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER,15)  
+    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER,IDX_550NM)
   END DO
 END DO
 
+!                  ---------------------------------------------------------------------
 !*         6.3     Fill selective aerosol OD fields in structure as available in IFS-AER
 !                  ---------------------------------------------------------------------
 IF (LLOPTSTEP) THEN ! Use computed values
@@ -1871,7 +1867,7 @@ CALL HAMM7_DIAG_PM &
  &  PAEPM1, PAEPM25, PAEPM10, &
  &  ZRHO, ZM6DRY, ZM6RP, ZRHOP)
 
-!
+!                 ------------------------------
 !*         7.     STORE IN AEROUTs
 !                 ------------------------------
 
