@@ -160,7 +160,10 @@ USE YOEAEROP          , ONLY : STRATO_CMIP_NMONTH, STRATO_CMIP_NTB,             
      &                         STRATO_CMIP_NALT, STRATO_CMIP_NLAT, STRATO_CMIP_NSB, &
      &                         CHECK_SUN_MEAN, CHECK_EARTH_MEAN,                    &
      &                         STRATO_FIRSTYEAR, STRATO_LASTYEAR, STRATO_CMIP_NTIME
+! M7 aerosols
 USE ND_PARAM          , ONLY : ND_PARAM_SETUP
+USE MO_SPECIES        , ONLY : NAEROSPEC
+USE MO_HAM_RAD_DATA   , ONLY : NWV_TOT
 !-------------------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -2155,13 +2158,14 @@ IF (NACTAERO > 0) THEN
      ALLOCATE(YDAERM7%M7SSA(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7ASYM( NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7AODLW(NPROMA, NFLEVG, NTSW+2,NGPBLKS))
+     ALLOCATE(YDAERM7%AODCOMP(NPROMA, NAEROSPEC, NWV_TOT, NGPBLKS))
      ! For cold start; filled with 0.
      ! For restart, read from restart files in reresf_part2 (except AODCOMP)
      YDAERM7%M7AOD(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7ASYM(:,:,:,:)  = 0.0_JPRB
      YDAERM7%M7AODLW(:,:,:,:) = 0.0_JPRB
-     YDAERM7%AODCOMP(:,:,:) = 0.0_JPRB
+     YDAERM7%AODCOMP(:,:,:,:) = 0.0_JPRB
      IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF

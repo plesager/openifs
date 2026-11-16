@@ -78,6 +78,7 @@ USE YOECLDP,            ONLY : NCLDQL,  NCLDQI,  NCLDQR, NCLDQS
 USE TM5_PHOTOLYSIS,     ONLY : NBANDS_TROP
 USE YOE_AERODIAG,       ONLY : NPAERAOT, NPAERLISI_VAR, NPAERLISI_WVL, JPAERO_WVL_AOD
 USE TM5_CHEM_MODULE,    ONLY : NCHEM2AER
+USE MO_SPECIES,         ONLY : NAEROSPEC
 
 !-----------------------------------------------------------------------
 
@@ -124,8 +125,8 @@ REAL(KIND=JPRB) :: ZTAUS_AER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB) :: ZTAUA_AER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB) :: ZPMAER(KDIM%KLON,KDIM%KLEV,NBANDS_TROP,2)
 
-!Alaakso: needed for save values for timesteps without calculation
-REAL(KIND=JPRB) :: PAOD_COMP(KDIM%KLON,5)
+! AOD per M7 components for one wavelength set in M7 interface
+REAL(KIND=JPRB) :: PAOD_COMP(KDIM%KLON,NAEROSPEC)
 
 
 !-----------------------------------------------------------------------
@@ -290,7 +291,7 @@ SELECT CASE (TRIM(AERO_SCHEME))
        ENDDO
     ENDDO
  
-    DO JAER=1,5
+    DO JAER=1,NAEROSPEC
       DO JL=KDIM%KIDIA,KDIM%KFDIA
         YDAERM7%AODCOMP(JL,JAER,IBLK)=PAOD_COMP(JL,JAER)
       ENDDO
