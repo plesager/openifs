@@ -83,9 +83,7 @@ MODULE mo_ham_rad
   PRIVATE
 
   PUBLIC ham_rad,                  & !
-!#ifdef HAMMOZ
          ham_rad_diag,             & !
-!#endif
          ham_rad_cache,            & !
          ham_rad_cache_cleanup,    & ! 
          ham_rad_mem,              & !
@@ -967,9 +965,9 @@ CONTAINS
 #ifdef HAMMOZ       
     REAL(dp) ::               omega(kbdim,klev,Nwv_sw_tot,nclass)
 #else
-    REAL(dp), INTENT(in)    ::    rwet_m7(kbdim,klev,nclass) 
+    REAL(dp), INTENT(in)  :: rwet_m7(kbdim,klev,nclass) 
     REAL(dp), INTENT(out) :: tau_mode(kbdim,klev,nclass,Nwv_tot)
-    REAL(dp), INTENT(out)  :: omega(kbdim,klev,Nwv_sw_tot,nclass)
+    REAL(dp), INTENT(out) :: omega(kbdim,klev,Nwv_sw_tot,nclass)
 #endif  
     INTEGER  :: jclass, jl, jk, jwv, jwv_diag, itable, itrac, ikl
 
@@ -1323,12 +1321,12 @@ CONTAINS
                 jlwv = Nwv_sw+Nwv_sw_opt+jwv ! Total SW wavelengths + LW
 
                 DO jk=1, klev
-#ifdef HAMMOZ       
+#ifdef HAMMOZ
                   ikl=klev+1-jk
-#else       
-                  !No vertical reordering in openifs (here)
+#else
+                  !No vertical reordering in openifs
                   ikl=jk
-#endif       
+#endif
                    DO jl=1, kproma
                       zaer_tau_lw_vr(jl,jk,jwv,jclass)=znum(jl,jk,jclass)*sigma(jl,jk,jlwv,jclass)
                       aer_tau_lw_vr(jl,ikl,jwv)=aer_tau_lw_vr(jl,ikl,jwv) + &
@@ -1339,11 +1337,9 @@ CONTAINS
                 !--- Diagnose AOD for requested each mode (nrad) and wavelength (nraddiagwv):
                 IF (nraddiagwv(jlwv)>0) THEN
 #ifdef HAMMOZ
-
                    tau_mode(jclass,jwv)%ptr(1:kproma,:,krow)=zaer_tau_lw_vr(1:kproma,:,jwv,jclass)
-#else 
+#else
                    tau_mode(1:kproma,:,jclass,jlwv)=zaer_tau_lw_vr(1:kproma,:,jwv,jclass)  
-
 #endif
                END IF
              END DO
@@ -1988,8 +1984,8 @@ CONTAINS
              DO jwv=1, Nwv_sw  !Laakso: note different order than HAM (here same as RRTM)        
                 lambda(jwv)=ASWBAND(jwv)%wl*1.E-6_dp
              END DO
-#endif             
-	DO jwv=1, Nwv_sw_opt
+#endif
+             DO jwv=1, Nwv_sw_opt
                 iwv=Nwv_sw+jwv
                 lambda(iwv)=lambda_sw_opt(jwv)
                 WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp

@@ -112,6 +112,8 @@ MODULE mo_ham_rad_data
 
   !--- Indices and dimensions:
 
+  ! Note the assumption that NWV_SW = YDMODEL%YRML_PHY_RAD%YRERAD%NTSW from OpenIFS.
+  
   INTEGER, PARAMETER :: Nwv_sw     = 14, &   !-- RRTM-SW GCM wavebands
                         Nwv_sw_opt = 2,  &   !--Optional SW wavebands (550nm+865nm)
                         Nwv_sw_tot = Nwv_sw+Nwv_sw_opt, &
