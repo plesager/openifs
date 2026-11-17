@@ -299,7 +299,8 @@ REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)! NMOD=7
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZRHOP(KLON,KLEV,NMOD)
-REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV), ZELVOC(KLON,KLEV)
+REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV), ZELVOC(KLON,KLEV)       ! ELVOC and SVOC for M7 [kg kg-1]
+REAL(KIND=JPRB) :: ZSVOC_UG(KLON,KLEV), ZELVOC_UG(KLON,KLEV) ! ELVOC and SVOC for M7 [ug m-3]
 !THIS-IS-NEVER-USED   REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
@@ -870,7 +871,7 @@ ENDDO
  
     ! Initializations for submodel interface
     ZGRVOL(KIDIA:KFDIA,1:KLEV) = 1.79e12_JPRB ! ZGRVOL is only used for diagnostics (only when HAMMOZ is on)
-    ZPBL = 101 ! boundary layer top = 1 (ITOP=1)
+    ZPBL = 1 ! boundary layer top = 1 (ITOP=1)
     ! Allocate variables for aerosol processes
     ALLOCATE(ZW(KLON,KLEV,nw))
     ALLOCATE(ZWPDF(KLON,KLEV,nw))
@@ -895,6 +896,8 @@ ENDDO
         ZELVOC(KIDIA:KFDIA,1:KLEV) = MIN(((PCHEM2AER(KIDIA:KFDIA,1:KLEV,5) + 0.25*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
         ZSVOC(KIDIA:KFDIA,1:KLEV) = MIN(((0.75*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
     END IF
+    ZELVOC_UG(KIDIA:KFDIA,1:KLEV) = ZELVOC(KIDIA:KFDIA,1:KLEV)*ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
+    ZSVOC_UG(KIDIA:KFDIA,1:KLEV)  = ZSVOC(KIDIA:KFDIA,1:KLEV) *ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
 
     ZWPDF(KIDIA:KFDIA,1:KLEV,:) = 0.0_JPRB
     
@@ -912,7 +915,7 @@ ENDDO
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
          & ZBLHIDX,  ZOUT3,           & !boundary layer top level, outputs
-         & ZELVOC, ZSVOC,             & !ELVOC, SVOC
+         & ZELVOC_UG, ZSVOC_UG,         & !ELVOC, SVOC
          & PCVH, zout_dnuc)             !high vegetation
     
     CALL GSTATS(2501,1)
