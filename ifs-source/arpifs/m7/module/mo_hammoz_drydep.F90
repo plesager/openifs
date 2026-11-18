@@ -472,7 +472,8 @@ MODULE mo_hammoz_drydep
     !### argument ordering should be similar to drydep_lg_vdbl
     IF (lham) THEN
        CALL ham_vdaer  (kproma,   kbdim,    klev,    krow,     loland,  zvgrat,  &
-                        pcvs,     pcvw,     pfri,    zcvbs,    pfrw,    pum1,    &  
+                        pcvs,     pcvw,     pfri,    zcvbs,    pfrw,    pfrl,    &
+                        pum1,                                                     &
 !>>gf modified argument list (see#78) 
                         pvm1,     zustarl,  zustarw, zustari,  zustveg, zustslsn,&
                         pu10,     pv10,                                          &

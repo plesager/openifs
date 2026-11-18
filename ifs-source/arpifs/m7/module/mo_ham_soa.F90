@@ -349,7 +349,7 @@ MODULE mo_ham_soa
                       density     = 1320._dp,                     &
                       iaerorad    = iradsoa,                      &
                       lwatsol     = .TRUE.,                       &  
-                      kappa       = 0.06_dp,                       &     !>>dod <<
+                      kappa       = 0.10_dp,                       &     !>>dod <<
                       lburden     = .TRUE.,                       &
                       idx         = soaprop(1)%spid_soa           ) 
 
@@ -369,7 +369,7 @@ MODULE mo_ham_soa
                       density     = 1320._dp,                     &
                       iaerorad    = iradsoa,                      &
                       lwatsol     = .TRUE.,                       &  
-                      kappa       = 0.06_dp,                       &  !>>dod <<
+                      kappa       = 0.10_dp,                       &  !>>dod <<
                       lburden     = .TRUE.,                       &
                       idx         = soaprop(2)%spid_soa           ) 
 
@@ -415,7 +415,7 @@ MODULE mo_ham_soa
                       density     = 1320._dp,                       &
                       iaerorad    = iradsoa,                        &
                       lwatsol     = .TRUE.,                         &  
-                      kappa       = 0.06_dp,                         &  !>>dod <<
+                      kappa       = 0.10_dp,                         &  !>>dod <<
                       lburden     = .TRUE.,                         &
                       idx         = soaprop(3)%spid_soa             ) 
 
@@ -434,7 +434,7 @@ MODULE mo_ham_soa
                       density     = 1320._dp,                       &
                       iaerorad    = iradsoa,                        &
                       lwatsol     = .TRUE.,                         &  
-                      kappa       = 0.06_dp,                         & !>>dod <<
+                      kappa       = 0.10_dp,                         & !>>dod <<
                       idx         = soaprop(4)%spid_soa             ) 
 
      ! End isoprene definitons
@@ -456,7 +456,7 @@ MODULE mo_ham_soa
                          density     = 1450._dp,                     &
                          iaerorad    = iradsoa,                      &
                          lwatsol     = .TRUE.,                       &  
-                         kappa       = 0.06_dp,                       &  !>>dod <<
+                         kappa       = 0.10_dp,                       &  !>>dod <<
                          lburden     = .TRUE.,                       &
                          idx         = soaprop(5)%spid_soa               ) 
 
@@ -473,7 +473,7 @@ MODULE mo_ham_soa
                          density     = 1330._dp,                     &
                          iaerorad    = iradsoa,                      &
                          lwatsol     = .TRUE.,                       &  
-                         kappa       = 0.06_dp,                       & !>>dod <<
+                         kappa       = 0.10_dp,                       & !>>dod <<
                          lburden     = .TRUE.,                       &
                          idx         = soaprop(6)%spid_soa              ) 
 
@@ -489,7 +489,7 @@ MODULE mo_ham_soa
                          density     = 1450._dp,                     &
                          iaerorad    = iradsoa,                      &
                          lwatsol     = .TRUE.,                       &  
-                         kappa       = 0.06_dp,                       & !>>dod <<
+                         kappa       = 0.10_dp,                       & !>>dod <<
                          lburden     = .TRUE.,                       &
                          idx         = soaprop(7)%spid_soa              ) 
 
@@ -507,7 +507,7 @@ MODULE mo_ham_soa
                          density     = 1450._dp,                     &
                          iaerorad    = iradsoa,                      &
                          lwatsol     = .TRUE.,                       &  
-                         kappa       = 0.06_dp,                       &  !>>dod <<
+                         kappa       = 0.10_dp,                       &  !>>dod <<
                          lburden     = .TRUE.,                       &
                          idx         = soaprop(5)%spid_soa              ) 
         

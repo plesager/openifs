@@ -367,7 +367,7 @@ MODULE mo_ham_species
                          density      = 1300._dp,            &
                          iaerorad     = iradoc,              &
                          lwatsol      = .TRUE.,              &  
-                         kappa        = 0.06_dp,             &
+                         kappa        = 0.10_dp,             &
                          ldrydep      = .TRUE.,              &
                          lwetdep      = .TRUE.,              &   
                          idx          = id_oc                   )
