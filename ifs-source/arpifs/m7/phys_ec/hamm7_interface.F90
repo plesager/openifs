@@ -1622,6 +1622,7 @@ ENDDO
 
 ZABS_COMP(KIDIA:KFDIA,:,:)=0._JPRB
 ZTAU_MODE(KIDIA:KFDIA,:,:,:)=0._JPRB
+PAOD_ALL_W(:,:)=0._JPRB ! total AOD is accumulated (not overwritten) in HAM_RAD_DIAG
 
 !*         6.1      Calculate optical properties the step before radiation call
 !                   -----------------------------------------------------------
