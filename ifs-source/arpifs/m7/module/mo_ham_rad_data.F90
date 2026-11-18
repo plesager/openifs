@@ -64,8 +64,8 @@ MODULE mo_ham_rad_data
             nr_min, nr_max, ni_min, ni_max,   &
             inc_nr, inc_ni,                   &
             lambda, lambda_sw_opt,            &
-            nradang
-
+            nradang, idx_550nm, idx_865nm,    &
+            lnoh2oaod
 
   !---public member functions
 
@@ -113,16 +113,28 @@ MODULE mo_ham_rad_data
 
   !--- Indices and dimensions:
 
+  ! Note the assumption that NWV_SW = YDMODEL%YRML_PHY_RAD%YRERAD%NTSW from OpenIFS.
+  
   INTEGER, PARAMETER :: Nwv_sw     = 14, &   !-- RRTM-SW GCM wavebands
                         Nwv_sw_opt = 2,  &   !--Optional SW wavebands (550nm+865nm)
-!                       Nwv_sw_opt = 3,  &   !--Optional SW wavebands (550nm+865nm+440nm)
                         Nwv_sw_tot = Nwv_sw+Nwv_sw_opt, &
                         Nwv_lw     = 16, &   !--RRTM-LW GCM wavebands
                         Nwv_swlw   = Nwv_sw+Nwv_lw, &
                         Nwv_tot    = Nwv_sw+Nwv_sw_opt+Nwv_lw
 
+  !--- Optional SW indices
   REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp /)
-!  REAL(dp), PARAMETER :: lambda_sw_opt(3)=(/ 0.550E-6_dp, 0.865E-6_dp , 0.440E-6_dp/)
+  INTEGER,  PARAMETER :: idx_550nm = Nwv_sw + 1
+  INTEGER,  PARAMETER :: idx_865nm = Nwv_sw + 2
+
+  !--- Component AOD diagnostics (ham_rad_diag):
+  !    lnoh2oaod = .TRUE.  : aerosol water is excluded when splitting the mode AOD
+  !                          into components (dry species share the full mode AOD);
+  !                          the water AOD is diagnosed separately as its volume share.
+  !    lnoh2oaod = .FALSE. : aerosol water is treated as a component in the split.
+  !    Set through namelist NAEAER (read in su_aerw).
+  LOGICAL :: lnoh2oaod = .TRUE.
+
 
   !--- Define mask for output of wavelengths: 
   !
@@ -142,7 +154,6 @@ MODULE mo_ham_rad_data
 
 
 !  REAL(dp), PARAMETER :: lambda(Nwv_tot) = (/ 3.46E-6_dp, 2.79E-6_dp, 2.33E-6_dp, 2.05E-6_dp, 1.78E-6_dp, 1.46E-6_dp, 1.27E-6_dp, 1.01E-6_dp, 0.70E-6_dp, 0.53E-6_dp, 0.39E-6_dp, 0.30E-6_dp, 0.23E-6_dp, 8.02E-6_dp, 0.340E-6_dp,  0.355E-6_dp,  0.380E-6_dp,  0.400E-6_dp,  0.440E-6_dp,  0.469E-6_dp,  0.500E-6_dp,  0.532E-6_dp, 0.555E-6_dp, 0.645E-6_dp, 0.670E-6_dp,  0.800E-6_dp,  0.858E-6_dp,  0.865E-6_dp, 0.1020E-6_dp, 0.1064E-6_dp /)
-
 
 
   !--- 2) LW refractive indices:
@@ -175,12 +186,11 @@ CONTAINS
     !ham_ps:radiation This could/should become namelist controlled 
 
     IF (naerorad>0) THEN
-
+       
        nraddiagwv(1:NWv_tot)=0                          !--- Default: no diagnostic
-#ifdef HAMMOZ
-       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=1         ! AOD only for all optional wavelengths
-       nraddiagwv(Nwv_sw+1)=2                           ! Additional diagnostics for 550nm
-#endif
+       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=1         ! except AOD for all optional wavelengths
+       nraddiagwv(idx_550nm)=2                          ! and additional diagnostics for 550nm
+
        IF (ANY(nrad(:)==2) .OR. ANY(nrad(:)==3)) THEN
           nraddiagwv(Nwv_sw+Nwv_sw_opt+1)=1             ! AOD for first LW band
        END IF
