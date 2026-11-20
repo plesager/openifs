@@ -8,11 +8,11 @@
 
 SUBROUTINE TURBULENCE_LAYER(YDSURF, &
  ! Input quantities
-  & YDMODEL, KDIM, PAUX, STATE, TENDENCY, PRAD, PPERT, &
+  & YDMODEL, KDIM, PAUX, STATE, TENDENCY, TENDENCY_DYN, PRAD, PPERT, & !eehol: added tendency_dyn for tke
  ! Input/Output quantities
   & AUXL, GEMSL, PSURF, SURFL, FLUX, PDIAG, PERTL, LLKEYS, PDDHS,  &
  ! Output tendencies
-  & TENDENCY_LOC)
+  & TENDENCY_LOC, PTKE_turb) !eehol:added PTKE_turb for diagnostic TKE
 
 !**** *TURBULENCE_LAYER* - Layer routine calling turbulence scheme
 
@@ -98,6 +98,7 @@ TYPE (DIMENSION_TYPE)          , INTENT (IN)   :: KDIM
 TYPE (AUX_TYPE)                , INTENT (IN)   :: PAUX
 TYPE (STATE_TYPE)              , INTENT (IN)   :: STATE
 TYPE (STATE_TYPE)              , INTENT (IN)   :: TENDENCY
+TYPE (STATE_TYPE)              , INTENT (IN)   :: TENDENCY_DYN !eehol: added tendency_dyn for tke
 TYPE (AUX_RAD_TYPE)            , INTENT (IN)   :: PRAD
 TYPE (PERTURB_TYPE)            , INTENT (IN)   :: PPERT
 TYPE (AUX_DIAG_LOCAL_TYPE)     , INTENT(INOUT) :: AUXL
@@ -110,6 +111,7 @@ TYPE (PERTURB_LOCAL_TYPE)      , INTENT(INOUT) :: PERTL
 TYPE (KEYS_LOCAL_TYPE)         , INTENT(INOUT) :: LLKEYS
 TYPE (DDH_SURF_TYPE)           , INTENT(INOUT) :: PDDHS
 TYPE (STATE_TYPE)              , INTENT(INOUT) :: TENDENCY_LOC
+REAL(KIND=JPRB)                , INTENT(INOUT) :: PTKE_turb(KDIM%KLON,KDIM%KLEV) !eehol: for diagnostic TKE
 !-----------------------------------------------------------------------
 INTEGER(KIND=JPIM) :: JL, JRF, JTILE, JJ, IDIAG
 CHARACTER(LEN=1)  :: CLCONF
@@ -186,7 +188,7 @@ ENDDO
     & PSURF%PSD_VF(:,YSD_VF%YSST%MP)   , PSURF%ISOTY  , SURFL%ZFRTI  , SURFL%ZALBTI , SURFL%ZWLMX  , &
     & PSURF%PSD_WS(:,YSD_WS%YCHAR%MP)  , PSURF%PSD_WS(:,YSD_WS%YCHARHQ%MP), &
     & PSURF%PSD_VF(:,YSD_VF%YUCUR%MP)  , PSURF%PSD_VF(:,YSD_VF%YVCUR%MP), &
-    & PSURF%PSD_WS(:,YSD_WS%YUSTOKES%MP),PSURF%PSD_WS(:,YSD_WS%YVSTOKES%MP), &
+    & PSURF%PSD_WS(:,YSD_WS%YUSTOKES%MP),PSURF%PSD_WS(:,YSD_WS%YVSTOKES%MP), PSURF%PSD_VF(:,YSD_VF%YLSM%MP),& !eehol: added lsm for tke
     & AUXL%ZTSKRAD, GEMSL%ZCFLX , GEMSL%ZDDVLC, AUXL%ZSOTEU , AUXL%ZSOTEV , AUXL%ZSOBETA, &
     & SURFL%ZTHKICE, SURFL%ZSNTICE, ZGP2DSPP, &
     & LNEMOSICOUP, &
@@ -198,9 +200,10 @@ ENDDO
     & PSURF%PSD_VD(:,YSD_VD%YBLH%MP) , PDIAG%ZEIS, &
     & PSURF%PSD_VD(:,YSD_VD%Y10NU%MP) , PSURF%PSD_VD(:,YSD_VD%Y10NV%MP) , PSURF%PSD_VD(:,YSD_VD%YZUST%MP) , &
     & SURFL%ZFRSOTI, SURFL%ZEVAPSNW , ZEVAPMU , ZEXDIAG, PDIAG%PI10FG  , PSURF%PSD_VD(:,YSD_VD%Y10FGCV%MP), PDIAG%IPBLTYPE, &
+    & PTKE_turb, & !eehol: added for diagnostic TKE
     ! Input tendencies
     & tendency%T, tendency%q, tendency%cld(:,:,NCLDQL), tendency%cld(:,:,NCLDQI), &
-    & tendency%a, tendency%u, tendency%v, &
+    & tendency%a, tendency%u, tendency%v, tendency_dyn%tke, & !eehol: added tendency_dyn%tke for tke calculations
     ! OUTPUT TENDENDCIES
     & tendency_loc%T, tendency_loc%q, tendency_loc%cld(:,:,NCLDQL), tendency_loc%cld(:,:,NCLDQI), &
     & tendency_loc%a, tendency_loc%u, tendency_loc%v, tendency_loc%tke,&

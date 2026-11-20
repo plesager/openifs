@@ -6,7 +6,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction
 
-SUBROUTINE SUCLDP(YDSTA,YDDIMV,YDPHY2,YDECLDP)
+SUBROUTINE SUCLDP(YDSTA,YDDIMV,YDPHY2,YDECLDP,LDECT) !eehol: added LDECT (TKE scheme switch)
 
 !**** *SUCLDP*   - INITIALIZE COMMON YOECLD CONTROLLING *CLOUDSC*
 
@@ -92,6 +92,7 @@ TYPE(TSTA)  ,INTENT(IN) :: YDSTA
 TYPE(TDIMV) ,INTENT(IN) :: YDDIMV
 TYPE(TPHY2) ,INTENT(IN) :: YDPHY2
 TYPE(TECLDP),INTENT(INOUT), TARGET :: YDECLDP
+LOGICAL     ,INTENT(IN) :: LDECT !eehol: TKE scheme on/off (LECT in NAMPHY)
 
 REAL(KIND=JPRB), EXTERNAL :: FCGENERALIZED_GAMMA
 REAL(KIND=JPRB) :: ZX, ZPLRG
@@ -252,7 +253,13 @@ RLMIN=1.E-8_JPRB
 ! Coefficients for cloud edge turbulent erosion
 !---------------------------------------------------------
 RCLDIFF       = 6.0E-6_JPRB*RPLRG*RPLDARE
-RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+!RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+IF(LDECT) THEN
+   RCLDIFF_CONVI = 2.5_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+   !RCLDIFF_CONVI = 1.25_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+ELSE
+   RCLDIFF_CONVI = 10.0_JPRB ! increased RCLDIFF in convection by factor RCLDIFF_CONVI
+ENDIF
 
 !--------------------------------
 ! Rain auto conversion constants
