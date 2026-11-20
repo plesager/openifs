@@ -64,8 +64,8 @@ MODULE mo_ham_rad_data
             nr_min, nr_max, ni_min, ni_max,   &
             inc_nr, inc_ni,                   &
             lambda, lambda_sw_opt,            &
-            nradang, idx_550nm, idx_865nm,    &
-            lnoh2oaod
+            nradang, idx_550nm,               &
+            laodcomp_ambient
 
   !---public member functions
 
@@ -124,16 +124,22 @@ MODULE mo_ham_rad_data
 
   !--- Optional SW indices
   REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp /)
-  INTEGER,  PARAMETER :: idx_550nm = Nwv_sw + 1
-  INTEGER,  PARAMETER :: idx_865nm = Nwv_sw + 2
+  INTEGER,  PARAMETER :: idx_550nm = Nwv_sw + 1   ! index of 550 nm in the Nwv_tot arrays
 
-  !--- Component AOD diagnostics (ham_rad_diag):
-  !    lnoh2oaod = .TRUE.  : aerosol water is excluded when splitting the mode AOD
-  !                          into components (dry species share the full mode AOD);
-  !                          the water AOD is diagnosed separately as its volume share.
-  !    lnoh2oaod = .FALSE. : aerosol water is treated as a component in the split.
+  !--- Component AOD diagnostics at 550 nm (ham_rad_diag):
+  !    The AOD of each mode is split between the species in that mode by volume fraction.
+  !
+  !    laodcomp_ambient = .TRUE. (default, CMIP/AeroCom definition of ambient component AODs):
+  !        each dry species gets  tau_mode * v_spec / v_dry,  so the dry component AODs
+  !        add up to the total AOD (od550aer). The aerosol water AOD is
+  !        tau_mode * v_wat / v_wet (od550aerh2o). It is an additional variable that
+  !        overlaps with the dry components, so it must not be added to them.
+  !    laodcomp_ambient = .FALSE. (original HAM split):
+  !        every species, water included, gets  tau_mode * v_spec / v_wet,
+  !        so the dry components plus water add up to the total AOD.
+  !
   !    Set through namelist NAEAER (read in su_aerw).
-  LOGICAL :: lnoh2oaod = .TRUE.
+  LOGICAL :: laodcomp_ambient = .TRUE.
 
 
   !--- Define mask for output of wavelengths: 
@@ -186,11 +192,12 @@ CONTAINS
     !ham_ps:radiation This could/should become namelist controlled 
 
     IF (naerorad>0) THEN
-       
-       nraddiagwv(1:NWv_tot)=0                          !--- Default: no diagnostic
-       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=1         ! except AOD for all optional wavelengths
-       nraddiagwv(idx_550nm)=2                          ! and additional diagnostics for 550nm
 
+       nraddiagwv(1:NWv_tot)=0                          !--- Default: no diagnostic
+#ifdef HAMMOZ
+       nraddiagwv(Nwv_sw+1:Nwv_sw+Nwv_sw_opt)=1         ! AOD only for all optional wavelengths
+       nraddiagwv(Nwv_sw+1)=2                           ! Additional diagnostics for 550nm
+#endif
        IF (ANY(nrad(:)==2) .OR. ANY(nrad(:)==3)) THEN
           nraddiagwv(Nwv_sw+Nwv_sw_opt+1)=1             ! AOD for first LW band
        END IF

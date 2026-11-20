@@ -187,8 +187,8 @@ USE MO_HAMMOZ_WETDEP,        ONLY: wetdep_interface ! wet deposition interface c
 USE MO_HAM_WETDEP,           ONLY: ham_conv_lfraq_so2
 USE MO_HAMMOZ_SEDIMENTATION, ONLY: sedi_interface   ! sedimentation interface call
 USE MO_HAMMOZ_DRYDEP,        ONLY: drydep_interface, ustarmin ! dry deposition interface call
-USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache, ham_rad_diag 
-USE MO_HAM_RAD_DATA,         ONLY: Nwv_tot, Nwv_sw_tot, NWV_LW, idx_550nm
+USE MO_HAM_RAD,              ONLY: ham_rad,ham_rad_cache_cleanup,ham_rad_cache, ham_rad_diag
+USE MO_HAM_RAD_DATA,         ONLY: NWV_LW
 USE MO_SPECIES,              ONLY: naerospec
 USE YOE_AER_ACTIV,           ONLY: AER_ACTIV ! M&N activation scheme
 
@@ -305,10 +305,10 @@ REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 !UNUSED  REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,NWV_LW)
-!Needed for component aod:s
-REAL(KIND=JPRB) :: ZTAU_COMP(KLON,NAEROSPEC,  NWV_TOT), ZABS_COMP(KLON,NAEROSPEC,  NWV_TOT)
-REAL(KIND=JPRB) :: ZTAU_MODE(KLON,KLEV,NCLASS,NWV_TOT), ZABS_MODE(KLON,KLEV,NCLASS,NWV_TOT)
-REAL(KIND=JPRB) :: ZOMEGA(KLON,KLEV,NWV_SW_TOT,NCLASS)
+! Component AODs at 550 nm (see HAM_RAD_DIAG). For more wavelengths, add a wavelength
+! dimension here and in HAM_RAD/HAM_RAD_DIAG, AER_PHY3_LAYER and YDAERM7%AODCOMP.
+REAL(KIND=JPRB) :: ZTAU_COMP(KLON,NAEROSPEC)      ! column AOD of each species at 550 nm
+REAL(KIND=JPRB) :: ZTAU_MODE(KLON,KLEV,NCLASS)    ! layer AOD of each mode at 550 nm
 
 ! Optics output fields (to be used and allocated by methods using the optics)
 REAL(KIND=JPRB), DIMENSION(:,:,:),   ALLOCATABLE :: ZTAUS_AER, ZTAUA_AER, ZPMAER ! extinctions
@@ -452,7 +452,6 @@ INTEGER(KIND=JPIM) :: ISO4_C, ISSO4_C ! temporary tracer index of gas-phase SO4 
 
 REAL(KIND=JPRB) :: PAOD(KLON,NASWBAND), PSSA(KLON,NASWBAND), PABS(KLON,NASWBAND), PASY(KLON,NASWBAND),PFAOD(KLON,NASWBAND)
 REAL(KIND=JPRB) :: PAOD_LW(KLON,NWV_LW)
-REAL(KIND=JPRB) :: PAOD_ALL_W(KLON, NWV_TOT) ! includes SW and LW and all WLs. Could replace PAOD and PAODLW?
 
 ! Boundary layer height index calculation
 REAL(KIND=JPRB) :: ZBLHIDX(KLON)   ! index
@@ -1613,16 +1612,11 @@ DO JK=1,KLEV
   ENDDO
 ENDDO
 
-ZTAU_COMP(KIDIA:KFDIA,:,:)=0._JPRB
-DO JL=KIDIA,KFDIA
-  DO JAER=1,NAEROSPEC
-    ZTAU_COMP(JL,JAER,IDX_550NM) = YDAERM7%AODCOMP(JL,JAER,IDX_550NM,IBLK)
+DO JAER=1,NAEROSPEC
+  DO JL=KIDIA,KFDIA
+    ZTAU_COMP(JL,JAER) = YDAERM7%AODCOMP(JL,JAER,IBLK)
   ENDDO
 ENDDO
-
-ZABS_COMP(KIDIA:KFDIA,:,:)=0._JPRB
-ZTAU_MODE(KIDIA:KFDIA,:,:,:)=0._JPRB
-PAOD_ALL_W(:,:)=0._JPRB ! total AOD is accumulated (not overwritten) in HAM_RAD_DIAG
 
 !*         6.1      Calculate optical properties the step before radiation call
 !                   -----------------------------------------------------------
@@ -1698,13 +1692,13 @@ CASE (1)
    ZXTM0(KIDIA:KFDIA,1:KLEV,:) = ZXTM1(KIDIA:KFDIA,1:KLEV,:) + ZXTTE(KIDIA:KFDIA,1:KLEV,:)*time_step_len
 
    CALL HAM_RAD(KFDIA, KLON, KLEV, ZKROW, LWBANDS, NASWBAND, ZXTM0, PRS1D, &
-        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, &
+        & ZAER_TAU(:,:,:,1), ZAER_SSA, ZAER_ASYM, ZAER_TAU_LW, ZM6RP, &
         & LDIAG_AEROPT,NAERO_WVL_DIAG,YGFL%NAERO_WVL_DIAG_TYPES, &
         & LAMBDA_DIAG, ZAER_TAU_DIAG, ZAER_SSA_DIAG, ZAER_ASYM_DIAG, ZAER_LidarR_DIAG, &
-        & ZM6RP, ZTAU_MODE, ZOMEGA)
+        & ZTAU_MODE)
 
-   CALL HAM_RAD_DIAG(KFDIA, KLON, KLEV, ZKROW, ZXTM0,&
-   ZTAU_MODE,ZABS_MODE,ZOMEGA, ZTAU_COMP, ZABS_COMP,PAOD_ALL_W)
+   ! Component AODs at 550 nm (split of ZTAU_MODE by volume fraction, see LAODCOMP_AMBIENT)
+   CALL HAM_RAD_DIAG(KFDIA, KLON, KLEV, ZXTM0, ZTAU_MODE, ZTAU_COMP)
 
    !CALL ham_rad_cache_cleanup
 
@@ -1802,8 +1796,8 @@ DO JL = KIDIA,KFDIA
       PSSA(JL,IW) = PSSA(JL,IW)/PAOD(JL,IW) ! AOD AVERAGE
     ENDIF
   END DO
-  DO JAER=1,NAEROSPEC !SU,OC,BC,SS,DU...
-    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER,IDX_550NM)
+  DO JAER=1,NAEROSPEC ! SU,BC,OC,SS,DU,WAT
+    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER)
   END DO
 END DO
 
@@ -1889,18 +1883,24 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! AOD of 16 internal (long) wavelengths
   PGFL(KIDIA:KFDIA,18:33,YAEROUT(1)%MP)= PAOD_LW(KIDIA:KFDIA,1:16)
 
-  !AOD / specie (index 15=550nm / extra output for diagnostic):
-  !Maybe need to reduce hardcoding if the indices for compounds change in the future? (for example when SOA is added) 
-  PGFL(KIDIA:KFDIA,34,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,1,idx_550nm) !SU
-  PGFL(KIDIA:KFDIA,35,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,2,idx_550nm) !BC
-  PGFL(KIDIA:KFDIA,36,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,3,idx_550nm) !OC
-  PGFL(KIDIA:KFDIA,37,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,4,idx_550nm) !SS
-  PGFL(KIDIA:KFDIA,38,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,5,idx_550nm) !DU
-  PGFL(KIDIA:KFDIA,39,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,6,idx_550nm) !WAT
- 
-  ! AOD at selected (diagnostic) wavelengths
-  JK = YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG ! Should check (at setup, not here) that JK+39 <= KLEV
-  PGFL(KIDIA:KFDIA,40:JK+39,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:YDMODEL%YRML_GCONF%YGFL%NAERO_WVL_DIAG)
+  ! Component AODs at 550 nm (see LAODCOMP_AMBIENT in mo_ham_rad_data):
+  ! With LAODCOMP_AMBIENT=.TRUE. (default) levels 34-38 add up to the total AOD at 550 nm,
+  ! and level 39 (water) overlaps with them. With .FALSE., levels 34-39 add up to the total.
+  ! The species order follows the HAM species list (aero_idx). If species are added
+  ! (e.g. SOA), these levels and the diagnostic wavelengths below have to be shifted.
+  PGFL(KIDIA:KFDIA,34,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,1) !SU
+  PGFL(KIDIA:KFDIA,35,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,2) !BC
+  PGFL(KIDIA:KFDIA,36,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,3) !OC
+  PGFL(KIDIA:KFDIA,37,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,4) !SS
+  PGFL(KIDIA:KFDIA,38,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,5) !DU
+  PGFL(KIDIA:KFDIA,39,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,6) !WAT
+
+  ! AOD at the NAERO_WVL_DIAG diagnostic wavelengths (same values as YAEROUT(6)).
+  ! ZAOD_DIAG is only computed on optics steps, so write only then (otherwise keep previous).
+  IF (LLOPTSTEP) THEN
+    IF (39+NAERO_WVL_DIAG > KLEV) CALL ABOR1('HAMM7_INTERFACE: YAEROUT(1) too small for 39+NAERO_WVL_DIAG levels')
+    PGFL(KIDIA:KFDIA,40:39+NAERO_WVL_DIAG,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:NAERO_WVL_DIAG)
+  ENDIF
 
   !** YAEROUT(2) : DRY DEPOSITION
 

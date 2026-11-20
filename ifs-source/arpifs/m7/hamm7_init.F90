@@ -2,7 +2,7 @@
 ! (C) Copyright 2026- KNMI.
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME)
+SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME, KPROMA, KGPBLKS, YDAERM7)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 14-MAY-2024) │
@@ -51,8 +51,9 @@ SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME)
 !              ---------------
 
 ! IFS/OPENIFS modules ---------------------------------------------------------
-USE PARKIND1, ONLY : JPRB
+USE PARKIND1, ONLY : JPRB, JPIM
 USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOEAEROP, ONLY : TEAERM7
 USE YOMRIP,   ONLY : TRIP
 USE YOM_YGFL, ONLY : TYPE_GFLD   ! Gives type for YGFL
 USE YOMMP0,   ONLY : MYPROC
@@ -100,7 +101,8 @@ USE MO_SUBMODEL, &
      lham, id_ham
 
 USE MO_SPECIES, &
-     ONLY: speclist, init_splist !eehol: added initialization for species list
+     ONLY: speclist, init_splist, & !eehol: added initialization for species list
+     &     naerospec                 ! number of aerosol species (set by ham_define_tracer)
 
 USE MO_HAM_SOA, &
      ONLY: soaprop
@@ -117,6 +119,9 @@ IMPLICIT NONE
 TYPE(TYPE_GFLD), INTENT(IN)    :: YGFL
 TYPE(TRIP),      INTENT(IN)    :: YRRIP
 CHARACTER(len=20), INTENT(IN)  :: CHEM_SCHEME
+INTEGER(KIND=JPIM),INTENT(IN)  :: KPROMA     ! NPROMA
+INTEGER(KIND=JPIM),INTENT(IN)  :: KGPBLKS    ! NGPBLKS
+TYPE(TEAERM7),  INTENT(INOUT)  :: YDAERM7    ! M7 aerosol optical properties kept between steps
 
 !----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
@@ -171,6 +176,14 @@ CALL activ_initialize
 !eehol: set cdnc and icnc indices for HAM
 idt_cdnc = idt_cdnc_ham
 idt_icnc = idt_icnc_ham
+
+! Component AODs at 550 nm, kept between optics steps (written in AER_PHY3_LAYER,
+! read in HAMM7_INTERFACE). Allocated here and not in SUECRAD with the other
+! YDAERM7 fields, because NAEROSPEC is only known once the HAM species are defined above.
+! Not in the restart files: after a restart they are 0 until the first optics step.
+IF (ALLOCATED(YDAERM7%AODCOMP)) DEALLOCATE(YDAERM7%AODCOMP)
+ALLOCATE(YDAERM7%AODCOMP(KPROMA, NAEROSPEC, KGPBLKS))
+YDAERM7%AODCOMP(:,:,:) = 0.0_JPRB
 
 !<--eehol: initialize index lists for OIFS and HAM
 znclass = nclass
