@@ -2010,7 +2010,7 @@ DO JK=NCLDTOP,KLEV
 
       IF (LLPERT_RCLCRIT) THEN  !Apply SPP perturbations
         IF (PLSM(JL) > 0.5_JPRB) THEN
-          IF (NCLOUDACT > 0) THEN
+          IF (NCLOUDACT > 0 .AND. LAERLIQAUTOLSP) THEN
              ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
           ELSE
              ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
@@ -2018,7 +2018,7 @@ DO JK=NCLDTOP,KLEV
           ! perturbed land value of RCLCRIT
           ZLCRIT = RCLCRIT_LAND*EXP(PN1RCLCRIT%MU(1)+PN1RCLCRIT%XMAG(1)*PGP2DSPP(JL, IPRCLCRIT))
         ELSE
-          IF (NCLOUDACT > 0) THEN
+          IF (NCLOUDACT > 0 .AND. LAERLIQAUTOLSP) THEN
              ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
           ELSE
              ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean
@@ -2028,14 +2028,14 @@ DO JK=NCLDTOP,KLEV
         ENDIF
       ELSE
         IF (PLSM(JL) > 0.5_JPRB) THEN ! land  (unperturbed)
-          IF (NCLOUDACT > 0) THEN
+          IF (NCLOUDACT > 0 .AND. LAERLIQAUTOLSP) THEN
              ZCONST = MAX(1.0_JPRB,PCCN(JL,JK)) ! CDNC from the cloud activation scheme
           ELSE
              ZCONST = RCL_KK_CLOUD_NUM_LAND     ! constant value over land
           END IF
           ZLCRIT = RCLCRIT_LAND
         ELSE                          ! ocean (unperturbed)
-          IF (NCLOUDACT > 0) THEN
+          IF (NCLOUDACT > 0 .AND. LAERLIQAUTOLSP) THEN
              ZCONST = MAX(1.0_JPRB,PCCN(JL,JK))
           ELSE
              ZCONST = RCL_KK_CLOUD_NUM_SEA               ! constant value over ocean

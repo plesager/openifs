@@ -256,6 +256,11 @@ DO JSTGLO=1,NGPTOT,NPROMA
         ELSEIF (YCOMP(JGFL)%LTRAJIO .AND. .NOT. LLSPINT) THEN
           GFL(:,:,YCOMP(JGFL)%MP,IBL) = 0.0_JPRB
         ENDIF
+      ELSEIF (YCOMP(JGFL)%NREQIN == -1) THEN
+        ! GFL(:,:,YCOMP(JGFL)%MP,IBL) = 0.0_JPRB     ! To fill ICEND+1:NPROMA (if fpe and operation on whole block, or memory checks), but not needed
+        DO JLEV=1,NFLEVG
+          GFL(ISTC:ICEND,JLEV,YCOMP(JGFL)%MP,IBL) = YCOMP(JGFL)%REFVALI
+        ENDDO
       ELSE
         GFL(:,:,YCOMP(JGFL)%MP,IBL) = 0.0_JPRB
       ENDIF

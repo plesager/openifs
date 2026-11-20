@@ -124,8 +124,8 @@ CHARACTER(len=20), INTENT(IN)  :: CHEM_SCHEME
 !              ---------------
 INTEGER ::                                   &         ! looping indices
  &  j_yaero, j_ychem,                        &         ! IFS
- &  j_class, j_mass, j_spec, j_gas, j_cloud, &         ! HAM
- &  kt, znclass, znaerocomp, zsubm_ngasspec, zcloudind ! eehol: indices for OIFS to HAM
+ &  j_class, j_mass, j_spec, j_gas,          &         ! HAM
+ &  kt, znclass, znaerocomp, zsubm_ngasspec            ! eehol: indices for OIFS to HAM
 
 CHARACTER(len=64) :: int_str, int_str_ham              ! eehol: integer as string
 LOGICAL, PARAMETER :: LLDEBUG=.FALSE.                  ! Debug flag
@@ -151,7 +151,12 @@ CALL init_mo_time_control(YRRIP)
 iadvec = tpcore !comes from ECHAM mo_control.f90
 !eehol: activation initialization 
 nactivpdf = 1 !eehol: using PDF to calculate updraft. Hardcoded for now.. need to check this later (add setphys to oifs?)
-ncd_activ = 2 !eehol: Abdul-Razzak and Ghan activation scheme. Hardcoded for now.. need to check this later (add setphys to oifs?)
+
+! 2=Abdul-Razzak and Ghan activation scheme (HAMM7 flag). So must be 2
+! if NCLOUDACT=2 (OIFS flag). However, it also affects the wet removal
+! (see mo_ham_wetdep, in-cloud scavenging) by choosing dry or wet
+! radius for some calculation. Use 2 for all cases of NCLOUDACT.
+ncd_activ = 2
 lcdnc_progn = .TRUE.
 
 !eehol: set submodel parameters and flags
@@ -178,11 +183,7 @@ znclass = nclass
 znaerocomp = naerocomp
 zsubm_ngasspec = subm_ngasspec
 
-! RCHG -> for consistency I would define zcloudind in the MO_HAM like the similar
-!         definitions rather than here.
-zcloudind = 2                                            !eehol CDNC and ICNC
-
-CALL init_ind_oifs_ham(znclass, znaerocomp, zsubm_ngasspec, zcloudind) ! RCHG -> allocates and initialize to zero.
+CALL init_ind_oifs_ham(znclass, znaerocomp, zsubm_ngasspec) ! RCHG -> allocates and initialize to zero.
 !-->eehol
 
 ! assigning tracer indices as found in YGFL to the
@@ -300,32 +301,14 @@ LABEL_IFS_AERO: DO j_yaero = 1,NAERO
 
    END DO LABEL_MASS
 
-   !eehol: looping over cloud compounds
-   LABEL_CLOUD: DO j_cloud = idt_cdnc,idt_icnc !eehol: only CDNC and ICNC
-      
-      IF (TRIM(YAERO(j_yaero)%CNAME) == TRIM(trlist%ti(j_cloud)%fullname)) THEN
-
-         ! In case of a match, we set the tracer index in the HAM meta data to the
-         ! according IFS-index and write a note into the logfile
-         !sizeclass(j_class)%idt_no = j_yaero
-         kt = j_cloud
-         ind_oifs_ham%ind_cloud_OIFS(j_cloud-idt_cdnc+1) = j_yaero !eehol: take indices for sizeclass to a vector for OIFS
-         ind_oifs_ham%ind_cloud_HAM(j_cloud-idt_cdnc+1) = kt !eehol: take indices for sizeclass to a vector for HAM
-         IF (LLDEBUG .AND. MYPROC == 1) THEN
-            WRITE(int_str,*) j_yaero
-            WRITE(int_str_ham,*) kt !sizeclass(j_class)%idt_no
-            WRITE(2000+MYPROC,'(a)') 'cloud class: '//TRIM(YAERO(j_yaero)%CNAME)
-            WRITE(3000+MYPROC,'(a)') 'OIFS size: '//TRIM(YAERO(j_yaero)%CNAME)
-            WRITE(3000+MYPROC,'(a)') 'j_yaero ='//TRIM(int_str)
-            WRITE(3000+MYPROC,'(a)') 'HAM size: '//TRIM(trlist%ti(kt)%fullname)
-            WRITE(3000+MYPROC,'(a)') 'sizeclass idt_no ='//TRIM(int_str_ham)
-         END IF
-
-         ! once the tracer is identified, we can check the next one
-         CYCLE LABEL_IFS_AERO
-      END IF
-
-   END DO LABEL_CLOUD
+   ! CDNC and ICNC are internal HAM tracers. OpenIFS keeps them in the YCDNC and
+   ! YICNC GFL fields, which are not transported. They must not be defined as
+   ! YAERO tracers.
+   IF (TRIM(YAERO(j_yaero)%CNAME) == TRIM(trlist%ti(idt_cdnc)%fullname) .OR. &
+     & TRIM(YAERO(j_yaero)%CNAME) == TRIM(trlist%ti(idt_icnc)%fullname)) THEN
+      CALL ABOR1(' hamm7_init: '//TRIM(YAERO(j_yaero)%CNAME)//' must not be defined in YAERO_NL;'// &
+        & ' CDNC and ICNC are kept in the YCDNC and YICNC GFL fields')
+   END IF
 
    ! If we end up here, the tracer is not a sizeclass or mass
    IF (LLDEBUG .AND. MYPROC == 1) THEN
@@ -489,7 +472,7 @@ END IF
 ! -- LOG
 WRITE(NULOUT,'("====== HAMM7_INIT ===== ")')
 
-WRITE(NULOUT,*) "TOLERANCE (EPS): ", THRESHOLD
+WRITE(NULOUT,*) "THRESHOLD (physical cutoff): ", THRESHOLD
 
 WRITE(NULOUT,'("Number of  size classes:", I3)') znclass
 WRITE(NULOUT,'(" class# / IFS id / HM7 id / IFSNAME / M7NAME ")')
@@ -525,17 +508,6 @@ DO J_GAS = 1,SUBM_NGASSPEC
        & TRIM(TRLIST%TI(SPECLIST(J_SPEC)%IDT)%FULLNAME)
 ENDDO
 
-WRITE(NULOUT,'("Number of cloud tracers:", I3)') zcloudind
-WRITE(NULOUT,'(" cloud# / IFS id / HM7 id / IFSNAME / M7NAME  ")')
-DO J_CLOUD = IDT_CDNC,IDT_ICNC
-  WRITE(NULOUT,'(1x,I6,3x,I6,3x,I6,3x,A,2x,A)') &
-       & J_CLOUD-IDT_CDNC+1, &
-       & IND_OIFS_HAM%IND_CLOUD_OIFS(J_CLOUD-IDT_CDNC+1), &
-       & IND_OIFS_HAM%IND_CLOUD_HAM(J_CLOUD-IDT_CDNC+1),  &
-       & TRIM(YAERO(IND_OIFS_HAM%IND_CLOUD_OIFS(J_CLOUD-IDT_CDNC+1))%CNAME), &
-       & TRIM(trlist%ti(IND_OIFS_HAM%IND_CLOUD_HAM(J_CLOUD-IDT_CDNC+1))%fullname)
-ENDDO
-
 IF (LLDEBUG .AND. MYPROC == 1) THEN
    WRITE(5001+MYPROC,*) 'HAM class idts =', ind_oifs_ham%ind_class_HAM(:)
    WRITE(5001+MYPROC,*) 'OIFS class idts =', ind_oifs_ham%ind_class_OIFS(:)
@@ -543,8 +515,6 @@ IF (LLDEBUG .AND. MYPROC == 1) THEN
    WRITE(5001+MYPROC,*) 'OIFS mass idts =', ind_oifs_ham%ind_mass_OIFS(:)
    WRITE(5001+MYPROC,*) 'HAM gas idts =', ind_oifs_ham%ind_gas_HAM(:)
    WRITE(5001+MYPROC,*) 'OIFS gas idts =', ind_oifs_ham%ind_gas_OIFS(:)
-   WRITE(5001+MYPROC,*) 'HAM cloud idts =', ind_oifs_ham%ind_cloud_HAM(:)
-   WRITE(5001+MYPROC,*) 'OIFS cloud idts =', ind_oifs_ham%ind_cloud_OIFS(:)
 END IF
 
 END ASSOCIATE

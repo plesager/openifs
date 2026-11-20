@@ -10,11 +10,9 @@ BIN_PATH=$(dirname -- "${BASH_SOURCE[0]}")
 ROOT_PATH=$(realpath "${BIN_PATH}/../")
 BOOTSTRAP_PATH=${ROOT_PATH}/.bootstrap
 
-VERSION_CHECK=$(python3 -c "import sys; print((sys.version_info.major,sys.version_info.minor) >= (3, 8))")
-
-if [ ${VERSION_CHECK} == "False" ]
+if ! python3 -c "import sys; sys.exit(sys.version_info < (3, 10))"
 then
-  echo "At least Python 3.8 is required!"
+  echo "At least Python 3.10 is required!" >&2
   exit 1
 fi
 
@@ -28,9 +26,15 @@ then
   exit 1
 fi
 
+if ! "${PYTHON_PATH}" -c "import sys; sys.exit(sys.version_info < (3, 10))"
+then
+  echo "The bootstrap virtual environment requires at least Python 3.10." >&2
+  exit 1
+fi
 
-${PYTHON_PATH} -m pip install --upgrade pip
-${PYTHON_PATH} -m pip install click pyyaml
+"${PYTHON_PATH}" -m pip install "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+"${PYTHON_PATH}" -m pip install --upgrade "certifi>=2026.10.19"
+"${PYTHON_PATH}" -m pip install click pyyaml
 
 ${PYTHON_PATH} ${BIN_PATH}/storage.py cache --force \
   ${ROOT_PATH}/storage.yaml ${BOOTSTRAP_PATH}/cache

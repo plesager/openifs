@@ -77,7 +77,8 @@ MODULE mo_ham_drydep
 CONTAINS
 
 SUBROUTINE ham_vdaer( kproma,   kbdim,   klev,    krow,     loland,  pvgrat, &
-                      pcvs,     pcvw,    pfri,    pcvbs,    pfrw,    pum1,   &  
+                      pcvs,     pcvw,    pfri,    pcvbs,    pfrw,    pfrl,   &
+                      pum1,                                                  &
                       pvm1, pustarl, pustarw, pustari, pustveg, pustslsn,    &
                       pu10, pv10,                                            &
                       pm6rp,  prhop,                                         & ! m7
@@ -158,6 +159,7 @@ SUBROUTINE ham_vdaer( kproma,   kbdim,   klev,    krow,     loland,  pvgrat, &
                              pfri(kbdim),       &   
                              pcvbs(kbdim),      &    
                              pfrw(kbdim),       &   
+                             pfrl(kbdim),       &   ! land fraction of grid box
                              pum1(kbdim,klev),  &
                              pvm1(kbdim,klev),  &
                              pustarl(kbdim),    &
@@ -525,10 +527,11 @@ SUBROUTINE ham_vdaer( kproma,   kbdim,   klev,    krow,     loland,  pvgrat, &
                 !   pfri:   (sea) ice fraction
                 !   pfrw:   open water fraction
 
-                zvdrydep(jl) = pcvs(jl)*vdpart_slsn                                       & 
+                !   pfrl:   land fraction; pcvs, pcvbs, pvgrat and pcvw are relative to the land part
+                zvdrydep(jl) = pfrl(jl)*( pcvs(jl)*vdpart_slsn                            & 
                              + pcvbs(jl)*vdpart_slsn                                      &
                              + (1._dp-pcvs(jl))*(1._dp-pcvw(jl))*pvgrat(jl)*vdpart_veg    &
-                             + (1._dp-pcvs(jl))*pcvw(jl)*vdpart_veg                       &
+                             + (1._dp-pcvs(jl))*pcvw(jl)*vdpart_veg )                     &
                              + pfri(jl)*vdpart_ice                                        &
                              + pfrw(jl)*vdpart_wat    
 
@@ -810,10 +813,11 @@ SUBROUTINE ham_vdaer( kproma,   kbdim,   klev,    krow,     loland,  pvgrat, &
 
 
                zmvd = zmvd + zdm*( &
+                      pfrl(jl)*(                                               & ! land fraction
                       pcvs(jl)*vdpart_slsn+                                    & ! snow fraction
                       pcvbs(jl)*vdpart_slsn+                                   & ! bare soil fraction
                       (1._dp-pcvs(jl))*(1._dp-pcvw(jl))*pvgrat(jl)*vdpart_veg+ & ! vegetation fraction
-                      (1._dp-pcvs(jl))*pcvw(jl)*vdpart_veg+                    & ! wet skin fraction
+                      (1._dp-pcvs(jl))*pcvw(jl)*vdpart_veg)+                   & ! wet skin fraction
                       pfri(jl)*vdpart_ice+                                     & ! sea ice fraction
                       pfrw(jl)*vdpart_wat                                      ) ! water fraction
 

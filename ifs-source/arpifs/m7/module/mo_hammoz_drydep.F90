@@ -73,6 +73,7 @@ MODULE mo_hammoz_drydep
   TYPE (t_diag_list), PUBLIC   :: vddep        ! dry deposition velocity
 #endif 
   INTEGER :: idt_ddep_detail
+  REAL(dp), PARAMETER, PUBLIC :: ustarmin=1.e-5_dp
 
   CONTAINS
 #ifdef HAMMOZ
@@ -358,9 +359,6 @@ MODULE mo_hammoz_drydep
   REAL(dp), INTENT(in)     :: pcdnl    (kbdim)            ! see mo_surface_land
   REAL(dp), INTENT(in)     :: pcdnw    (kbdim)            ! see mo_surface_ocean
   REAL(dp), INTENT(in)     :: pcdni    (kbdim)            ! see mo_surface_ice
-#ifndef HAMMOZ
-  REAL(dp), PARAMETER      :: ustarmin=1.e-5_dp
-#endif
 !<<gf
 
   !--- Local variables
@@ -474,7 +472,8 @@ MODULE mo_hammoz_drydep
     !### argument ordering should be similar to drydep_lg_vdbl
     IF (lham) THEN
        CALL ham_vdaer  (kproma,   kbdim,    klev,    krow,     loland,  zvgrat,  &
-                        pcvs,     pcvw,     pfri,    zcvbs,    pfrw,    pum1,    &  
+                        pcvs,     pcvw,     pfri,    zcvbs,    pfrw,    pfrl,    &
+                        pum1,                                                     &
 !>>gf modified argument list (see#78) 
                         pvm1,     zustarl,  zustarw, zustari,  zustveg, zustslsn,&
                         pu10,     pv10,                                          &

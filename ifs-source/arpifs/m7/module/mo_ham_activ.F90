@@ -320,7 +320,6 @@ CONTAINS
                 !<<dod
              END DO ! jclass
 
-             ! PLS - TODO: SAFE DIVISION
              WHERE (zsum(:) > zeps)
                 psmax(jl,jk,:)=1._dp/SQRT(zsum(:))
              ELSEWHERE
@@ -597,7 +596,7 @@ CONTAINS
        jclass = aerocomp(jn)%iclass
        
        IF (nion > 0 .AND. sizeclass(jclass)%lactivation) THEN      !>>dod<< #377
-         ! PLS - TODO: SAFE DIVISION       
+         
           WHERE(zmasssum(1:kproma,:,jclass)>zeps)
 
              zmassfrac(1:kproma,:)=pxtm1(1:kproma,:,jt)/zmasssum(1:kproma,:,jclass)

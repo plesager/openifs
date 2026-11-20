@@ -92,13 +92,14 @@ REAL(KIND=JPRD), PARAMETER :: ZTREF_H = 298.15_JPRD
 REAL(KIND=JPRD), PARAMETER :: ZITREF_H = 1._JPRD / ZTREF_H
 
 ! Henry's law solubility coefficients at T=Tref, and their temperature dependency (if relevant)
-REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_REF = 9.1E+2_JPRD ! H^cp(H2O2), Sander, ACP 2015          [mol/m3/Pa]
-REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_TD = 6600._JPRD   ! temperature dependency for H^cp(H2O2) [K]
-REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_REF = 1.0E-4_JPRD   ! H^cp(O3), Sander, ACP 2015            [mol/m3/Pa]
+! H2O2, O3 and SO2: Burkholder et al. (2019), as listed in Sander, ACP 2023
+REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_REF = 8.6E+2_JPRD ! H^cp(H2O2)                            [mol/m3/Pa]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_H2O2_TD = 7300._JPRD   ! temperature dependency for H^cp(H2O2) [K]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_REF = 1.0E-4_JPRD   ! H^cp(O3)                              [mol/m3/Pa]
 REAL(KIND=JPRD), PARAMETER :: ZHCP_O3_TD = 2800._JPRD     ! temperature dependency for H^cp(O3)   [K]
 REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_REF = 3.8E-1_JPRD   ! H^cp(OH), Sander, ACP 2015            [mol/m3/Pa]
 !REAL(KIND=JPRD), PARAMETER :: ZHCP_OH_TD =                ! no temperature dependency for H^cp(OH)
-REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_REF = 1.3E-2_JPRD  ! H^cp(SO2), Sander, ACP 2015           [mol/m3/Pa]
+REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_REF = 1.3E-2_JPRD  ! H^cp(SO2)                             [mol/m3/Pa]
 ! bug fix: replaced 2100. in the original code by 2900.
 REAL(KIND=JPRD), PARAMETER :: ZHCP_SO2_TD = 2900._JPRD    ! temperature dependency for H^cp(SO2)  [K]
 

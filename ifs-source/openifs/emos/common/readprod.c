@@ -28,7 +28,7 @@
 #endif
 
 #include "bufrgrib.h"
-#include "common/fortint.h"
+#include "fortint.h"
 #include "fileRead.h"
 #include "sizeRoutines.h"
 
@@ -278,7 +278,7 @@ fortint readprod_decode_unsigned_byte_long(const unsigned char* p, long o, int l
 }
 
 static fortint gribsize(char * hold, fortint leng, fortint * holdsize,
-                     fortint (*fileRead)(), void * stream)
+                     fortint (*fileRead)(char *, fortint, void *), void * stream)
 /*
 //  Calculates the size in bytes of a GRIB product.
 //
@@ -431,7 +431,7 @@ if ( hold[7] == 2 ){
 
 static fortint lentotal(char *hold, fortint *holdsize, fortint leng, fortint length,
                      fortint section2, fortint section3,
-                     fortint (*fileRead)(), void *stream)
+                     fortint (*fileRead)(char *, fortint, void *), void * stream)
 /*
 //  Returns the total length in bytes of all sections of the GRIB product.
 //
@@ -494,7 +494,7 @@ fortint next, next_sec = 4;
 
 
 static fortint bufrsize(char * hold, fortint leng, fortint * holdsize,
-                     fortint (*fileRead)(), void * stream)
+                     fortint (*fileRead)(char *, fortint, void *), void * stream)
 /*
 //  Returns the size in bytes of the BUFR code product.
 //
@@ -579,7 +579,7 @@ fortint next, next_sec = 3;
 }
 
 static fortint tide_budg_size(char * hold, fortint leng, fortint * holdsize,
-                           fortint (*fileRead)(), void * stream)
+                           fortint (*fileRead)(char *, fortint, void *), void * stream)
 /*
 //  Returns the size in bytes of the TIDE/BUDG/DIAG code product.
 //
@@ -640,7 +640,7 @@ fortint num, length;
 }
 
 static fortint prodsize(fortint code, char * hold, fortint leng, fortint * holdsize,
-                     fortint (*fileRead)(), void * stream)
+                     fortint (*fileRead)(char *, fortint, void *), void * stream)
 /*
 //  Returns size of BUFR, GRIB, BUDG, TIDE, DIAG product in bytes.
 //

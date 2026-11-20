@@ -82,7 +82,7 @@ TYPE(TEAERSRC),        INTENT(IN)    :: YDEAERSRC
 !              ---------------
 
 INTEGER(KIND=JPIM) :: JL
-REAL(KIND=JPRB)    :: NORM, XSEA, AREA_FRAC, TT, T_SCALE, DENS, RG1, RG2 
+REAL(KIND=JPRB)    :: NORM, AREA_FRAC, TT, T_SCALE, DENS, RG1, RG2 
 REAL(KIND=JPRB)    :: EMIS_FAC(KLON)
 REAL(KIND=JPRB)    :: NUMBER(KLON), MASS(KLON)
 
@@ -157,13 +157,20 @@ IF (NSEASALT==0) THEN
 !VH     norm = 1.e4 * dxy11(JL) * sec_month ! Used in TM5.. 
 !VH   but dxy11 is not available.. use unity area and per sec. instead..
 
-      ! sea fraction
-      xsea=1.-PLSM(JL)
-
-      ! sea salt is emitted only over sea without ice cover
-      area_frac = xsea * (1.-PCI(JL))
-      !write(6566,*)area_frac,xsea,PCI(JL),PCLAKE(JL)
-      if (area_frac .LT. 1.e-10_JPRB .or. PCLAKE(JL)>0.0_JPRB) CYCLE
+      ! sea salt is emitted only over sea without ice cover.
+      ! Binary land/sea view, consistent with the IFS surface scheme
+      ! (see surfbc_ctl_mod) and the AER sea salt routines: a grid point is
+      ! treated as entirely sea if it is neither a land point (LSM > 0.5)
+      ! nor a resolved lake point (CL > 0.5).
+      ! PCI is the sea-ice concentration, i.e. the fraction of the water
+      ! surface covered by ice.
+      IF (PLSM(JL) <= 0.5_JPRB .AND. PCLAKE(JL) <= 0.5_JPRB) THEN
+        area_frac = MAX(0._JPRB, 1._JPRB - PCI(JL))
+      ELSE
+        area_frac = 0._JPRB
+      ENDIF
+      
+      if (area_frac .LT. 1.e-10_JPRB ) CYCLE
 
       emis_fac(JL) = norm * area_frac
 
