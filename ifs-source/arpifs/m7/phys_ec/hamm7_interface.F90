@@ -15,7 +15,7 @@ SUBROUTINE HAMM7_INTERFACE( &
  & PFRTI,     PLSM,      PSNS,      PWND,        PWS1,     PAERFLX,  PAERLIF, &
  & PAERODDF,  PTSPHY,    PGFL,                                                &
  & PODTO,     PAERO_WVL_DIAG,                                                 &
- & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW, PTAU_COMP,                   &
+ & PAER_TAU,  PAER_SSA,  PAER_ASYM, PAER_TAU_LW,                              &
  & PTAUS_AER, PTAUA_AER, PPMAER,                                              &
  & PEXTRA,    PVERVEL,   PCCNL,     PCCNO,       PAHFSTI,  PCI,      PZ0M,    &
  & PAHFLEV,   PUP,       PVP,       PCVL,        PCVH,     PSO2DD,   PGEMU,   &
@@ -257,7 +257,6 @@ REAL(KIND=JPRB),INTENT(OUT)   :: PAERODDF(KLON,YDMODEL%YRML_GCONF%YGFL%NACTAERO,
 REAL(KIND=JPRB),INTENT(INOUT) :: PEXTRA(KLON,KLEVX,KFLDX)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAER_TAU(KLON,KLEV,14), PAER_SSA(KLON,KLEV,14),PAER_ASYM(KLON,KLEV,14)
 REAL(KIND=JPRB),INTENT(INOUT) :: PAER_TAU_LW(KLON,KLEV,NWV_LW)
-REAL(KIND=JPRB),INTENT(OUT)   :: PTAU_COMP(KLON,NAEROSPEC) ! AOD at 550nm for each aerosol species
 REAL(KIND=JPRB),INTENT(OUT)   :: PTAUS_AER(KLON,KLEV,NBANDS_TROP,2),PTAUA_AER(KLON,KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB),INTENT(OUT)   :: PPMAER(KLON,KLEV,NBANDS_TROP,2)
 REAL(KIND=JPRB),INTENT(INOUT) :: PGFL(KLON,KLEV,YDMODEL%YRML_GCONF%YGFL%NDIM), PPRAERS(KLON)
@@ -306,7 +305,7 @@ REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios
 !UNUSED  REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
 REAL(KIND=JPRB) :: ZAER_TAU(KLON,KLEV,14,1), ZAER_SSA(KLON,KLEV,14),ZAER_ASYM(KLON,KLEV,14),ZAER_TAU_LW(KLON,KLEV,NWV_LW)
 ! Component AODs at 550 nm (see HAM_RAD_DIAG). For more wavelengths, add a wavelength
-! dimension here and in HAM_RAD/HAM_RAD_DIAG, AER_PHY3_LAYER and YDAERM7%AODCOMP.
+! dimension here and in HAM_RAD/HAM_RAD_DIAG, and more YAEROUT(1) levels below.
 REAL(KIND=JPRB) :: ZTAU_COMP(KLON,NAEROSPEC)      ! column AOD of each species at 550 nm
 REAL(KIND=JPRB) :: ZTAU_MODE(KLON,KLEV,NCLASS)    ! layer AOD of each mode at 550 nm
 
@@ -1612,12 +1611,6 @@ DO JK=1,KLEV
   ENDDO
 ENDDO
 
-DO JAER=1,NAEROSPEC
-  DO JL=KIDIA,KFDIA
-    ZTAU_COMP(JL,JAER) = YDAERM7%AODCOMP(JL,JAER,IBLK)
-  ENDDO
-ENDDO
-
 !*         6.1      Calculate optical properties the step before radiation call
 !                   -----------------------------------------------------------
 LLOPTSTEP = (MOD(NSTEP+1,NRADFR) == 0)
@@ -1796,9 +1789,6 @@ DO JL = KIDIA,KFDIA
       PSSA(JL,IW) = PSSA(JL,IW)/PAOD(JL,IW) ! AOD AVERAGE
     ENDIF
   END DO
-  DO JAER=1,NAEROSPEC ! SU,BC,OC,SS,DU,WAT
-    PTAU_COMP(JL,JAER) = ZTAU_COMP(JL,JAER)
-  END DO
 END DO
 
 !                  ---------------------------------------------------------------------
@@ -1883,21 +1873,25 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! AOD of 16 internal (long) wavelengths
   PGFL(KIDIA:KFDIA,18:33,YAEROUT(1)%MP)= PAOD_LW(KIDIA:KFDIA,1:16)
 
-  ! Component AODs at 550 nm (see LAODCOMP_AMBIENT in mo_ham_rad_data):
-  ! With LAODCOMP_AMBIENT=.TRUE. (default) levels 34-38 add up to the total AOD at 550 nm,
-  ! and level 39 (water) overlaps with them. With .FALSE., levels 34-39 add up to the total.
-  ! The species order follows the HAM species list (aero_idx). If species are added
-  ! (e.g. SOA), these levels and the diagnostic wavelengths below have to be shifted.
-  PGFL(KIDIA:KFDIA,34,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,1) !SU
-  PGFL(KIDIA:KFDIA,35,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,2) !BC
-  PGFL(KIDIA:KFDIA,36,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,3) !OC
-  PGFL(KIDIA:KFDIA,37,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,4) !SS
-  PGFL(KIDIA:KFDIA,38,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,5) !DU
-  PGFL(KIDIA:KFDIA,39,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,6) !WAT
-
-  ! AOD at the NAERO_WVL_DIAG diagnostic wavelengths (same values as YAEROUT(6)).
-  ! ZAOD_DIAG is only computed on optics steps, so write only then (otherwise keep previous).
+  ! Levels 34-39 and 40+ are only computed on optics steps, so write them only then.
+  ! YAEROUT(1) is not advected and nothing else writes to it in the hamm7 path, so
+  ! the values are kept until the next optics step. YAEROUT(1) is a grid-point GFL
+  ! field and is in the restart files, so the values are also kept across restarts.
   IF (LLOPTSTEP) THEN
+    ! Component AODs at 550 nm (see LAODCOMP_AMBIENT in mo_ham_rad_data):
+    ! With LAODCOMP_AMBIENT=.TRUE. (default) levels 34-38 add up to the total AOD at 550 nm,
+    ! and level 39 (water) overlaps with them. With .FALSE., levels 34-39 add up to the total.
+    ! The species order follows the HAM species list (aero_idx); HAMM7_INIT checks that it
+    ! is SO4,BC,OC,SS,DU,WAT. If species are added (e.g. SOA), these levels and the
+    ! diagnostic wavelengths below have to be shifted.
+    PGFL(KIDIA:KFDIA,34,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,1) !SU
+    PGFL(KIDIA:KFDIA,35,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,2) !BC
+    PGFL(KIDIA:KFDIA,36,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,3) !OC
+    PGFL(KIDIA:KFDIA,37,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,4) !SS
+    PGFL(KIDIA:KFDIA,38,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,5) !DU
+    PGFL(KIDIA:KFDIA,39,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,6) !WAT
+
+    ! AOD at the NAERO_WVL_DIAG diagnostic wavelengths (same values as YAEROUT(6)).
     IF (39+NAERO_WVL_DIAG > KLEV) CALL ABOR1('HAMM7_INTERFACE: YAEROUT(1) too small for 39+NAERO_WVL_DIAG levels')
     PGFL(KIDIA:KFDIA,40:39+NAERO_WVL_DIAG,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:NAERO_WVL_DIAG)
   ENDIF

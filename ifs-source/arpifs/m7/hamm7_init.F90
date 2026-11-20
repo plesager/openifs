@@ -2,7 +2,7 @@
 ! (C) Copyright 2026- KNMI.
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME, KPROMA, KGPBLKS, YDAERM7)
+SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME)
 
 ! ╭────────────────────────────────────────────────────────────────────────────╮
 ! │                                                      (updated 14-MAY-2024) │
@@ -51,9 +51,8 @@ SUBROUTINE hamm7_init(YGFL, YRRIP, CHEM_SCHEME, KPROMA, KGPBLKS, YDAERM7)
 !              ---------------
 
 ! IFS/OPENIFS modules ---------------------------------------------------------
-USE PARKIND1, ONLY : JPRB, JPIM
+USE PARKIND1, ONLY : JPRB
 USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
-USE YOEAEROP, ONLY : TEAERM7
 USE YOMRIP,   ONLY : TRIP
 USE YOM_YGFL, ONLY : TYPE_GFLD   ! Gives type for YGFL
 USE YOMMP0,   ONLY : MYPROC
@@ -102,7 +101,10 @@ USE MO_SUBMODEL, &
 
 USE MO_SPECIES, &
      ONLY: speclist, init_splist, & !eehol: added initialization for species list
-     &     naerospec                 ! number of aerosol species (set by ham_define_tracer)
+     &     naerospec, aero_idx        ! aerosol species (checked for the component AOD output)
+
+USE MO_HAM_SPECIES, &
+     ONLY: id_wat
 
 USE MO_HAM_SOA, &
      ONLY: soaprop
@@ -119,9 +121,6 @@ IMPLICIT NONE
 TYPE(TYPE_GFLD), INTENT(IN)    :: YGFL
 TYPE(TRIP),      INTENT(IN)    :: YRRIP
 CHARACTER(len=20), INTENT(IN)  :: CHEM_SCHEME
-INTEGER(KIND=JPIM),INTENT(IN)  :: KPROMA     ! NPROMA
-INTEGER(KIND=JPIM),INTENT(IN)  :: KGPBLKS    ! NGPBLKS
-TYPE(TEAERM7),  INTENT(INOUT)  :: YDAERM7    ! M7 aerosol optical properties kept between steps
 
 !----------------------------------------------------------------------
 !*       0.5   LOCAL VARIABLES
@@ -132,6 +131,9 @@ INTEGER ::                                   &         ! looping indices
  &  kt, znclass, znaerocomp, zsubm_ngasspec            ! eehol: indices for OIFS to HAM
 
 CHARACTER(len=64) :: int_str, int_str_ham              ! eehol: integer as string
+! Aerosol species in the order expected by the component AOD output
+! (YAEROUT(1) levels 34-39, written in HAMM7_INTERFACE)
+CHARACTER(len=3), PARAMETER :: CLAEROSPEC(6) = (/'SO4','BC ','OC ','SS ','DU ','WAT'/)
 LOGICAL, PARAMETER :: LLDEBUG=.FALSE.                  ! Debug flag
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE                      ! return status
@@ -177,13 +179,21 @@ CALL activ_initialize
 idt_cdnc = idt_cdnc_ham
 idt_icnc = idt_icnc_ham
 
-! Component AODs at 550 nm, kept between optics steps (written in AER_PHY3_LAYER,
-! read in HAMM7_INTERFACE). Allocated here and not in SUECRAD with the other
-! YDAERM7 fields, because NAEROSPEC is only known once the HAM species are defined above.
-! Not in the restart files: after a restart they are 0 until the first optics step.
-IF (ALLOCATED(YDAERM7%AODCOMP)) DEALLOCATE(YDAERM7%AODCOMP)
-ALLOCATE(YDAERM7%AODCOMP(KPROMA, NAEROSPEC, KGPBLKS))
-YDAERM7%AODCOMP(:,:,:) = 0.0_JPRB
+! The component AOD output (YAEROUT(1) levels 34-39) assumes exactly these
+! 6 aerosol species in this order, with water last. Stop if the species list
+! changes (e.g. SOA species added), until the output layout is made general.
+IF (naerospec /= SIZE(CLAEROSPEC)) THEN
+   WRITE(int_str,'(I0)') naerospec
+   CALL ABOR1(' hamm7_init: component AOD output assumes 6 aerosol species, NAEROSPEC ='//TRIM(int_str))
+END IF
+DO j_spec = 1, naerospec
+   IF (TRIM(speclist(aero_idx(j_spec))%shortname) /= TRIM(CLAEROSPEC(j_spec))) THEN
+      WRITE(int_str,'(I0)') j_spec
+      CALL ABOR1(' hamm7_init: component AOD output expects aerosol species '//TRIM(CLAEROSPEC(j_spec))// &
+        & ' at position '//TRIM(int_str)//', found '//TRIM(speclist(aero_idx(j_spec))%shortname))
+   END IF
+END DO
+IF (aero_idx(naerospec) /= id_wat) CALL ABOR1(' hamm7_init: component AOD output expects aerosol water last')
 
 !<--eehol: initialize index lists for OIFS and HAM
 znclass = nclass

@@ -2150,18 +2150,18 @@ ENDIF
 !
 IF (NACTAERO > 0) THEN
   IF (TRIM(AERO_SCHEME) == "hamm7" ) THEN
-     !Variables to keep values when radiation/optical properties is/are not calculated
+
      ALLOCATE(YDAERM7%M7AOD(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7SSA(  NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7ASYM( NPROMA, NFLEVG, NTSW,  NGPBLKS))
      ALLOCATE(YDAERM7%M7AODLW(NPROMA, NFLEVG, NTSW+2,NGPBLKS))
-     ! (YDAERM7%AODCOMP is allocated in HAMM7_INIT, once NAEROSPEC is known)
      ! For cold start; filled with 0.
      ! For restart, read from restart files in reresf_part2
      YDAERM7%M7AOD(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7SSA(:,:,:,:)   = 0.0_JPRB
      YDAERM7%M7ASYM(:,:,:,:)  = 0.0_JPRB
      YDAERM7%M7AODLW(:,:,:,:) = 0.0_JPRB
+
      IF (NCLOUDACT == 1) CALL ND_PARAM_SETUP
  ENDIF
 ENDIF

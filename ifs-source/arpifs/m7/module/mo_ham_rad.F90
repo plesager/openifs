@@ -2369,8 +2369,12 @@ CONTAINS
             ! Only 550 nm is diagnosed. The volume split does not depend on wavelength,
             ! so to add wavelengths: pass the mode AOD for those bands out of ham_rad,
             ! add a wavelength dimension to tau_mode_550 / tau_comp_550, and apply the
-            ! split below for each band (also in hamm7_interface, aer_phy3_layer and
-            ! the AODCOMP allocation in hamm7_init).
+            ! split below for each band (and add the YAEROUT(1) levels in hamm7_interface).
+            !
+            ! Only positive tracer values are counted. The comparisons are with zero,
+            ! not with a threshold: the volumes (mixing ratio / density) are often far
+            ! below EPSILON, and each species volume is part of the denominator, so
+            ! the volume fractions are always between 0 and 1.
             !
             ! Authors:
             ! --------
@@ -2393,13 +2397,12 @@ CONTAINS
             REAL(dp), INTENT(out) :: tau_comp_550(kbdim,naerospec)    ! column AOD of each species at 550 nm
 
             INTEGER  :: jl, jk, jclass, jspec, jt, iwat
-            REAL(dp) :: zeps, zdensity, zv, zvden
+            REAL(dp) :: zdensity, zv, zvden
 
             REAL(dp) :: zvcomp(kbdim,klev,naerospec), & ! volume of each species in the current mode
                         zvdry(kbdim,klev),            & ! dry volume of the current mode
                         zvwet(kbdim,klev)               ! wet volume (dry + water) of the current mode
 
-            zeps = THRESHOLD
             iwat = aero_ridx(id_wat)
 
             tau_comp_550(1:kproma,:) = 0._dp
@@ -2419,7 +2422,7 @@ CONTAINS
                      zdensity = speclist(aero_idx(jspec))%density
                      DO jk=1, klev
                         DO jl=1, kproma
-                           IF (pxtm1(jl,jk,jt) > zeps) THEN
+                           IF (pxtm1(jl,jk,jt) > 0._dp) THEN
                               zv = pxtm1(jl,jk,jt)/zdensity
                               zvcomp(jl,jk,jspec) = zvcomp(jl,jk,jspec) + zv
                               zvdry(jl,jk)        = zvdry(jl,jk)        + zv
@@ -2436,9 +2439,11 @@ CONTAINS
                   zdensity = speclist(id_wat)%density
                   DO jk=1, klev
                      DO jl=1, kproma
-                        zv = pxtm1(jl,jk,jt)/zdensity
-                        zvcomp(jl,jk,iwat) = zv
-                        zvwet(jl,jk)       = zvwet(jl,jk) + zv
+                        IF (pxtm1(jl,jk,jt) > 0._dp) THEN
+                           zv = pxtm1(jl,jk,jt)/zdensity
+                           zvcomp(jl,jk,iwat) = zv
+                           zvwet(jl,jk)       = zvwet(jl,jk) + zv
+                        END IF
                      END DO
                   END DO
                END IF
@@ -2454,9 +2459,9 @@ CONTAINS
                         ELSE
                            zvden = zvwet(jl,jk)
                         END IF
-                        IF (zvden > zeps) THEN
+                        IF (zvden > 0._dp) THEN
                            tau_comp_550(jl,jspec) = tau_comp_550(jl,jspec) + &
-                                tau_mode_550(jl,jk,jclass)*zvcomp(jl,jk,jspec)/zvden
+                                tau_mode_550(jl,jk,jclass)*(zvcomp(jl,jk,jspec)/zvden)
                         END IF
                      END DO
                   END DO
