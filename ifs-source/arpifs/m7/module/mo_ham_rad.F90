@@ -61,6 +61,7 @@ MODULE mo_ham_rad
                               nr_min, nr_max, ni_min, ni_max,   &
                               inc_nr, inc_ni,                   &
                               lambda, lambda_sw_opt,            &
+                              idx_550nm,                        &
                               ham_rad_data_initialize
   USE mo_ham,           ONLY: naerocomp,           &
                               aerocomp,          &
@@ -83,9 +84,7 @@ MODULE mo_ham_rad
   PRIVATE
 
   PUBLIC ham_rad,                  & !
-#ifdef HAMMOZ
          ham_rad_diag,             & !
-#endif
          ham_rad_cache,            & !
          ham_rad_cache_cleanup,    & ! 
          ham_rad_mem,              & !
@@ -875,7 +874,8 @@ CONTAINS
        pxtm1,         ppd_hl,                                    &
        aer_tau_sw_vr, aer_piz_sw_vr, aer_cg_sw_vr, aer_tau_lw_vr, rwet_m7, &
        & ldiag_aeropt, kb_diag, ntype_diaf, &
-       & lambda_diag, zaer_tau_diag, zaer_ssa_diag, zaer_asym_diag, zaer_lidarR_diag)
+       & lambda_diag, zaer_tau_diag, zaer_ssa_diag, zaer_asym_diag, zaer_lidarR_diag, &
+       & tau_mode_550)
     ! *ham_rad* calculates optical properties for
     !            aerosol distributions from look-up
     !            tables.
@@ -959,11 +959,16 @@ CONTAINS
                 nr_diag(kbdim,klev,kb_diag,nclass),       &
                 ni_diag(kbdim,klev,kb_diag,nclass)
     !--- Local Variables:
-#ifdef HAMMOZ       
+#ifdef HAMMOZ
 
 #else
-    REAL(dp), INTENT(in)    ::    rwet_m7(kbdim,klev,nclass) 
-#endif  
+    REAL(dp), INTENT(in)    ::    rwet_m7(kbdim,klev,nclass)
+    ! Layer AOD of each mode at 550 nm, input to the component AODs in ham_rad_diag.
+    ! Only 550 nm is passed out. To diagnose more wavelengths, add a wavelength
+    ! dimension here and copy the bands needed below (SW and optional bands are in
+    ! zaer_tau_sw_vr, LW bands in zaer_tau_lw_vr).
+    REAL(dp), INTENT(out)   ::    tau_mode_550(kbdim,klev,nclass)
+#endif
     INTEGER  :: jclass, jl, jk, jwv, jwv_diag, itable, itrac, ikl
 
     REAL(dp) :: zeps
@@ -1011,6 +1016,9 @@ CONTAINS
     sigma_diag(1:kproma,:,:,:)=0._dp
     omega_diag(1:kproma,:,:,:)=0._dp
     asym_diag (1:kproma,:,:,:)=0._dp
+#ifndef HAMMOZ
+    tau_mode_550(1:kproma,:,:)=0._dp
+#endif
     !nr(1:kproma,:,:,:) =0._dp
     !ni(1:kproma,:,:,:) =0._dp
     !znum(1:kproma,:,:) =0._dp
@@ -1163,7 +1171,15 @@ CONTAINS
              END DO
           END IF
        END DO
+#else
+       !--- OpenIFS: mode AOD at 550 nm only (for ham_rad_diag)
+       DO jclass=1, nclass
+          IF(nrad(jclass)>0) THEN
+             tau_mode_550(1:kproma,:,jclass)=zaer_tau_sw_vr(1:kproma,:,idx_550nm,jclass)
+          END IF
+       END DO
 #endif
+
        !--- Calculation of weighted properties and vertical reordering to RRTM structure:
 
        DO jwv=1, Nwv_sw !ham_ps +Nwv_sw_opt
@@ -1309,12 +1325,12 @@ CONTAINS
                 jlwv = Nwv_sw+Nwv_sw_opt+jwv ! Total SW wavelengths + LW
 
                 DO jk=1, klev
-#ifdef HAMMOZ       
+#ifdef HAMMOZ
                   ikl=klev+1-jk
-#else       
-                  !No vertical reordering in openifs (here)
+#else
+                  !No vertical reordering in openifs
                   ikl=jk
-#endif       
+#endif
                    DO jl=1, kproma
                       zaer_tau_lw_vr(jl,jk,jwv,jclass)=znum(jl,jk,jclass)*sigma(jl,jk,jlwv,jclass)
                       aer_tau_lw_vr(jl,ikl,jwv)=aer_tau_lw_vr(jl,ikl,jwv) + &
@@ -1965,25 +1981,18 @@ CONTAINS
              CALL message('','',level=em_param)
              CALL message('', ' SW wavelengths (optional) [um] : ', level=em_param)
 
-             DO jwv=1, Nwv_sw_opt
-                iwv=Nwv_sw+jwv
-                lambda(iwv)=lambda_sw_opt(jwv)
-                WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp
-                CALL message('', message_text, level=em_param)
-             END DO
 #else
 
              DO jwv=1, Nwv_sw  !Laakso: note different order than HAM (here same as RRTM)        
                 lambda(jwv)=ASWBAND(jwv)%wl*1.E-6_dp
              END DO
-             !!! include diagnostic wavelengths, lhw
+#endif
              DO jwv=1, Nwv_sw_opt
                 iwv=Nwv_sw+jwv
                 lambda(iwv)=lambda_sw_opt(jwv)
                 WRITE(message_text,fmt='(a,i3,a,f8.2)') '      lambda(', iwv, ') = ', lambda(iwv)*1.E6_dp
                 CALL message('', message_text, level=em_param)
              END DO
-#endif
           END IF
 
           !--- 4) LW initializations:
@@ -2342,6 +2351,125 @@ CONTAINS
           END IF
 
         END SUBROUTINE ham_rad_diag
+#else
+         SUBROUTINE ham_rad_diag(kproma, kbdim, klev, pxtm1, tau_mode_550, tau_comp_550)
+
+            ! *ham_rad_diag* (OpenIFS version) splits the layer AOD of each mode
+            !                into column AODs per aerosol species (component AODs)
+            !                at 550 nm, using the volume fraction of each species.
+            !
+            ! laodcomp_ambient = .TRUE. (default; CMIP/AeroCom ambient component AODs):
+            !    dry species: tau_mode * v_spec / v_dry  -> dry components add up to od550aer
+            !    water:       tau_mode * v_wat  / v_wet  -> od550aerh2o, overlaps with the
+            !                                               dry components (not additive)
+            ! laodcomp_ambient = .FALSE. (original HAM split):
+            !    all species, water included: tau_mode * v_spec / v_wet
+            !                                 -> dry components + water add up to od550aer
+            !
+            ! Only 550 nm is diagnosed. The volume split does not depend on wavelength,
+            ! so to add wavelengths: pass the mode AOD for those bands out of ham_rad,
+            ! add a wavelength dimension to tau_mode_550 / tau_comp_550, and apply the
+            ! split below for each band (and add the YAEROUT(1) levels in hamm7_interface).
+            !
+            ! Only positive tracer values are counted. The comparisons are with zero,
+            ! not with a threshold: the volumes (mixing ratio / density) are often far
+            ! below EPSILON, and each species volume is part of the denominator, so
+            ! the volume fractions are always between 0 and 1.
+            !
+            ! Authors:
+            ! --------
+            ! Philip Stier, MPI-Met, Hamburg,       05/2003 (original HAM version)
+            !
+            ! Interface:
+            ! ----------
+            ! *ham_rad_diag* is called from *hamm7_interface* after *ham_rad*
+
+            USE mo_kind,         ONLY: dp
+            USE mo_tracdef,      ONLY: ntrac
+            USE mo_ham_rad_data, ONLY: laodcomp_ambient
+            USE mo_species,      ONLY: aero_idx
+
+            IMPLICIT NONE
+
+            INTEGER,  INTENT(in)  :: kproma, kbdim, klev
+            REAL(dp), INTENT(in)  :: pxtm1(kbdim,klev,ntrac)          ! tracer mass mixing ratios [kg/kg]
+            REAL(dp), INTENT(in)  :: tau_mode_550(kbdim,klev,nclass)  ! layer AOD of each mode at 550 nm
+            REAL(dp), INTENT(out) :: tau_comp_550(kbdim,naerospec)    ! column AOD of each species at 550 nm
+
+            INTEGER  :: jl, jk, jclass, jspec, jt, iwat
+            REAL(dp) :: zdensity, zv, zvden
+
+            REAL(dp) :: zvcomp(kbdim,klev,naerospec), & ! volume of each species in the current mode
+                        zvdry(kbdim,klev),            & ! dry volume of the current mode
+                        zvwet(kbdim,klev)               ! wet volume (dry + water) of the current mode
+
+            iwat = aero_ridx(id_wat)
+
+            tau_comp_550(1:kproma,:) = 0._dp
+
+            DO jclass=1, nclass
+               IF (nrad(jclass) <= 0) CYCLE
+
+               zvcomp(1:kproma,:,:) = 0._dp
+               zvdry(1:kproma,:)    = 0._dp
+
+               !--- 1) Volume of the dry species in this mode.
+               !       Aerosol water has iaerocomp = -1 (it is not an aerocomp tracer)
+               !       and is added in 2).
+               DO jspec=1, naerospec
+                  IF (speclist(aero_idx(jspec))%iaerocomp(jclass) > 0) THEN
+                     jt       = aerocomp( speclist(aero_idx(jspec))%iaerocomp(jclass) )%idt
+                     zdensity = speclist(aero_idx(jspec))%density
+                     DO jk=1, klev
+                        DO jl=1, kproma
+                           IF (pxtm1(jl,jk,jt) > 0._dp) THEN
+                              zv = pxtm1(jl,jk,jt)/zdensity
+                              zvcomp(jl,jk,jspec) = zvcomp(jl,jk,jspec) + zv
+                              zvdry(jl,jk)        = zvdry(jl,jk)        + zv
+                           END IF
+                        END DO
+                     END DO
+                  END IF
+               END DO
+
+               !--- 2) Aerosol water (soluble modes only):
+               zvwet(1:kproma,:) = zvdry(1:kproma,:)
+               IF (sizeclass(jclass)%lsoluble) THEN
+                  jt       = aerowater(jclass)%idt
+                  zdensity = speclist(id_wat)%density
+                  DO jk=1, klev
+                     DO jl=1, kproma
+                        IF (pxtm1(jl,jk,jt) > 0._dp) THEN
+                           zv = pxtm1(jl,jk,jt)/zdensity
+                           zvcomp(jl,jk,iwat) = zv
+                           zvwet(jl,jk)       = zvwet(jl,jk) + zv
+                        END IF
+                     END DO
+                  END DO
+               END IF
+
+               !--- 3) Split the mode AOD by volume fraction and integrate vertically.
+               !       Denominator: v_dry for the dry species if laodcomp_ambient,
+               !       otherwise (and always for water) v_wet.
+               DO jspec=1, naerospec
+                  DO jk=1, klev
+                     DO jl=1, kproma
+                        IF (laodcomp_ambient .AND. jspec /= iwat) THEN
+                           zvden = zvdry(jl,jk)
+                        ELSE
+                           zvden = zvwet(jl,jk)
+                        END IF
+                        IF (zvden > 0._dp) THEN
+                           tau_comp_550(jl,jspec) = tau_comp_550(jl,jspec) + &
+                                tau_mode_550(jl,jk,jclass)*(zvcomp(jl,jk,jspec)/zvden)
+                        END IF
+                     END DO
+                  END DO
+               END DO
+
+            END DO !jclass
+
+          END SUBROUTINE ham_rad_diag
 #endif
         !----------------------------------------------------------------------------------------------------------------
 
