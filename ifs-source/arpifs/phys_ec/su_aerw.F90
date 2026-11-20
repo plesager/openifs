@@ -667,6 +667,16 @@ IF(NAERO > 0) THEN
  ENDIF
 ENDIF
 
+!eehol: check sigma_w option for HAMM7 activation (NSIGW)
+IF (NACTAERO > 0 .AND. TRIM(AERO_SCHEME) == "hamm7") THEN
+  IF (NSIGW /= 1 .AND. NSIGW /= 3) THEN
+    CALL ABOR1('SU_AERW: NSIGW must be 1 (prescribed sigma_w) or 3 (TKE derived sigma_w)')
+  ENDIF
+  IF (NSIGW == 3 .AND. .NOT. YDMODEL%YRML_PHY_MF%YRPHY%LECT) THEN
+    CALL ABOR1('SU_AERW: NSIGW=3 (TKE derived sigma_w) requires the TKE scheme (LECT=.TRUE. in NAMPHY)')
+  ENDIF
+ENDIF
+
 
 
 IF (NINDAT == NINIDAY .AND. NSSSSS == 00000) THEN

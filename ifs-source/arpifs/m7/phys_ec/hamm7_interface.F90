@@ -913,11 +913,15 @@ ENDDO
 
     CALL GSTATS(2502,0)
 
-    ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB ! turbulent kinetic energy as zero first
-    ! eehol: turbulent kinetic energy from turbulence scheme, clipped at zero since the
-    ! advected/updated TKE can become slightly negative (esp. in single precision),
-    ! which would give an FPE in the SQRT used to derive sigma_w (NSIGW=3)
-    ZTKEM1(KIDIA:KFDIA,1:KLEV) = MAX(0._JPRB, PTKE(KIDIA:KFDIA,1:KLEV))
+    ! eehol: turbulent kinetic energy from turbulence scheme, only used (and only valid)
+    ! with NSIGW=3, which requires LECT=.TRUE. (checked in su_aerw). Clipped at zero since
+    ! the advected/updated TKE can become slightly negative (esp. in single precision),
+    ! which would give an FPE in the SQRT used to derive sigma_w
+    IF ( NSIGW == 3 ) THEN
+      ZTKEM1(KIDIA:KFDIA,1:KLEV) = MAX(0._JPRB, PTKE(KIDIA:KFDIA,1:KLEV))
+    ELSE
+      ZTKEM1(KIDIA:KFDIA,1:KLEV) = 0._JPRB
+    END IF
 
     ! LWP
     DO JK=1,KLEV
@@ -951,7 +955,7 @@ ENDDO
 
     !eehol: sigma_w selection (NSIGW)
     ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0._JPRB !nullify sigma_w at start
-    IF ( NSIGW == 1 .OR. NSIGW == 2) THEN !eehol: use only prescribed for now (Wnet with nsigw=2 added later!)
+    IF ( NSIGW == 1 ) THEN !eehol: prescribed sigma_w (other values than 1 and 3 are rejected in su_aerw)
       ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = 0.8_JPRB !eehol: use prescribed sigma_w value of 0.8 m/s
     ELSE IF ( NSIGW == 3 ) THEN
       ZSIGMA_W(KIDIA:KFDIA,1:KLEV) = MAX(ZMINSIGMAW, (ZTUNPAR*(ZTKEM1(KIDIA:KFDIA,1:KLEV))**0.5_JPRB)) !eehol: use TKE to derive sigma_w [m/s]
@@ -986,11 +990,9 @@ ENDDO
        
     ELSE IF (NCLOUDACT == 2) THEN ! AR&G scheme
 
-       !eehol: 1 if using the constant sigma_w it is set to 0.8, 2 to use Wnet derived sigma_w, 3 to use the TKE to calculate (the calculation here is inverted back to sigma_w in mo_activ.F90)
-       IF ( NSIGW == 1 .OR. NSIGW == 2) THEN !eehol: use prescribed sigma_w or wnet derived to calculate TKE (inverse calculation in mo_activ)
-           ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1/ZTUNPAR)**2)*((ZSIGMA_W(KIDIA:KFDIA,1:KLEV))**2)
-       END IF
-       ! NSIGW == 3: ZTKEM1 already holds the TKE from the turbulence scheme
+       !eehol: AR&G takes TKE as input, so convert the (floored) sigma_w set above according to NSIGW
+       ! back to TKE (inverted back to sigma_w in mo_activ.F90). Same floor for NSIGW=1 and 3 as in NCLOUDACT=1.
+       ZTKEM1(KIDIA:KFDIA,1:KLEV) = ((1.0_JPRB/ZTUNPAR)**2)*((ZSIGMA_W(KIDIA:KFDIA,1:KLEV))**2)
 
        !---calculate updraft velocity
        ZWCAPE(KIDIA:KFDIA) = 0._JPRB !  CAPE as zero as it is not used
