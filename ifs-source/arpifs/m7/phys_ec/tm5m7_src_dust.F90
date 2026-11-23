@@ -663,13 +663,14 @@ DUSTOPT: If (NDDUST==8) then
               IF (PCVL(JL) + PCVH(JL) < 0.5) THEN
                 TV_DAT(8)=TV_DAT(8)+ZDEPTILE
               ELSE 
-                TV_DAT(KTVL(JL))=TV_DAT(KTVL(JL))+PCVL(JL)
-                TV_DAT(KTVH(JL))=TV_DAT(KTVH(JL))+PCVH(JL)
+                ! KTVL and KTVH are 0 where no vegetation type is defined
+                IF (KTVL(JL) > 0) TV_DAT(KTVL(JL))=TV_DAT(KTVL(JL))+PCVL(JL)
+                IF (KTVH(JL) > 0) TV_DAT(KTVH(JL))=TV_DAT(KTVH(JL))+PCVH(JL)
               ENDIF
             CASE(4,5) ! Low veg, with/without snow
-              TV_DAT(KTVL(JL))=TV_DAT(KTVL(JL))+ZDEPTILE ! make sure to filter out snow-events below
+              IF (KTVL(JL) > 0) TV_DAT(KTVL(JL))=TV_DAT(KTVL(JL))+ZDEPTILE ! make sure to filter out snow-events below
             CASE(6,7) ! high veg, with/without snow
-              TV_DAT(KTVH(JL))=TV_DAT(KTVL(JL))+ZDEPTILE ! make sure to filter out snow-events below
+              IF (KTVH(JL) > 0) TV_DAT(KTVH(JL))=TV_DAT(KTVH(JL))+ZDEPTILE ! make sure to filter out snow-events below
             CASE(8) ! Bare soil
               TV_DAT(8)= TV_DAT(8)+ZDEPTILE
             END SELECT
