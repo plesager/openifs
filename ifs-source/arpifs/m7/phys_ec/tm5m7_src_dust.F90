@@ -173,7 +173,7 @@ REAL(KIND=JPRB), PARAMETER    :: mmr_ci=1.75E-4
 !            ---------
 INTEGER(KIND=JPIM),     INTENT(IN)    :: IMM  ! not used
 TYPE(TEPHY),           INTENT(IN)    :: YDEPHY
-TYPE(TEAERMAP),        INTENT(INOUT) :: YDEAERMAP
+TYPE(TEAERMAP),        INTENT(IN)    :: YDEAERMAP
 TYPE(TEAERSRC),        INTENT(IN)    :: YDEAERSRC
 
 INTEGER(KIND=JPIM),    INTENT(IN)    :: KIDIA
@@ -238,6 +238,10 @@ REAL(KIND=JPRB)    :: ZEPSSNO, ZEPSARE
 REAL(KIND=JPRB)    :: ZREFSPD, ZRADREF, ZREFRAD
 REAL(KIND=JPRB)    :: ZAERDUB
 REAL(KIND=JPRB)    :: RDDUSRC(9)
+! Dust source tables for NDDUST=3. These are filled on every call, inside the
+! OpenMP physics loop, so they must be local and not the shared YDEAERMAP ones.
+INTEGER(KIND=JPIM) :: NDUSRCP(50)
+REAL(KIND=JPRB)    :: RDDUAER(50), RDUSRCP(10,2)
 LOGICAL            :: LLDUST(KLON,12), LLPDUSTS(KLON)
 REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE
 LOGICAL            :: TEGEN
@@ -394,8 +398,7 @@ LOGICAL, SAVE :: initial = .TRUE.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 IF (LHOOK) CALL DR_HOOK('TM5M7_SRC_DUST',0,ZHOOK_HANDLE)
 
-ASSOCIATE( NDUSRCP       => YDEAERMAP%NDUSRCP, RDDUAER => YDEAERMAP%RDDUAER,   &
-         & RDUSRCP       => YDEAERMAP%RDUSRCP, NDDUST  => YDEAERSRC%NDDUST,    &
+ASSOCIATE( NDDUST        => YDEAERSRC%NDDUST,                                  &
          & NALBEDOSCHEME => YDEPHY%NALBEDOSCHEME, DCAL => YDEAERSRC%DCAL,     &
          & NAERWND => YDEAERSRC%NAERWND) ! LE4ALB to NALBEDOSCHEME
 
