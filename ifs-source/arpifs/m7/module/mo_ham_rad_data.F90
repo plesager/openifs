@@ -64,8 +64,8 @@ MODULE mo_ham_rad_data
             nr_min, nr_max, ni_min, ni_max,   &
             inc_nr, inc_ni,                   &
             lambda, lambda_sw_opt,            &
-            nradang
-
+            nradang, idx_550nm,               &
+            laodcomp_ambient
 
   !---public member functions
 
@@ -113,16 +113,34 @@ MODULE mo_ham_rad_data
 
   !--- Indices and dimensions:
 
+  ! Note the assumption that NWV_SW = YDMODEL%YRML_PHY_RAD%YRERAD%NTSW from OpenIFS.
+  
   INTEGER, PARAMETER :: Nwv_sw     = 14, &   !-- RRTM-SW GCM wavebands
                         Nwv_sw_opt = 2,  &   !--Optional SW wavebands (550nm+865nm)
-!                       Nwv_sw_opt = 3,  &   !--Optional SW wavebands (550nm+865nm+440nm)
                         Nwv_sw_tot = Nwv_sw+Nwv_sw_opt, &
                         Nwv_lw     = 16, &   !--RRTM-LW GCM wavebands
                         Nwv_swlw   = Nwv_sw+Nwv_lw, &
                         Nwv_tot    = Nwv_sw+Nwv_sw_opt+Nwv_lw
 
+  !--- Optional SW indices
   REAL(dp), PARAMETER :: lambda_sw_opt(2)=(/ 0.550E-6_dp, 0.865E-6_dp /)
-!  REAL(dp), PARAMETER :: lambda_sw_opt(3)=(/ 0.550E-6_dp, 0.865E-6_dp , 0.440E-6_dp/)
+  INTEGER,  PARAMETER :: idx_550nm = Nwv_sw + 1   ! index of 550 nm in the Nwv_tot arrays
+
+  !--- Component AOD diagnostics at 550 nm (ham_rad_diag):
+  !    The AOD of each mode is split between the species in that mode by volume fraction.
+  !
+  !    laodcomp_ambient = .TRUE. (default, CMIP/AeroCom definition of ambient component AODs):
+  !        each dry species gets  tau_mode * v_spec / v_dry,  so the dry component AODs
+  !        add up to the total AOD (od550aer). The aerosol water AOD is
+  !        tau_mode * v_wat / v_wet (od550aerh2o). It is an additional variable that
+  !        overlaps with the dry components, so it must not be added to them.
+  !    laodcomp_ambient = .FALSE. (original HAM split):
+  !        every species, water included, gets  tau_mode * v_spec / v_wet,
+  !        so the dry components plus water add up to the total AOD.
+  !
+  !    Set through namelist NAEAER (read in su_aerw).
+  LOGICAL :: laodcomp_ambient = .TRUE.
+
 
   !--- Define mask for output of wavelengths: 
   !
@@ -142,7 +160,6 @@ MODULE mo_ham_rad_data
 
 
 !  REAL(dp), PARAMETER :: lambda(Nwv_tot) = (/ 3.46E-6_dp, 2.79E-6_dp, 2.33E-6_dp, 2.05E-6_dp, 1.78E-6_dp, 1.46E-6_dp, 1.27E-6_dp, 1.01E-6_dp, 0.70E-6_dp, 0.53E-6_dp, 0.39E-6_dp, 0.30E-6_dp, 0.23E-6_dp, 8.02E-6_dp, 0.340E-6_dp,  0.355E-6_dp,  0.380E-6_dp,  0.400E-6_dp,  0.440E-6_dp,  0.469E-6_dp,  0.500E-6_dp,  0.532E-6_dp, 0.555E-6_dp, 0.645E-6_dp, 0.670E-6_dp,  0.800E-6_dp,  0.858E-6_dp,  0.865E-6_dp, 0.1020E-6_dp, 0.1064E-6_dp /)
-
 
 
   !--- 2) LW refractive indices:
