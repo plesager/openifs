@@ -1624,6 +1624,7 @@ IF (LLOPTSTEP) THEN
   ZAER_TAU_LW(KIDIA:KFDIA,:,:) = 0.0_JPRB
 
   ZAOD_DIAG(KIDIA:KFDIA,:)= 0._JPRB
+  ZTAU_COMP(KIDIA:KFDIA,:)= 0._JPRB
   ZSSA_DIAG(KIDIA:KFDIA,:)= 0._JPRB
   ZASY_DIAG(KIDIA:KFDIA,:)= 0._JPRB
   ZAER_TAU_DIAG(KIDIA:KFDIA,:,:)  = 0.0_JPRB
@@ -1878,6 +1879,8 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
   ! the values are kept until the next optics step. YAEROUT(1) is a grid-point GFL
   ! field and is in the restart files, so the values are also kept across restarts.
   IF (LLOPTSTEP) THEN
+    IF (39+NAERO_WVL_DIAG > KLEV) CALL ABOR1('HAMM7_INTERFACE: YAEROUT(1) too small for 39+NAERO_WVL_DIAG levels')
+
     ! Component AODs at 550 nm (see LAODCOMP_AMBIENT in mo_ham_rad_data):
     ! With LAODCOMP_AMBIENT=.TRUE. (default) levels 34-38 add up to the total AOD at 550 nm,
     ! and level 39 (water) overlaps with them. With .FALSE., levels 34-39 add up to the total.
@@ -1892,7 +1895,6 @@ IF(.NOT.LIFSMIN  .AND. .NOT.LIFSTRAJ) THEN
     PGFL(KIDIA:KFDIA,39,YAEROUT(1)%MP)=ZTAU_COMP(KIDIA:KFDIA,6) !WAT
 
     ! AOD at the NAERO_WVL_DIAG diagnostic wavelengths (same values as YAEROUT(6)).
-    IF (39+NAERO_WVL_DIAG > KLEV) CALL ABOR1('HAMM7_INTERFACE: YAEROUT(1) too small for 39+NAERO_WVL_DIAG levels')
     PGFL(KIDIA:KFDIA,40:39+NAERO_WVL_DIAG,YAEROUT(1)%MP)= ZAOD_DIAG(KIDIA:KFDIA,1:NAERO_WVL_DIAG)
   ENDIF
 
