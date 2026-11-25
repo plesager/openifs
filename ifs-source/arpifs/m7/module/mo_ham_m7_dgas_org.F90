@@ -105,7 +105,7 @@ CONTAINS
         !
         !--- Calculate condensation sink and OA-mass of each mode
         !
-        CALL condensation_sink(7, paernl(jl,jk,:), 0.01_dp * pm6rp(jl,jk,:), lambda, cs)
+        CALL condensation_sink(7, paernl(jl,jk,:), 0.02_dp * pm6rp(jl,jk,:), lambda, cs)
         modeweight = 0.0_dp
         modeweight(2) = MIN(MAX(paerml(jl,jk,iocks) + paerml(jl,jk,isoaks), 0.0_dp), 1.0E5_dp)
         modeweight(3) = MIN(MAX(paerml(jl,jk,iocas) + paerml(jl,jk,isoaas), 0.0_dp), 1.0E5_dp)
