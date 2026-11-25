@@ -6,6 +6,12 @@
 !! \brief
 !! mo_ham_m7_cond_sink provides routines for calculating division factors for organic condensation.
 !!
+!! \authors:
+!! E. Vignati and J. Wilson (JRC / EI)            2000
+!! P. Stier (MPI)                                 2001/2002 
+!! E. Vignati (JRC/IES)						      2005
+!! H. Halonen (adapted from ECE3)
+!!
 !! \responsible_coder
 !! Hermanni Halonen, hermanni.halonen@uef.fi
 !!
