@@ -6,6 +6,11 @@
 !! \brief
 !! mo_ham_m7_dgas_org provides routines for calculating aerosol organic condensation.
 !!
+!! \authors
+!! J. Wilson, E. Vignati, JRC/EI (original source)                05/2000
+!! R. Makkonen, UHEL                                              2015
+!! Hermanni Halonen (adapted from ECE3)
+!!
 !! \responsible_coder
 !! Hermanni Halonen, hermanni.halonen@uef.fi
 !!
@@ -33,6 +38,22 @@ MODULE mo_ham_m7_dgas_org
   USE mo_ham_m7_cond_sink, ONLY: condensation_sink
   USE mo_ham, ONLY: naerocomp, nclass
   IMPLICIT NONE
+  !
+  !--- Parameter list:
+  !
+  ! pm6rp     = mean mode actual radius (wet radius for soluble modes 
+  !             and dry radius for insoluble modes) [cm]
+  ! 
+  !--- Local Variables:
+  !
+  ! zde       = molecular diffusion []
+  ! zvelb     = velocity []
+  ! zcondo    = condensation coefficient []
+  ! zc2(nmod) = flux of sulfate condensing on the respective mode 
+  !             per sulfate gas phase concentration []
+  ! zcondo    = total flux of condensing sulfate 
+  !             per sulfate gas phase concentration []
+  ! zfcond    = total mass of condensing sulfate for one timestep []
 
 CONTAINS
 
@@ -57,32 +78,56 @@ CONTAINS
     zc2(:,:,:) = 0.0_dp
     zqtmst = 1.0_dp / time_step_len
 
-    ! 1) Calculate condensation rate
+    !--- 1) Calculate condensation rate for cm diameter sulphate aerosols: ---
+    !
     DO jmod = 1, 7
       DO jk = 1, klev
         DO jl = 1, kproma
           IF (pm6rp(jl,jk,jmod) > 0.0_dp) THEN
-            zpbyone = 1000.0_dp / (papp1(jl,jk) / 100.0_dp)
+            !--- Diffusion coefficient (Reference???):
+	        zpbyone = 1000.0_dp / (papp1(jl,jk) / 100.0_dp)
+	        
             zde2 = 0.073_dp * zpbyone * (ptp1(jl,jk) / 298.15_dp)**1.5_dp
+            
+	        !--- Mean molecule velocity (Moore, 1962 (S+P equ. 8.2)):
             zvelb = SQRT(8.0_dp * rerg * ptp1(jl,jk) / pi / wh2so4)
-            zxibc = 8.0_dp * zde2 / pi / zvelb
-            zm6rp = pm6rp(jl,jk,jmod)
+            
+            !--- ???Fuchs???
+	        zxibc = 8.0_dp * zde2 / pi / zvelb
+	        
+            ! Use count median radius:
+	        zm6rp = pm6rp(jl,jk,jmod)
+	        
+	        !--- Distance from particle up to which the kinetic regime applies:
             zf1 = ((zm6rp + zxibc)**3.0_dp - (zm6rp**2.0_dp + zxibc**2.0_dp)**1.5_dp) / &
                   (3.0_dp * zm6rp * zxibc) - zm6rp
+                  
+            !--- Diffusive flux to single particle surface:
+            !    (Elisabetta's thesis: fraction in equ. 2.26)
             zc2(jl,jk,jmod) = (4.0_dp * pi * zde2 * zm6rp) / &
                               ((4.0_dp * zde2) / (zvelb * zm6rp * caccso4(jmod)) + &
                               (zm6rp / (zm6rp + zf1)))
-            zc2(jl,jk,jmod) = zc2(jl,jk,jmod) * paernl(jl,jk,jmod)
+                              
+            !--- Total diffusive flux to all particles in the respective mode:
+            !    (per concentration of gas phase sulfate)
+	        zc2(jl,jk,jmod) = zc2(jl,jk,jmod) * paernl(jl,jk,jmod)
+	        
+            !--- Total diffusive flux to all particles in all modes:
+            !    (per concentration of gas phase sulfate)
             zcondo(jl,jk) = zcondo(jl,jk) + zc2(jl,jk,jmod)
           END IF
         END DO
       END DO
     END DO
 
-    ! 2) Calculate new organic aerosol masses
+    !--- 2) Calculation of the new organic aerosol masses and of the ---------
+    !       mass of organic condensing on the respective modes:
     DO jk = 1, klev
       DO jl = 1, kproma
         lambda = 6.6E-8_dp
+        !
+        !--- Calculate condensation sink and OA-mass of each mode
+        !
         CALL condensation_sink(7, paernl(jl,jk,:), 0.01_dp * pm6rp(jl,jk,:), lambda, cs)
         modeweight = 0.0_dp
         modeweight(2) = MIN(MAX(paerml(jl,jk,iocks) + paerml(jl,jk,isoaks), 0.0_dp), 1.0E5_dp)
@@ -98,6 +143,8 @@ CONTAINS
           paerml(jl,jk,isoaas) = paerml(jl,jk,isoaas) + psvoc(jl,jk) * modeweight(3) / modeweight_sum
           paerml(jl,jk,isoacs) = paerml(jl,jk,isoacs) + psvoc(jl,jk) * modeweight(4) / modeweight_sum
           paerml(jl,jk,isoaki) = paerml(jl,jk,isoaki) + psvoc(jl,jk) * modeweight(5) / modeweight_sum
+        
+	    !--- If only small amount of existing OA, condensing to accumulation mode
         ELSE IF (psvoc(jl,jk) > 1.0E-16_dp .AND. psvoc(jl,jk) < 1.0E10_dp) THEN
           paerml(jl,jk,isoaas) = paerml(jl,jk,isoaas) + psvoc(jl,jk)
         END IF
@@ -109,7 +156,8 @@ CONTAINS
           paerml(jl,jk,isoaas) = paerml(jl,jk,isoaas) + pelvoc(jl,jk) * cs(3) / cs_sum
           paerml(jl,jk,isoacs) = paerml(jl,jk,isoacs) + pelvoc(jl,jk) * cs(4) / cs_sum
           paerml(jl,jk,isoaki) = paerml(jl,jk,isoaki) + pelvoc(jl,jk) * cs(5) / cs_sum
-        ELSE IF (pelvoc(jl,jk) > 1.0E-16_dp .AND. pelvoc(jl,jk) < 1.0E10_dp) THEN
+       !--- If only small CS, condensing to accumulation mode 
+       ELSE IF (pelvoc(jl,jk) > 1.0E-16_dp .AND. pelvoc(jl,jk) < 1.0E10_dp) THEN
           paerml(jl,jk,isoaas) = paerml(jl,jk,isoaas) + pelvoc(jl,jk)
         END IF
       END DO
