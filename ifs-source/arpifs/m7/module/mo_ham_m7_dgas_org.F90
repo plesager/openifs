@@ -48,11 +48,6 @@ MODULE mo_ham_m7_dgas_org
   !
   ! zde       = molecular diffusion []
   ! zvelb     = velocity []
-  ! zcondo    = condensation coefficient []
-  ! zc2(nmod) = flux of sulfate condensing on the respective mode 
-  !             per sulfate gas phase concentration []
-  ! zcondo    = total flux of condensing sulfate 
-  !             per sulfate gas phase concentration []
   ! zfcond    = total mass of condensing sulfate for one timestep []
 
 CONTAINS
@@ -68,14 +63,9 @@ CONTAINS
 
     INTEGER :: jl, jk, jmod
     REAL(dp) :: zfcond, zftot, zpbyone, zde2, zvelb, zxibc, zm6rp, zf1, zqtmst
-    REAL(dp) :: zcondo(kbdim,klev)
-    REAL(dp) :: zc2(kproma,klev,7)
     REAL(dp) :: lambda, cs(7), cs_sum, modeweight(7), modeweight_sum
-    REAL(dp), PARAMETER :: oc2pom_soa = 2.4_dp
     
     ! Initialize variables
-    zcondo(:,:) = 0.0_dp
-    zc2(:,:,:) = 0.0_dp
     zqtmst = 1.0_dp / time_step_len
 
     !--- 1) Calculate condensation rate for cm diameter sulphate aerosols: ---
@@ -101,20 +91,7 @@ CONTAINS
 	        !--- Distance from particle up to which the kinetic regime applies:
             zf1 = ((zm6rp + zxibc)**3.0_dp - (zm6rp**2.0_dp + zxibc**2.0_dp)**1.5_dp) / &
                   (3.0_dp * zm6rp * zxibc) - zm6rp
-                  
-            !--- Diffusive flux to single particle surface:
-            !    (Elisabetta's thesis: fraction in equ. 2.26)
-            zc2(jl,jk,jmod) = (4.0_dp * pi * zde2 * zm6rp) / &
-                              ((4.0_dp * zde2) / (zvelb * zm6rp * caccso4(jmod)) + &
-                              (zm6rp / (zm6rp + zf1)))
-                              
-            !--- Total diffusive flux to all particles in the respective mode:
-            !    (per concentration of gas phase sulfate)
-	        zc2(jl,jk,jmod) = zc2(jl,jk,jmod) * paernl(jl,jk,jmod)
-	        
-            !--- Total diffusive flux to all particles in all modes:
-            !    (per concentration of gas phase sulfate)
-            zcondo(jl,jk) = zcondo(jl,jk) + zc2(jl,jk,jmod)
+
           END IF
         END DO
       END DO

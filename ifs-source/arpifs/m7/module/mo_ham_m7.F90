@@ -2228,7 +2228,6 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   REAL(dp):: znucrate                    ! Total nucleation (particle formation) rate
   REAL(dp):: zsnucloss                   ! Total H2SO4(g) loss due to nucleation
   REAL(dp) :: zelvoc(kbdim,klev)         ! ELVOC concentration
-  REAL(dp) :: zsvoc(kbdim,klev)          ! SVOC concentration
 
   ! Initialisations
 

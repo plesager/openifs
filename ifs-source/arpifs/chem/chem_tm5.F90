@@ -412,15 +412,6 @@ IF (lscond_org) THEN
     JSOG_TRACER(1)=ISOG1
     JSOG_TRACER(2)=ISOG2A
     JSOG_TRACER(3)=ISOG2B
-    IF (TRIM(AERO_SCHEME)=="aer" .or. aero_scheme=='hamm7')THEN
-        ! Specify aerosol types: SOA - double-check indices..
-        ISSOA1 =NTYPAER(1)+NTYPAER(2)+NTYPAER(3)+NTYPAER(4)+NTYPAER(5)+NTYPAER(6)+NTYPAER(7)+1
-        ISSOA2 =NTYPAER(1)+NTYPAER(2)+NTYPAER(3)+NTYPAER(4)+NTYPAER(5)+NTYPAER(6)+NTYPAER(7)+2
-        JSOA_TRACER(1)=ISSOA1
-        JSOA_TRACER(2)=ISSOA2
-    ELSE
-        WRITE(NULERR,*)'No valid Organic Aerosol interaction available:',LAERSOA,TRIM(AERO_SCHEME)     
-    END IF
 END IF
 
 POUT(KIDIA:KFDIA,:,:)  = 0.0_JPRB
