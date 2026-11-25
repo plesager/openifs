@@ -2275,7 +2275,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   ELSEIF (nonucl == 2) THEN
     CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,forest(:,krow),ppbl,zonrate,zons)
   ELSEIF (nonucl == 3) THEN
-    CALL nucl_org(kproma,kbdim,klev,ph2so4,ppbl,zonrate,ZELVOC, zons)
+    CALL nucl_org(kproma,kbdim,klev,zh2so4_cf0,ppbl,zonrate,ZELVOC, zons)
   ELSE
     zons(1:kproma,:)    = 0.0_dp
     zonrate(1:kproma,:) = 0.0_dp
@@ -2287,7 +2287,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   ELSEIF (nonucl == 2) THEN
     CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,pforest(1:kproma),ppbl,zonrate,zons)
   ELSEIF (nonucl == 3) THEN
-    CALL nucl_org(kproma,kbdim,klev,ph2so4,ppbl,zonrate,ZELVOC, zons)
+    CALL nucl_org(kproma,kbdim,klev,zh2so4_cf0,ppbl,zonrate,ZELVOC, zons)
   ELSE
     zons(1:kproma,:)    = 0.0_dp
     zonrate(1:kproma,:) = 0.0_dp
