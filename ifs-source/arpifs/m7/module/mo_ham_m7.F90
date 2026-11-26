@@ -61,6 +61,7 @@ MODULE mo_ham_m7
 
   USE mo_kind,          ONLY: dp, THRESHOLD
   USE parkind1,         ONLY: JPRD
+  USE mo_ham_m7_dgas_org,  ONLY: m7_dgas_org
   
   IMPLICIT NONE
 
@@ -169,7 +170,8 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
               pm6rp,  pm6dry,  prhop, pww, &
               pipr,   paclc,               &
               pdz,    pgrvol, ppbl,        &
-              zout3, pforest, pout_dnuc)
+              zout3, zelvoc, zsvoc,        &
+              pforest, pout_dnuc)
   !
   ! Authors:
   ! ---------
@@ -235,7 +237,7 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
   USE mo_ham_m7_nucl_diag, ONLY: sample_nucl_statistics
 #endif
   !>>dod soa
-  USE mo_ham,            ONLY: nsoa, naerocomp, nclass, nsol, lscond, lscoag
+  USE mo_ham,            ONLY: nsoa, naerocomp, nclass, nsol, lscond, lscond_org, lscoag
   !<<dod
 #ifdef HAMMOZ
   !>>dod timers
@@ -284,6 +286,7 @@ SUBROUTINE m7(kproma, kbdim,   klev, krow, &
              pdz(kbdim,klev),            & ! layer thickness for diagnostics [m]
              pgrvol(kbdim,klev),         & ! grid box volume for diagnostics [m-3]
              ppbl(kbdim)                   ! Planetary boundary layer top level
+  REAL(dp):: zelvoc(kbdim,klev), zsvoc(kbdim,klev) ! ELVOC and SVOC
 REAL(dp), OPTIONAL :: pforest    (kbdim)   ! forest fraction
 REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,5)
 
@@ -422,7 +425,7 @@ REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,5)
   IF (nsnucl+nonucl.gt.0) CALL m7_nuck(kproma,  kbdim,  klev,   krow,          &
                                        papp1,   ptp1,   prhp1,  paclc,   pipr, &
                                        pso4g,   zcs,    zanew,  za4delt, pdz, ppbl, &
-                                       pforest, pout_dnuc)
+                                       zelvoc,  pforest, pout_dnuc)
 #ifdef HAMMOZ
   !>>dod timers
   IF (ltimer) THEN
@@ -519,6 +522,12 @@ REAL(dp), OPTIONAL ::   pout_dnuc(kbdim,klev,5)
      CALL m7_dconc(kproma, kbdim, klev, krow, paerml, paernl, pm6dry)
      
   END IF
+
+  IF (lscond_org) THEN
+     CALL m7_dgas_org(kproma, kbdim, klev,  zelvoc, zsvoc,  paerml, paernl, &
+     ptp1,   papp1, pm6rp)
+  END IF
+
    do jclass=1,nclass
      zout3(1:kproma,KLEV,nclass+naerocomp+jclass)=paernl(1:kproma,klev,jclass)
   end do
@@ -2105,7 +2114,7 @@ END SUBROUTINE m7_prod_cond
 SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
                    papp1,   ptp1,   prhp1,  paclc,   pipr, &
                    ph2so4,  pcs,    panew,  pa4delt, pdz,  &
-                   ppbl, pforest, pout_dnuc)
+                   ppbl,    zelvoc, pforest, pout_dnuc)
   ! 
   ! Authors:
   ! --------
@@ -2170,7 +2179,7 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   USE mo_ham_m7ctl,    ONLY: nsnucl, nonucl
   USE mo_ham,          ONLY: naerocomp, mw_so4
   USE mo_ham_m7_nucl,  ONLY: nucl_vehkamaeki, nucl_kazil_lovejoy, &
-       nucl_activation, nucl_kinetic
+       nucl_activation, nucl_kinetic, nucl_org
 #ifdef HAMMOZ
   USE mo_time_control, ONLY: delta_time
   USE mo_ham_streams,  ONLY: d_nuc_so4
@@ -2218,8 +2227,10 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
   
   REAL(dp):: znucrate                    ! Total nucleation (particle formation) rate
   REAL(dp):: zsnucloss                   ! Total H2SO4(g) loss due to nucleation
+  REAL(dp) :: zelvoc(kbdim,klev)         ! ELVOC concentration
+
   ! Initialisations
-  
+
   ztmst = time_step_len
   
   zqtmst = 1.0_dp/ztmst
@@ -2263,6 +2274,8 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
     CALL nucl_activation(kproma,kbdim,klev,zh2so4_cf0,forest(:,krow),ppbl,zonrate,zons)
   ELSEIF (nonucl == 2) THEN
     CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,forest(:,krow),ppbl,zonrate,zons)
+  ELSEIF (nonucl == 3) THEN
+    CALL nucl_org(kproma,kbdim,klev,zh2so4_cf0,ppbl,zonrate,ZELVOC, zons)
   ELSE
     zons(1:kproma,:)    = 0.0_dp
     zonrate(1:kproma,:) = 0.0_dp
@@ -2273,6 +2286,8 @@ SUBROUTINE m7_nuck(kproma,  kbdim,  klev,   krow,          &
     CALL nucl_activation(kproma,kbdim,klev,zh2so4_cf0,pforest(1:kproma),ppbl,zonrate,zons)
   ELSEIF (nonucl == 2) THEN
     CALL nucl_kinetic(kproma,kbdim,klev,zh2so4_cf0,pforest(1:kproma),ppbl,zonrate,zons)
+  ELSEIF (nonucl == 3) THEN
+    CALL nucl_org(kproma,kbdim,klev,zh2so4_cf0,ppbl,zonrate,ZELVOC, zons)
   ELSE
     zons(1:kproma,:)    = 0.0_dp
     zonrate(1:kproma,:) = 0.0_dp

@@ -712,6 +712,7 @@ MODULE mo_ham_init
     USE mo_ham_species,             ONLY: id_so4, &
                                           id_bc,  &
                                           id_oc,  &
+                                          id_soa, &
                                           id_ss,  &
                                           id_du,  &
                                           id_wat
@@ -722,6 +723,7 @@ MODULE mo_ham_init
                                           iso4ns, iso4ks, iso4as, iso4cs,      &
                                           ibcks, ibcas, ibccs, ibcki,          &
                                           iocks, iocas, ioccs, iocki,          &
+                                          isoans, isoaks, isoaas, isoacs, isoaki,&
                                           issas, isscs,                        &
                                           iduas, iducs, iduai, iduci
 
@@ -776,6 +778,21 @@ MODULE mo_ham_init
     speclist(id_oc)%iaerocomp(iaccs) = iocas
     speclist(id_oc)%iaerocomp(icoas) = ioccs
     speclist(id_oc)%iaerocomp(iaiti) = iocki
+    
+    !---SOA in nucleation, aitken, accumulation and coarse soluble and aitken insoluble modes
+    isoans = new_aerocomp(inucs, id_soa)
+    isoaks = new_aerocomp(iaits, id_soa)
+    isoaas = new_aerocomp(iaccs, id_soa)
+    isoacs = new_aerocomp(icoas, id_soa)
+    isoaki = new_aerocomp(iaiti, id_soa)
+
+    IF (.NOT. ALLOCATED(speclist(id_soa)%iaerocomp)) ALLOCATE(speclist(id_soa)%iaerocomp(nclass))
+    speclist(id_soa)%iaerocomp(:)     = 0
+    speclist(id_soa)%iaerocomp(inucs) = isoans
+    speclist(id_soa)%iaerocomp(iaits) = isoaks
+    speclist(id_soa)%iaerocomp(iaccs) = isoaas
+    speclist(id_soa)%iaerocomp(icoas) = isoacs
+    speclist(id_soa)%iaerocomp(iaiti) = isoaki
 
     !---sea salt in accumulation and coarse soluble modes
     issas = new_aerocomp(iaccs, id_ss)

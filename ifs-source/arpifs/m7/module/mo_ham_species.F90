@@ -77,6 +77,7 @@ MODULE mo_ham_species
   INTEGER, PUBLIC :: id_so4,                  & ! Sulphate (aerosol)
                      id_bc,                   & ! Black carbon
                      id_oc,                   & ! Organic carbon 
+                     id_soa,                  & ! SOA
                      id_ss,                   & ! Sea Salt
                      id_du,                   & ! Dust
                      id_wat                     ! Aerosol water
@@ -431,6 +432,24 @@ MODULE mo_ham_species
                       ldrydep      = .FALSE.,             &
                       lwetdep      = .FALSE.,             &   
                       idx          = id_wat                  )
+                      
+                      
+     !--------- 14. SOA
+     !
+     CALL new_species(nphase       = AEROSOL,             &
+                      longname     = 'Secondary organic aerosol',    &
+                      shortname    = 'SOA',                &
+                      units        = 'kg kg-1',           &
+                      mw           = 180._dp,             &
+                      tsubmname   = 'HAM',                &
+                      itrtype      = itrprog,             &
+                      density      = 2000._dp,            &
+                      iaerorad     = iradoc,              &
+                      lwatsol      = .TRUE.,              &  
+                      kappa        = 0.06_dp,             &
+                      ldrydep      = .TRUE.,              &
+                      lwetdep      = .TRUE.,              &   
+                      idx          = id_soa                   )
 
 
      !--------- end of basic model aerosol phase species

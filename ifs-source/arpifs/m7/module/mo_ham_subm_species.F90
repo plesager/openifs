@@ -41,11 +41,11 @@ MODULE mo_ham_subm_species
 
   PUBLIC :: map_ham_subm_species
 
-  PUBLIC :: isubm_so2, isubm_so4g, isubm_oc, isubm_ocnv, isubm_so4, isubm_wat
+  PUBLIC :: isubm_so2, isubm_so4g, isubm_oc, isubm_ocnv, isubm_so4, isubm_wat, isubm_soa
 
 
   !-- species indices for microphysics routines
-  INTEGER :: isubm_so2, isubm_so4g, isubm_oc, isubm_ocnv, isubm_so4, isubm_wat
+  INTEGER :: isubm_so2, isubm_so4g, isubm_oc, isubm_ocnv, isubm_so4, isubm_wat, isubm_soa
   
   ! >> thk: volatility basis set (VBS)
   INTEGER :: isubm_bc, isubm_ss, isubm_du
@@ -63,7 +63,7 @@ SUBROUTINE map_ham_subm_species
   USE mo_species,         ONLY: nspec, speclist
   USE mo_ham,             ONLY: nsoa, nsoaspec, nham_subm, HAM_SALSA
   USE mo_ham_species,     ONLY: id_so2, id_so4g, &!, id_ocnv,                   &!eehol: deleted id_ocnv
-                                id_so4, id_bc, id_oc, id_ss, id_du, id_wat
+                                id_so4, id_bc, id_oc, id_ss, id_du, id_wat, id_soa
   USE mo_ham_soa,         ONLY: soaprop
   USE mo_ham,             ONLY: immr2molec, ivmr2molec, immr2ug, &
                                 subm_ngasspec, subm_gasspec, subm_naerospec, subm_aerospec, &
@@ -91,6 +91,7 @@ SUBROUTINE map_ham_subm_species
     IF (jt == id_ss)    CALL new_subm_aerospec(id_ss,  immr2ug,    isubm_ss)
     IF (jt == id_du)    CALL new_subm_aerospec(id_du,  immr2ug,    isubm_du)
     IF (jt == id_wat)   CALL new_subm_aerospec(id_wat, immr2ug,    isubm_wat)
+    IF (jt == id_soa)   CALL new_subm_aerospec(id_soa, immr2ug,    isubm_soa)
 
     SELECT CASE (nsoa)
        CASE(1) 

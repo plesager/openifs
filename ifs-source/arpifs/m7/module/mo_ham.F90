@@ -80,6 +80,7 @@ MODULE mo_ham
   PUBLIC :: nlai_drydep_ef_type !gf #244
 #endif
   PUBLIC :: lscond ! Condensation of H2SO4
+  PUBLIC :: lscond_org ! Organic condensation
   PUBLIC :: lscoag ! Coagulation
   PUBLIC :: lgcr ! galactic cosmic ray ionization
   PUBLIC :: nsolact ! solar activity parameter
@@ -222,6 +223,7 @@ MODULE mo_ham
   !<<gf
 #endif
   LOGICAL :: lscond     = .TRUE.    ! Condensation of H2SO4
+  LOGICAL :: lscond_org = .FALSE.   ! Organic condensation
   LOGICAL :: lscoag     = .TRUE.    ! Coagulation
   
 
@@ -310,8 +312,8 @@ MODULE mo_ham
 
   INTEGER, PARAMETER :: iaeroham = 1      ! iaero switch for submodel aerosol (mo_radiation_parameters)
 
-  INTEGER, PARAMETER :: ntype=6
-  CHARACTER(LEN=3), PARAMETER :: ctype(ntype)=(/'SO4','BC ','OC ','SS ','DU ','WAT'/)
+  INTEGER, PARAMETER :: ntype=7
+  CHARACTER(LEN=3), PARAMETER :: ctype(ntype)=(/'SO4','BC ','OC ','SS ','DU ','WAT','SOA'/)
   !<<dod
 
   !--- Molecular weight of SO2 and SO4
@@ -524,6 +526,7 @@ CONTAINS
        CALL p_bcast_bc (bc_no3,     p_io)
        CALL p_bcast(nlai_drydep_ef_type, p_io) !gf #244
        CALL p_bcast (lscond,     p_io)
+       CALL p_bcast (lscond_org, p_io)
        CALL p_bcast (lscoag,     p_io)
        CALL p_bcast (lgcr,       p_io)
        CALL p_bcast (nsolact,    p_io)
@@ -787,6 +790,7 @@ CONTAINS
     !<<dod
 
     CALL print_value('Condensation of H2SO4 (lscond)', lscond)
+    CALL print_value('Organic condensation (lscond_org)', lscond_org)
     CALL print_value('Coagulation (lscoag)', lscoag)
     CALL print_value('M7 mass conservation check (lmass_diag)', lmass_diag)
     CALL print_value('(C)CN diagnostics (nccndiag)', nccndiag)

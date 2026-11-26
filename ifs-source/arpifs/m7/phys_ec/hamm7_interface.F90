@@ -171,7 +171,7 @@ USE YOMCHEM,      ONLY: IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
 
 USE YOE_AERODIAG, ONLY: JPAERO_WVL_AOD, JPAERO_WVL_AODABS, JPAERO_WVL_AODFM,   &
                       & JPAERO_WVL_SSA, JPAERO_WVL_ASSIMETRY
-USE YOMLUN,       ONLY: NULOUT
+USE YOMLUN,       ONLY: NULOUT, NULERR
 
 ! HAM-M7
 USE MO_HAM,                  ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
@@ -195,6 +195,7 @@ USE TM5M7_OPTICS_DATA,       ONLY : NWDEP, NASWBAND, ASWBAND !,WDEP, AER_TAU, AE
 USE TM5_PHOTOLYSIS,          ONLY : NBANDS_TROP, WAV_GRID, WAV_GRIDA
 USE TM5M7_EMIS_DATA,         ONLY : VKARMAN ! von karman constant for dry deposition
 USE TM5_CHEM_MODULE,         ONLY : NCHEM2AER
+USE mo_ham,                  ONLY : lscond_org      ! Organic condensation
 !-----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -297,8 +298,8 @@ REAL(KIND=JPRB) :: ZM6RP(KLON,KLEV,NMOD)! NMOD=7
 REAL(KIND=JPRB) :: ZM6DRY(KLON,KLEV,NSOL)
 REAL(KIND=JPRB) :: ZWW(KLON,KLEV,NMOD)
 REAL(KIND=JPRB) :: ZRHOP(KLON,KLEV,NMOD)
-REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV)
-REAL(KIND=JPRB) :: ZELVOC(KLON,KLEV)
+REAL(KIND=JPRB) :: ZSVOC(KLON,KLEV), ZELVOC(KLON,KLEV)       ! ELVOC and SVOC for M7 [kg kg-1]
+REAL(KIND=JPRB) :: ZSVOC_UG(KLON,KLEV), ZELVOC_UG(KLON,KLEV) ! ELVOC and SVOC for M7 [ug m-3]
 !THIS-IS-NEVER-USED   REAL(KIND=JPRB) :: ZSO4G(KLON,KLEV)
 REAL(KIND=JPRB) :: ZCEN(KLON,KLEV,KTRAC) ! local tracer number and mixing ratios and gas concentrations for not tendency updated values
 !UNUSED  REAL(KIND=JPRB) :: PODTO469(KLON), PODTO670(KLON), PODTO865(KLON), PODTO1240(KLON)
@@ -876,6 +877,18 @@ ENDDO
     ENDDO
     ! End allocate variables for aerosol processes
 
+    ! SOG partitioning to ELVOC and SVOC
+    IF (lscond_org) THEN
+        ZELVOC(KIDIA:KFDIA,1:KLEV) = MIN(((PCHEM2AER(KIDIA:KFDIA,1:KLEV,5) + 0.25*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
+        ZSVOC(KIDIA:KFDIA,1:KLEV) = MIN(((0.75*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
+        
+        IF (ANY(ZELVOC(KIDIA:KFDIA,1:KLEV) >= 1e-6_JPRB) .OR. ANY(ZSVOC(KIDIA:KFDIA,1:KLEV) >= 1e-6_JPRB)) THEN
+          WRITE(NULERR,*) 'HAMM7_INTERFACE WARNING: ELVOC/SVOC cap 1e-6 kg/kg used'
+        ENDIF
+    END IF
+    ZELVOC_UG(KIDIA:KFDIA,1:KLEV) = ZELVOC(KIDIA:KFDIA,1:KLEV)*ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
+    ZSVOC_UG(KIDIA:KFDIA,1:KLEV)  = ZSVOC(KIDIA:KFDIA,1:KLEV) *ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
+
     ZWPDF(KIDIA:KFDIA,1:KLEV,:) = 0.0_JPRB
     
     !-----------------------------------------------------------------
@@ -891,8 +904,10 @@ ENDDO
          & ZM6RP, ZM6DRY,             & !mean mode actual radius [m], dry radius for soluble modes [m] 
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
-         & ZBLHIDX,  ZOUT3,PCVH, zout_dnuc)                !boundary layer top level, outputs, high vegetation
-    
+         & ZBLHIDX,  ZOUT3,           & !boundary layer top level, outputs
+         & ZELVOC_UG, ZSVOC_UG,       & !ELVOC, SVOC
+         & PCVH, zout_dnuc)             !high vegetation
+
     CALL GSTATS(2501,1)
 
     ! updating wet and dry radii, aerosol density and water content

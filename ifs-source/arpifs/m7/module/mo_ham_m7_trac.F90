@@ -76,7 +76,9 @@ MODULE mo_ham_m7_trac
             idt_nns,   idt_nki,   idt_nks,   idt_nai,      &
             idt_nas,   idt_nci,   idt_ncs,                 &
             idt_cdnc_ham,  idt_icnc_ham,                   &
-            idt_mwans, idt_mwaks, idt_mwaas, idt_mwacs
+            idt_mwans, idt_mwaks, idt_mwaas, idt_mwacs,    &
+            idt_msoans, idt_msoaks, idt_msoaas, idt_msoacs,&
+            idt_msoaki
  
   PUBLIC:: ham_m7_set_idt
   PUBLIC:: ham_get_class_flag           ! for tracer diagnostics
@@ -132,6 +134,11 @@ MODULE mo_ham_m7_trac
   INTEGER :: idt_cdnc_ham   ! cloud droplet number concentration
   INTEGER :: idt_icnc_ham   ! ice   cristal number concentration
 
+  INTEGER :: idt_msoans
+  INTEGER :: idt_msoaks
+  INTEGER :: idt_msoaas
+  INTEGER :: idt_msoacs
+  INTEGER :: idt_msoaki
   
   CONTAINS
 
@@ -175,7 +182,8 @@ MODULE mo_ham_m7_trac
                               ibcks,  ibcas,  ibccs,  ibcki,   &
                               iocks,  iocas,  ioccs,  iocki,   &
                               issas,  isscs,                   &
-                              iduas,  iducs,  iduai,  iduci
+                              iduas,  iducs,  iduai,  iduci,   &
+                              isoans, isoaks,  isoaas,  isoacs,  isoaki
 
  
        idt_dms  = speclist(id_dms)%idt
@@ -217,6 +225,12 @@ MODULE mo_ham_m7_trac
        idt_mwaks = aerowater(iaits)%idt
        idt_mwaas = aerowater(iaccs)%idt
        idt_mwacs = aerowater(icoas)%idt
+   
+       idt_msoans = aerocomp(isoans)%idt
+       idt_msoaks = aerocomp(isoaks)%idt
+       idt_msoaas = aerocomp(isoaas)%idt
+       idt_msoacs = aerocomp(isoacs)%idt
+       idt_msoaki = aerocomp(isoaki)%idt
 
 END SUBROUTINE ham_m7_set_idt 
 

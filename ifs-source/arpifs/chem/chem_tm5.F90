@@ -145,6 +145,8 @@ USE CIFS_KPP_IntParam  , ONLY : HMIN,HSTART,RTOLS_G,IAUTONOM,IROSMETH, VMR_BAD_L
 ! Glomap specifics
 USE UKCA_MODE_SETUP, ONLY: NMODES
 
+USE mo_ham, ONLY: lscond_org
+
 !!   use ieee_arithmetic 
 !-----------------------------------------------------------------------
 
@@ -406,6 +408,11 @@ IF (LAERSOA .AND. LAERSOA_COUPLED) THEN
   ENDIF
 ENDIF
 
+IF (lscond_org) THEN
+    JSOG_TRACER(1)=ISOG1
+    JSOG_TRACER(2)=ISOG2A
+    JSOG_TRACER(3)=ISOG2B
+END IF
 
 POUT(KIDIA:KFDIA,:,:)  = 0.0_JPRB
 PSOGTOSOA(KIDIA:KFDIA,:,:) = 0.0_JPRB
@@ -797,7 +804,7 @@ DO JL=KIDIA,KFDIA
           CALL TM5_KPP_RATES(ZRR(JL,1:NREAC),ZRJ_IN(JL,1:NPHOTO),ZRCONST)
                
           ! Initialize concentrations to KPP (merge with prepare_kpp_conc)
-          CALL TM5_V0_KPP_INITIALIZE(YGFL,ZCVM(JL,1:NCHEM),ZVAR(1:NVAR),LAERSOA_COUPLED)
+          CALL TM5_V0_KPP_INITIALIZE(YGFL,ZCVM(JL,1:NCHEM),ZVAR(1:NVAR),LAERSOA_COUPLED .OR. lscond_org)
 
           ! Call kpp integrator...
           CALL TM5_KPP_INTEGRATOR(0._JPRD, PTSTEP, ICNTRL,ZCNTRL_P, ISTATUS,ZSTATE,IERR,ZVAR,ZRCONST,ZCVM(JL,iair) )
@@ -809,7 +816,7 @@ DO JL=KIDIA,KFDIA
          IF (IERR>0) THEN
 
            !No errors: update concentrations...
-           CALL TM5_V0_KPP_UPDATE_CIFS_CONC(YGFL,ZVAR(1:NVAR),ZCVM(JL,1:NCHEM),LAERSOA_COUPLED)
+           CALL TM5_V0_KPP_UPDATE_CIFS_CONC(YGFL,ZVAR(1:NVAR),ZCVM(JL,1:NCHEM),LAERSOA_COUPLED .OR. lscond_org)
      
           ELSEIF( IERR==-9) THEN
             write(NULERR,'(a)') '     ZVAR below are out of range:'
@@ -963,6 +970,33 @@ DO JL=KIDIA,KFDIA
        ENDIF ! JK > ILEVMIN_GAS(JL)
      ENDDO
    ENDIF ! LAERSOA
+
+   ! SOG-SOA partitioning
+   IF (lscond_org) THEN
+       DO JL=KIDIA,KFDIA
+         IF (JK > ILEVMIN_GAS(JL)) THEN
+             ZRHO=PRSF1(JL,JK)/(RD*PTP(JL,JK))
+             
+             DO JT = 1,INSOG
+               ! SOG: conversion from molec/cm3 -> mol/cm3-> gr/cm3-> ug/m3
+               ZSOG(JT)=ZCVM(JL,JSOG_TRACER(JT)) /6.02E23_JPRB * 1E12_JPRB * YCHEM(JSOG_TRACER(JT))%RMOLMASS   ! ug/m3
+             ENDDO
+             
+             DO JT=1,INSOG
+               ! Conversion ug/m3 -> kg/kg
+               ZSOG(JT) = ZSOG(JT)/(ZRHO*1E9_JPRB)
+               ! Pass SOG1 and SOG2B to SOA
+               IF (JT == 1) THEN
+                 PSOGTOSOA(JL,JK,1) = ZSOG(JT)/PTSTEP
+                 ZCVM(JL,JSOG_TRACER(JT)) = 0.0_JPRB
+               ELSE IF (JT == 3) THEN
+                 PSOGTOSOA(JL,JK,2) = ZSOG(JT)/PTSTEP
+                 ZCVM(JL,JSOG_TRACER(JT)) = 0.0_JPRB
+               END IF
+             ENDDO
+          ENDIF ! JK > ILEVMIN_GAS(JL)
+       ENDDO ! JL
+   END IF
 
    DO JL=KIDIA,KFDIA
      ! Fill tropospheric CO2 production tendency computed from CO + OH reaction budget
