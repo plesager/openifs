@@ -196,6 +196,7 @@ SUBROUTINE LASCAW(&
 !      F. Vana, P. Smolikova & A. Craciun (Aug-2017): high order traj research & WENO
 !      F. Vana  20-Feb-2019: quintic vertical interpolation 
 !      F. Vana  18-Jul-2019: SLVF & cleaning
+!      (Nov 2026): Set on-demand SL halo mask per level in COMAD branch (was last level only)
 ! End Modifications
 !     ------------------------------------------------------------------
 
@@ -780,11 +781,11 @@ ELSE
       KLH0(JROF,JLEV,3)=ILO3(JROF)+YDSL%NASLB1*ILEV
 
     ENDDO
-  ENDDO
 
-    ! * Mask calculation for on-demand communications:
-  IF(NPROC > 1.AND.YDSL%LSLONDEM_ACTIVE)THEN
-    DO JLEV=1,KFLEV
+    ! * Mask calculation for on-demand communications.
+    !   ILO..ILO3 only hold the current level, so the mask must be set
+    !   inside the JLEV loop (fix: previously only the last level was masked).
+    IF(NPROC > 1.AND.YDSL%LSLONDEM_ACTIVE)THEN
       DO JROF=KST,KPROF
         JJ=ILO (JROF)
         YDSL%MASK_SL2(JJ:JJ+3)=1
@@ -795,8 +796,9 @@ ELSE
         JJ=ILO3(JROF)
         YDSL%MASK_SL2(JJ:JJ+3)=1
       ENDDO
-    ENDDO
-  ENDIF
+    ENDIF
+    
+  ENDDO !JLEV
 
 ENDIF
 
