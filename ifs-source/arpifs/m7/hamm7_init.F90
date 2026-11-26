@@ -71,6 +71,9 @@ USE MO_HAM, ONLY:     &
      subm_ngasspec,   & ! number of gas phase species in HAM
      lscond_org         ! switch for SOA
 
+USE YOMM7CTL, ONLY: YRM7CTL
+USE MO_HAM_M7CTL, ONLY: nonucl
+
 USE OIFS_to_HAM, ONLY: init_ind_oifs_ham, &  ! init index list for OIFS and HAM
    &                   ind_oifs_ham          ! index list type
      !ind_class_OIFS,        & ! index list for aerosol sizeclasses from OIFS
@@ -113,7 +116,6 @@ USE MO_ACTIV,   &
 USE MO_PARAM_SWITCHES, &
      ONLY: ncd_activ, nactivpdf, lcdnc_progn
 
-
 IMPLICIT NONE
 TYPE(TYPE_GFLD), INTENT(IN)    :: YGFL
 TYPE(TRIP),      INTENT(IN)    :: YRRIP
@@ -141,6 +143,10 @@ LOGICAL :: LHAMSOA
 
 ! Updating HAM SOA switch according to OpenIFS SOA switch.
 lscond_org = LHAMSOA
+
+! Organic nucleation scheme
+nonucl = YRM7CTL%NONUCL
+WRITE(NULOUT,*) 'nonucl = ', nonucl
 
 IF (LHOOK) CALL DR_HOOK('HAMM7_INIT',0,ZHOOK_HANDLE)
 
