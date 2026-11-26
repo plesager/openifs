@@ -171,7 +171,7 @@ USE YOMCHEM,      ONLY: IEXTR_WD, IEXTR_CH, IEXTR_NG, IEXTR_DD, IEXTR_CHTR
 
 USE YOE_AERODIAG, ONLY: JPAERO_WVL_AOD, JPAERO_WVL_AODABS, JPAERO_WVL_AODFM,   &
                       & JPAERO_WVL_SSA, JPAERO_WVL_ASSIMETRY
-USE YOMLUN,       ONLY: NULOUT
+USE YOMLUN,       ONLY: NULOUT, NULERR
 
 ! HAM-M7
 USE MO_HAM,                  ONLY: nclass, naerocomp, sizeclass, nccndiag, subm_ngasspec
@@ -881,6 +881,10 @@ ENDDO
     IF (lscond_org) THEN
         ZELVOC(KIDIA:KFDIA,1:KLEV) = MIN(((PCHEM2AER(KIDIA:KFDIA,1:KLEV,5) + 0.25*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
         ZSVOC(KIDIA:KFDIA,1:KLEV) = MIN(((0.75*PCHEM2AER(KIDIA:KFDIA,1:KLEV,6)) * time_step_len), 1e-6_JPRB)
+        
+        IF (ANY(ZELVOC(KIDIA:KFDIA,1:KLEV) >= 1e-6_JPRB) .OR. ANY(ZSVOC(KIDIA:KFDIA,1:KLEV) >= 1e-6_JPRB)) THEN
+          WRITE(NULERR,*) 'HAMM7_INTERFACE WARNING: ELVOC/SVOC cap 1e-6 kg/kg used'
+        ENDIF
     END IF
     ZELVOC_UG(KIDIA:KFDIA,1:KLEV) = ZELVOC(KIDIA:KFDIA,1:KLEV)*ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
     ZSVOC_UG(KIDIA:KFDIA,1:KLEV)  = ZSVOC(KIDIA:KFDIA,1:KLEV) *ZRHO(KIDIA:KFDIA,1:KLEV)*1.0E9_JPRB
@@ -901,9 +905,9 @@ ENDDO
          & ZRHOP, ZWW,                & !mean mode particle density [kg m-3], aerosol water content for each mode [kg(water)-3(air)]
          & ZAP,   ZGRVOL,             & !cloud fraction, grid box volume (only for diagnostics)
          & ZBLHIDX,  ZOUT3,           & !boundary layer top level, outputs
-         & ZELVOC_UG, ZSVOC_UG,         & !ELVOC, SVOC
+         & ZELVOC_UG, ZSVOC_UG,       & !ELVOC, SVOC
          & PCVH, zout_dnuc)             !high vegetation
-    
+
     CALL GSTATS(2501,1)
 
     ! updating wet and dry radii, aerosol density and water content
